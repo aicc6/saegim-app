@@ -1,0 +1,8 @@
+{
+  "recommendations": [
+    "dart-code.dart-code",
+    "dart-code.flutter",
+    "editorconfig.editorconfig",
+    "ms-vscode.vscode-json"
+  ]
+}

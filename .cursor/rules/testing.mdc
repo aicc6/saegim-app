@@ -1,0 +1,47 @@
+---
+title: Testing Guidelines
+description: Flutter testing best practices and guidelines
+type: code-gen
+globs: ["test/**/*.dart", "**/*_test.dart"]
+alwaysApply: false
+---
+
+# Flutter Testing Guidelines
+
+## Test Structure
+- Follow AAA pattern: Arrange, Act, Assert
+- Use descriptive test names
+- Group related tests with `group()`
+- Use `setUp()` and `tearDown()` for test preparation
+
+## Test Types
+1. **Unit Tests**: Business logic and utility functions
+2. **Widget Tests**: UI components and interactions
+3. **Integration Tests**: End-to-end user flows
+
+## Test Naming Convention
+```dart
+void main() {
+  group('Calculator', () {
+    test('should return sum when adding two numbers', () {
+      // Test implementation
+    });
+    
+    testWidgets('should display error when input is invalid', (tester) async {
+      // Widget test implementation
+    });
+  });
+}
+```
+
+## Best Practices
+- Mock external dependencies
+- Test edge cases and error scenarios
+- Use `expectLater` for async operations
+- Verify widget behavior, not implementation details
+- Keep tests fast and independent
+
+## Common Test Utilities
+- `WidgetTester` for widget tests
+- `mockito` for mocking dependencies
+- `flutter_test` package for testing framework

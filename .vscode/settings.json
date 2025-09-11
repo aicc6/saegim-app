@@ -1,0 +1,41 @@
+{
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.detectIndentation": false,
+  "editor.formatOnSave": true,
+  "editor.formatOnPaste": true,
+  "editor.formatOnType": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "explicit",
+    "source.organizeImports": "explicit"
+  },
+  "files.eol": "\n",
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
+  "dart.previewFlutterUiGuides": true,
+  "dart.previewFlutterUiGuidesCustomTracking": true,
+  "dart.debugExternalPackageLibraries": false,
+  "dart.debugSdkLibraries": false,
+  "dart.lineLength": 80,
+  "dart.closingLabels": true,
+  "dart.flutterHotReloadOnSave": "always",
+  "dart.openDevTools": "flutter",
+  "emmet.includeLanguages": {
+    "dart": "html"
+  },
+  "files.associations": {
+    "*.dart": "dart"
+  },
+  "search.exclude": {
+    "**/build/**": true,
+    "**/.dart_tool/**": true,
+    "**/.pub/**": true,
+    "**/pubspec.lock": true
+  },
+  "files.watcherExclude": {
+    "**/build/**": true,
+    "**/.dart_tool/**": true,
+    "**/.pub/**": true
+  }
+}

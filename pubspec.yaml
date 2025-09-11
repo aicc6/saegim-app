@@ -1,0 +1,30 @@
+name: saegim
+description: "SaeGim"
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icon.png
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icon.png"
+  adaptive_icon_background: "#f5f5f5"  # 기존 로고의 배경색과 유사한 색상
+  adaptive_icon_foreground: "assets/icon.png"
+  remove_alpha_ios: true  # iOS App Store 제출을 위한 알파 채널 제거

@@ -1,0 +1,39 @@
+---
+title: Dart Style and Quality Rules
+description: Dart code style and quality guidelines
+type: code-gen
+globs: ["**/*.dart"]
+alwaysApply: true
+---
+
+# Dart Code Style Rules
+
+## Formatting and Style
+- **Indentation**: 2 spaces, never tabs
+- **Line Length**: Maximum 80 characters
+- **Trailing Commas**: Always use trailing commas for multi-line structures
+- **Import Organization**: 
+  1. dart: imports first
+  2. package: imports second  
+  3. Relative imports last
+
+## Naming Conventions
+- **Classes**: PascalCase (`MyWidget`)
+- **Variables/Methods**: camelCase (`userName`)
+- **Constants**: UPPER_SNAKE_CASE (`MAX_RETRIES`)
+- **Files**: snake_case (`user_profile.dart`)
+- **Directories**: snake_case (`user_management`)
+
+## Code Quality Rules
+- Use `final` for variables that won't be reassigned
+- Prefer `const` constructors when possible
+- Use null-aware operators (`?.`, `??`, `??=`)
+- Implement proper error handling with try-catch
+- Add meaningful documentation for public APIs
+- Use type annotations for clarity
+
+## Widget Best Practices
+- Extract complex widgets into separate classes
+- Use `const` constructors for stateless widgets
+- Implement `Key` parameters for widget identification
+- Consider using `SingleChildScrollView` for scrollable content

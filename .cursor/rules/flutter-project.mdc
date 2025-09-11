@@ -1,0 +1,51 @@
+---
+title: Flutter Project Rules
+description: General Flutter development guidelines for Saegim project
+type: code-gen
+globs: ["**/*.dart", "pubspec.yaml", "analysis_options.yaml"]
+alwaysApply: true
+---
+
+# Saegim Flutter Project Rules
+
+## Project Context
+- **Project**: Saegim Mobile App
+- **Framework**: Flutter 3.35.3 with Dart 3.9.2  
+- **Platforms**: Android & iOS
+- **Architecture**: Clean Architecture (recommended)
+
+## Code Style Guidelines
+- Use **2 spaces** for indentation (Dart, YAML, JSON)
+- **Line length**: 80 characters max
+- **File naming**: snake_case for Dart files
+- **Class naming**: PascalCase
+- **Variable naming**: camelCase
+- **Constants**: UPPER_SNAKE_CASE
+
+## Flutter Best Practices
+- Always use `const` constructors when possible
+- Prefer composition over inheritance
+- Use meaningful widget names
+- Implement proper error handling
+- Follow Material Design guidelines
+- Use proper state management (Provider/Riverpod/Bloc)
+
+## File Organization
+```
+lib/
+├── main.dart
+├── app/
+├── core/
+├── features/
+│   ├── feature_name/
+│   │   ├── data/
+│   │   ├── domain/
+│   │   └── presentation/
+└── shared/
+```
+
+## Development Preferences
+- **Language**: Korean for comments and documentation
+- **Testing**: Write tests for business logic
+- **Performance**: Consider widget rebuilds
+- **Accessibility**: Implement proper semantics
