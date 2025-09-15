@@ -51,7 +51,7 @@ Architecture: x86_64
 **생성 명령어**:
 
 ```bash
-avd create -n saegim_dev -k "system-images;android-30;google_apis_playstore;x86_64"
+avdmanager create -n saegim_dev -k "system-images;android-30;google_apis_playstore;x86_64"
 ```
 
 #### Phase 2: 로컬 테스트 (병행)
