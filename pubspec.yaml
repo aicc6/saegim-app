@@ -10,7 +10,8 @@ dependencies:
   flutter:
     sdk: flutter
   go_router: ^14.7.1
-  provider: ^6.1.1
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
   logger: ^2.0.2+1
   dio: ^5.4.3+1
   flutter_dotenv: ^5.1.0
@@ -20,6 +21,8 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^5.0.0
   flutter_launcher_icons: ^0.13.1
+  riverpod_generator: ^2.4.0
+  build_runner: ^2.4.7
 
 flutter:
   uses-material-design: true

@@ -40,6 +40,12 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Code generation (build_runner)
+*.g.dart
+*.freezed.dart
+*.gr.dart
+*.config.dart
+
 # Symbolication related
 app.*.symbols
 
