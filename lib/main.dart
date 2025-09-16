@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:saegim/app/app.dart';
 import 'package:saegim/core/config/environment.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
@@ -14,7 +15,8 @@ Future<void> main() async {
     'Main',
   );
 
-  runApp(const SaeGimApp());
+  runApp(const ProviderScope(child: SaeGimApp()));
 
+  // 앱 실행 완료 로깅
   AppLogger.info('SaeGimApp 실행 완료', 'Main');
 }
