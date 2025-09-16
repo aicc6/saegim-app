@@ -61,3 +61,9 @@ android/build/
 # Environment configuration (keep example file tracked)
 assets/env/.env*
 !assets/env/.env.example
+
+# Firebase configuration (local only)
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+lib/firebase_options.dart
+firebase.json
