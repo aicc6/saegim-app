@@ -51,3 +51,7 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 android/build/
+
+# Environment configuration (keep example file tracked)
+assets/env/.env*
+!assets/env/.env.example
