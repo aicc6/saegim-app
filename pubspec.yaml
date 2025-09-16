@@ -1,6 +1,6 @@
 name: saegim
 description: "SaeGim"
-publish_to: 'none'
+publish_to: "none"
 version: 0.1.0
 
 environment:
@@ -9,20 +9,21 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  go_router: ^14.7.1
-  flutter_riverpod: ^2.5.1
-  riverpod_annotation: ^2.3.5
-  logger: ^2.0.2+1
-  dio: ^5.4.3+1
-  flutter_dotenv: ^5.1.0
+  go_router: ^14.8.1
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+  logger: ^2.6.1
+  fl_chart: ^0.68.0
+  dio: ^5.9.0
+  flutter_dotenv: ^5.2.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
   flutter_launcher_icons: ^0.13.1
-  riverpod_generator: ^2.4.0
-  build_runner: ^2.4.7
+  riverpod_generator: ^2.6.5
+  build_runner: ^2.5.4
 
 flutter:
   uses-material-design: true
@@ -36,6 +37,6 @@ flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
   image_path: "assets/icon.png"
-  adaptive_icon_background: "#f5f5f5"  # 기존 로고의 배경색과 유사한 색상
+  adaptive_icon_background: "#f5f5f5" # 기존 로고의 배경색과 유사한 색상
   adaptive_icon_foreground: "assets/icon.png"
-  remove_alpha_ios: true  # iOS App Store 제출을 위한 알파 채널 제거
+  remove_alpha_ios: true # iOS App Store 제출을 위한 알파 채널 제거
