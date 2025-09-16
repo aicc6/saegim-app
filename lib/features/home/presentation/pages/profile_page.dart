@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:saegim/shared/widgets/common_app_bar.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
-import 'package:saegim/features/authentication/presentation/providers/auth_provider.dart';
 import 'package:saegim/app/routes/route_paths.dart';
+import 'package:saegim/features/authentication/presentation/riverpod/auth_notifier.dart';
+import 'package:saegim/shared/widgets/common_app_bar.dart';
 
-class ProfilePage extends StatelessWidget {
+class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       appBar: const CommonAppBar(showBackButton: true),
       body: Center(
@@ -19,12 +18,14 @@ class ProfilePage extends StatelessWidget {
           children: [
             const Icon(Icons.person, size: 80, color: Color(0xFFB2C5B8)),
             const SizedBox(height: 24),
-            const Text('프로필 페이지', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            const Text(
+              '프로필 페이지',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 40),
             ElevatedButton(
               onPressed: () async {
-                final authProvider = context.read<AuthProvider>();
-                await authProvider.logout();
+                await ref.read(authNotifierProvider.notifier).logout();
                 if (context.mounted) {
                   context.go(RoutePaths.authLogin);
                 }

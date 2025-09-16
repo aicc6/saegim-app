@@ -1,4 +1,5 @@
 import 'package:go_router/go_router.dart';
+import 'package:saegim/app/routes/route_guard.dart';
 import 'package:saegim/app/routes/route_paths.dart';
 import 'package:saegim/features/authentication/presentation/pages/forgot_password_page.dart';
 import 'package:saegim/features/authentication/presentation/pages/login_page.dart';
@@ -27,8 +28,7 @@ class AppRouter {
   static GoRouter createRouter() {
     return GoRouter(
       initialLocation: RoutePaths.splash,
-      // 임시로 리다이렉트 비활성화하여 빌드 중 상태 변경 오류 방지
-      // redirect: RouteGuard.authGuard,
+      redirect: RouteGuard.authGuard,
       errorBuilder: (context, state) =>
           ErrorPage(error: state.error.toString()),
       routes: [

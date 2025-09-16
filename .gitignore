@@ -40,6 +40,12 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Code generation (build_runner)
+*.g.dart
+*.freezed.dart
+*.gr.dart
+*.config.dart
+
 # Symbolication related
 app.*.symbols
 
@@ -51,3 +57,7 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 android/build/
+
+# Environment configuration (keep example file tracked)
+assets/env/.env*
+!assets/env/.env.example

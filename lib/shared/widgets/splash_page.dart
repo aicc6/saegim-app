@@ -1,20 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
-
-import 'package:saegim/features/authentication/presentation/providers/auth_provider.dart';
+import 'package:saegim/features/authentication/presentation/riverpod/auth_notifier.dart';
 import 'package:saegim/app/routes/route_paths.dart';
 
 /// 스플래시 화면
 /// 앱 시작시 인증 상태를 확인하고 적절한 화면으로 이동
-class SplashPage extends StatefulWidget {
+class SplashPage extends ConsumerStatefulWidget {
   const SplashPage({super.key});
 
   @override
-  State<SplashPage> createState() => _SplashPageState();
+  ConsumerState<SplashPage> createState() => _SplashPageState();
 }
 
-class _SplashPageState extends State<SplashPage> {
+class _SplashPageState extends ConsumerState<SplashPage> {
   @override
   void initState() {
     super.initState();
@@ -27,15 +26,14 @@ class _SplashPageState extends State<SplashPage> {
   }
 
   Future<void> _initialize() async {
-    final authProvider = context.read<AuthProvider>();
-    
-    // 안전한 초기화 메서드 호출
-    await authProvider.initialize();
-    
+    await ref.read(authNotifierProvider.notifier).initialize();
+
     if (!mounted) return;
-    
+
+    final authState = ref.read(authNotifierProvider);
+
     // 인증 상태에 따라 적절한 페이지로 이동
-    if (authProvider.isAuthenticated) {
+    if (authState.isAuthenticated) {
       context.go(RoutePaths.home);
     } else {
       context.go(RoutePaths.authLogin);
@@ -94,10 +92,7 @@ class _SplashPageState extends State<SplashPage> {
             const SizedBox(height: 8),
             const Text(
               '잠시만 기다려주세요...',
-              style: TextStyle(
-                fontSize: 14,
-                color: Color(0xFF9CA3AF),
-              ),
+              style: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF)),
             ),
           ],
         ),
