@@ -4,6 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:saegim/shared/widgets/common_app_bar.dart';
 import 'package:saegim/features/calendar/presentation/riverpod/calendar_notifier.dart';
 import 'package:saegim/features/calendar/data/models/diary_model.dart';
+import 'package:saegim/features/calendar/presentation/widgets/test_login_widget.dart';
+import 'package:saegim/features/authentication/presentation/riverpod/auth_notifier.dart';
+import 'package:saegim/shared/utils/app_logger.dart';
 
 class CalendarPage extends ConsumerStatefulWidget {
   const CalendarPage({super.key});
@@ -163,7 +166,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
   // 특정 날짜에 다이어리가 있는지 확인
   bool _hasDiaryOnDate(DateTime date, List<DiaryEntry> diaries) {
     return diaries.any((diary) {
-      final diaryDate = diary.createdAt;
+      final diaryDate = diary.diaryDate;
       return diaryDate.year == date.year &&
           diaryDate.month == date.month &&
           diaryDate.day == date.day;
@@ -174,7 +177,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
   String _getDiaryEmoji(DateTime date, List<DiaryEntry> diaries) {
     final diary = diaries.cast<DiaryEntry?>().firstWhere((diary) {
       if (diary == null) return false;
-      final diaryDate = diary.createdAt;
+      final diaryDate = diary.diaryDate;
       return diaryDate.year == date.year &&
           diaryDate.month == date.month &&
           diaryDate.day == date.day;
@@ -186,7 +189,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
   String _getDiaryKeyword(DateTime date, List<DiaryEntry> diaries) {
     final diary = diaries.cast<DiaryEntry?>().firstWhere((diary) {
       if (diary == null) return false;
-      final diaryDate = diary.createdAt;
+      final diaryDate = diary.diaryDate;
       return diaryDate.year == date.year &&
           diaryDate.month == date.month &&
           diaryDate.day == date.day;
@@ -197,7 +200,20 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
   @override
   Widget build(BuildContext context) {
     final calendarState = ref.watch(calendarNotifierProvider);
+    final authState = ref.watch(authNotifierProvider);
     final calendarDays = _generateCalendarDays(calendarState.currentDate);
+
+    // 인증 상태가 변경되면 데이터 새로고침
+    ref.listen<AuthState>(authNotifierProvider, (previous, next) {
+      if (previous?.isAuthenticated != next.isAuthenticated &&
+          next.isAuthenticated) {
+        AppLogger.info(
+          'Auth state changed to authenticated, refreshing calendar data',
+          'CalendarPage',
+        );
+        ref.read(calendarNotifierProvider.notifier).refresh();
+      }
+    });
     final monthNames = [
       '1월',
       '2월',
@@ -247,6 +263,65 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
           : SingleChildScrollView(
               child: Column(
                 children: [
+                  // 테스트 로그인 위젯 (개발용)
+                  if (!authState.isAuthenticated) const TestLoginWidget(),
+
+                  // 인증 상태 디버그 정보 (개발용)
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: authState.isAuthenticated
+                          ? Colors.green[50]
+                          : Colors.red[50],
+                      border: Border.all(
+                        color: authState.isAuthenticated
+                            ? Colors.green
+                            : Colors.red,
+                      ),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          authState.isAuthenticated
+                              ? Icons.check_circle
+                              : Icons.error,
+                          color: authState.isAuthenticated
+                              ? Colors.green
+                              : Colors.red,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            authState.isAuthenticated
+                                ? '인증됨: ${authState.userEmail ?? "사용자"}'
+                                : '인증 필요',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: authState.isAuthenticated
+                                  ? Colors.green[700]
+                                  : Colors.red[700],
+                            ),
+                          ),
+                        ),
+                        if (authState.isAuthenticated)
+                          TextButton(
+                            onPressed: () {
+                              ref
+                                  .read(calendarNotifierProvider.notifier)
+                                  .refresh();
+                            },
+                            child: const Text(
+                              '새로고침',
+                              style: TextStyle(fontSize: 10),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+
                   // 상단 헤더
                   Container(
                     padding: const EdgeInsets.all(20),

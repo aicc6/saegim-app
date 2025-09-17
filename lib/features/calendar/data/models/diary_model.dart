@@ -6,39 +6,66 @@ part 'diary_model.g.dart';
 @JsonSerializable()
 class DiaryEntry {
   @JsonKey(name: 'id')
-  final int id;
+  final String id;
 
-  @JsonKey(name: 'user_id')
-  final String userId;
+  @JsonKey(name: 'title')
+  final String? title;
 
   @JsonKey(name: 'content')
   final String content;
 
-  @JsonKey(name: 'emotion')
+  @JsonKey(name: 'user_emotion')
   final String emotion;
 
-  @JsonKey(name: 'emotion_emoji')
-  final String emotionEmoji;
+  @JsonKey(name: 'ai_emotion')
+  final String? aiEmotion;
 
   @JsonKey(name: 'keywords')
   final List<String> keywords;
 
+  @JsonKey(name: 'diary_date')
+  final DateTime diaryDate;
+
   @JsonKey(name: 'created_at')
   final DateTime createdAt;
 
-  @JsonKey(name: 'updated_at')
-  final DateTime? updatedAt;
+  @JsonKey(name: 'is_public')
+  final bool? isPublic;
 
   const DiaryEntry({
     required this.id,
-    required this.userId,
+    this.title,
     required this.content,
     required this.emotion,
-    required this.emotionEmoji,
+    this.aiEmotion,
     required this.keywords,
+    required this.diaryDate,
     required this.createdAt,
-    this.updatedAt,
+    this.isPublic,
   });
+
+  // 감정 이모티콘 매핑
+  String get emotionEmoji {
+    switch (emotion.toLowerCase()) {
+      case '행복':
+      case 'happy':
+        return '😊';
+      case '슬픔':
+      case 'sad':
+        return '😢';
+      case '화남':
+      case 'angry':
+        return '😠';
+      case '평온':
+      case 'calm':
+        return '😌';
+      case '불안':
+      case 'anxious':
+        return '😰';
+      default:
+        return '😐';
+    }
+  }
 
   factory DiaryEntry.fromJson(Map<String, dynamic> json) =>
       _$DiaryEntryFromJson(json);
@@ -47,24 +74,26 @@ class DiaryEntry {
 
   /// 복사 메서드
   DiaryEntry copyWith({
-    int? id,
-    String? userId,
+    String? id,
+    String? title,
     String? content,
     String? emotion,
-    String? emotionEmoji,
+    String? aiEmotion,
     List<String>? keywords,
+    DateTime? diaryDate,
     DateTime? createdAt,
-    DateTime? updatedAt,
+    bool? isPublic,
   }) {
     return DiaryEntry(
       id: id ?? this.id,
-      userId: userId ?? this.userId,
+      title: title ?? this.title,
       content: content ?? this.content,
       emotion: emotion ?? this.emotion,
-      emotionEmoji: emotionEmoji ?? this.emotionEmoji,
+      aiEmotion: aiEmotion ?? this.aiEmotion,
       keywords: keywords ?? this.keywords,
+      diaryDate: diaryDate ?? this.diaryDate,
       createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
+      isPublic: isPublic ?? this.isPublic,
     );
   }
 }

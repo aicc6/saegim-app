@@ -176,7 +176,7 @@ class CalendarNotifier extends _$CalendarNotifier {
 
     return state.monthlyDiaries.cast<DiaryEntry?>().firstWhere((diary) {
       if (diary == null) return false;
-      final diaryDate = diary.createdAt;
+      final diaryDate = diary.diaryDate;
       final selectedDate = state.selectedDate!;
       return diaryDate.year == selectedDate.year &&
           diaryDate.month == selectedDate.month &&
@@ -187,7 +187,7 @@ class CalendarNotifier extends _$CalendarNotifier {
   /// 특정 날짜에 다이어리가 있는지 확인
   bool hasDiaryOnDate(DateTime date) {
     return state.monthlyDiaries.any((diary) {
-      final diaryDate = diary.createdAt;
+      final diaryDate = diary.diaryDate;
       return diaryDate.year == date.year &&
           diaryDate.month == date.month &&
           diaryDate.day == date.day;
