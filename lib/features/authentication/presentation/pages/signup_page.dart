@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -22,8 +23,10 @@ class _SignupPageState extends ConsumerState<SignupPage> {
   bool _obscurePassword = true;
 
   // 실시간 검증 상태
-  String _emailValidationStatus = ''; // '', 'checking', 'available', 'unavailable'
-  String _nicknameValidationStatus = ''; // '', 'checking', 'available', 'unavailable'
+  String _emailValidationStatus =
+      ''; // '', 'checking', 'available', 'unavailable'
+  String _nicknameValidationStatus =
+      ''; // '', 'checking', 'available', 'unavailable'
   String _emailValidationMessage = '';
   String _nicknameValidationMessage = '';
 
@@ -171,10 +174,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                     const SizedBox(height: 8),
                     const Text(
                       '마음을 새기는 여정을 시작해보세요',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Color(0xFF6B7280),
-                      ),
+                      style: TextStyle(fontSize: 16, color: Color(0xFF6B7280)),
                     ),
                   ],
                 ),
@@ -201,7 +201,9 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(
-                      color: _emailValidationStatus == 'unavailable' || _emailValidationStatus == 'invalid'
+                      color:
+                          _emailValidationStatus == 'unavailable' ||
+                              _emailValidationStatus == 'invalid'
                           ? Colors.red
                           : const Color(0xFFD1D5DB),
                     ),
@@ -211,9 +213,10 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                     borderSide: BorderSide(
                       color: _emailValidationStatus == 'available'
                           ? Colors.green
-                          : _emailValidationStatus == 'unavailable' || _emailValidationStatus == 'invalid'
-                              ? Colors.red
-                              : const Color(0xFFB2C5B8),
+                          : _emailValidationStatus == 'unavailable' ||
+                                _emailValidationStatus == 'invalid'
+                          ? Colors.red
+                          : const Color(0xFFB2C5B8),
                     ),
                   ),
                   suffixIcon: _emailValidationStatus == 'checking'
@@ -226,16 +229,18 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                           ),
                         )
                       : _emailValidationStatus == 'available'
-                          ? const Icon(Icons.check_circle, color: Colors.green)
-                          : _emailValidationStatus == 'unavailable' || _emailValidationStatus == 'invalid'
-                              ? const Icon(Icons.error, color: Colors.red)
-                              : null,
+                      ? const Icon(Icons.check_circle, color: Colors.green)
+                      : _emailValidationStatus == 'unavailable' ||
+                            _emailValidationStatus == 'invalid'
+                      ? const Icon(Icons.error, color: Colors.red)
+                      : null,
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return '이메일을 입력해주세요';
                   }
-                  if (_emailValidationStatus == 'unavailable' || _emailValidationStatus == 'invalid') {
+                  if (_emailValidationStatus == 'unavailable' ||
+                      _emailValidationStatus == 'invalid') {
                     return _emailValidationMessage;
                   }
                   return null;
@@ -275,7 +280,9 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(
-                      color: _nicknameValidationStatus == 'unavailable' || _nicknameValidationStatus == 'invalid'
+                      color:
+                          _nicknameValidationStatus == 'unavailable' ||
+                              _nicknameValidationStatus == 'invalid'
                           ? Colors.red
                           : const Color(0xFFD1D5DB),
                     ),
@@ -285,9 +292,10 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                     borderSide: BorderSide(
                       color: _nicknameValidationStatus == 'available'
                           ? Colors.green
-                          : _nicknameValidationStatus == 'unavailable' || _nicknameValidationStatus == 'invalid'
-                              ? Colors.red
-                              : const Color(0xFFB2C5B8),
+                          : _nicknameValidationStatus == 'unavailable' ||
+                                _nicknameValidationStatus == 'invalid'
+                          ? Colors.red
+                          : const Color(0xFFB2C5B8),
                     ),
                   ),
                   suffixIcon: _nicknameValidationStatus == 'checking'
@@ -300,16 +308,18 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                           ),
                         )
                       : _nicknameValidationStatus == 'available'
-                          ? const Icon(Icons.check_circle, color: Colors.green)
-                          : _nicknameValidationStatus == 'unavailable' || _nicknameValidationStatus == 'invalid'
-                              ? const Icon(Icons.error, color: Colors.red)
-                              : null,
+                      ? const Icon(Icons.check_circle, color: Colors.green)
+                      : _nicknameValidationStatus == 'unavailable' ||
+                            _nicknameValidationStatus == 'invalid'
+                      ? const Icon(Icons.error, color: Colors.red)
+                      : null,
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return '닉네임을 입력해주세요';
                   }
-                  if (_nicknameValidationStatus == 'unavailable' || _nicknameValidationStatus == 'invalid') {
+                  if (_nicknameValidationStatus == 'unavailable' ||
+                      _nicknameValidationStatus == 'invalid') {
                     return _nicknameValidationMessage;
                   }
                   return null;
@@ -425,10 +435,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                   children: [
                     const Text(
                       '이미 계정이 있으신가요? ',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF6B7280),
-                      ),
+                      style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
                     ),
                     TextButton(
                       onPressed: () => context.go(RoutePaths.authLogin),
@@ -454,6 +461,15 @@ class _SignupPageState extends ConsumerState<SignupPage> {
         ),
       ),
     );
+  }
+
+  bool _canSignup() {
+    return !ref.watch(authNotifierProvider).isLoading &&
+        _emailValidationStatus == 'available' &&
+        _nicknameValidationStatus == 'available' &&
+        _emailController.text.isNotEmpty &&
+        _nicknameController.text.isNotEmpty &&
+        _passwordController.text.isNotEmpty;
   }
 
   Future<void> _handleSignup() async {

@@ -252,7 +252,7 @@ class AuthNotifier extends _$AuthNotifier {
         final data = response.data;
         AppLogger.info('Email check API response: $data'); // 디버깅용 로그
         // API 응답에 따라 조정 필요 (available: true/false)
-        return data['available'] == false; // 사용불가하면 true (중복됨)
+        return data['data']['available'] == false; // 사용불가하면 true (중복됨)
       }
       return false;
     } catch (e) {
@@ -272,7 +272,7 @@ class AuthNotifier extends _$AuthNotifier {
       if (response.statusCode == 200) {
         final data = response.data;
         // API 응답에 따라 조정 필요 (available: true/false)
-        return data['available'] == false; // 사용불가하면 true (중복됨)
+        return data['data']['available'] == false; // 사용불가하면 true (중복됨)
       }
       return false;
     } catch (e) {
