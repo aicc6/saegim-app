@@ -44,6 +44,10 @@ class KeywordData {
 }
 
 class _CalendarPageState extends ConsumerState<CalendarPage> {
+  // 스크롤 컨트롤러 추가
+  final ScrollController _scrollController = ScrollController();
+  // 다이어리 상세 정보 위젯의 GlobalKey
+  final GlobalKey _diaryDetailKey = GlobalKey();
   late PageController _pageController;
 
   // 감정 색상 매핑
@@ -77,6 +81,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _pageController.dispose();
     super.dispose();
   }
@@ -161,6 +166,29 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
   // 날짜 선택
   void _selectDate(DateTime date) {
     ref.read(calendarNotifierProvider.notifier).selectDate(date);
+
+    // 다이어리가 있는 날짜를 선택했을 때 상세 정보로 스크롤
+    final calendarState = ref.read(calendarNotifierProvider);
+    final hasDiary = calendarState.monthlyDiaries.any(
+      (diary) =>
+          diary.diaryDate.year == date.year &&
+          diary.diaryDate.month == date.month &&
+          diary.diaryDate.day == date.day,
+    );
+
+    if (hasDiary) {
+      // 약간의 지연 후 스크롤 (위젯 렌더링 완료 대기)
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (_diaryDetailKey.currentContext != null) {
+          Scrollable.ensureVisible(
+            _diaryDetailKey.currentContext!,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeInOut,
+            alignment: 0.1, // 화면 상단에서 10% 위치에 표시
+          );
+        }
+      });
+    }
   }
 
   // 특정 날짜에 다이어리가 있는지 확인
@@ -261,6 +289,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
               ),
             )
           : SingleChildScrollView(
+              controller: _scrollController,
               child: Column(
                 children: [
                   // 테스트 로그인 위젯 (개발용)
@@ -659,7 +688,10 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                             diary.diaryDate.day ==
                                 calendarState.selectedDate!.day,
                       ))
-                    _buildSelectedDiaryDetail(calendarState),
+                    Container(
+                      key: _diaryDetailKey,
+                      child: _buildSelectedDiaryDetail(calendarState),
+                    ),
 
                   const SizedBox(height: 16),
 
@@ -1153,7 +1185,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                 );
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6C5CE7),
+                backgroundColor: const Color(0xFF4A7C59),
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(
