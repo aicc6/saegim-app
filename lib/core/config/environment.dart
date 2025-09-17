@@ -27,7 +27,8 @@ class EnvironmentConfig {
   static AppEnvironment get current => _current;
 
   /// API 엔드포인트 기본 URL
-  static String get apiBaseUrl => dotenv.maybeGet('API_BASE_URL') ?? '';
+  static String get apiBaseUrl =>
+      dotenv.maybeGet('API_BASE_URL') ?? 'https://saegim-api.aicc-project.com';
 
   /// 빌드 시 전달된 ENV 값에 따라 환경 설정을 로드합니다.
   static Future<void> load() async {

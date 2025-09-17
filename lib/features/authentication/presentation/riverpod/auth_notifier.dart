@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:saegim/core/network/dio_client.dart';
+import 'package:saegim/core/services/auth_storage_service.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
 
 part 'auth_notifier.g.dart';
@@ -69,20 +70,34 @@ class AuthNotifier extends _$AuthNotifier {
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {
-      // TODO: 실제 인증 상태 확인 로직 구현
-      // SharedPreferences나 Secure Storage에서 토큰 확인
-      await Future.delayed(const Duration(seconds: 1)); // 임시 로딩 시뮬레이션
+      // 저장된 토큰 확인
+      final token = await AuthStorageService.instance.getAuthToken();
+      final userId = await AuthStorageService.instance.getUserId();
+      final userEmail = await AuthStorageService.instance.getUserEmail();
 
-      // 임시로 false로 설정 (실제로는 저장된 토큰을 확인)
-      state = state.copyWith(
-        isAuthenticated: false,
-        isLoading: false,
-      );
+      if (token != null && token.isNotEmpty) {
+        // 토큰이 있으면 유효성 검사 (선택적)
+        state = state.copyWith(
+          isAuthenticated: true,
+          userId: userId,
+          userEmail: userEmail,
+          isLoading: false,
+        );
+        AppLogger.info('User authenticated with stored token', 'AuthNotifier');
+      } else {
+        state = state.copyWith(isAuthenticated: false, isLoading: false);
+        AppLogger.info('No authentication token found', 'AuthNotifier');
+      }
     } catch (e) {
       state = state.copyWith(
         isAuthenticated: false,
         isLoading: false,
         errorMessage: e.toString(),
+      );
+      AppLogger.error(
+        'Auth status check failed',
+        tag: 'AuthNotifier',
+        error: e,
       );
     }
   }
@@ -93,21 +108,75 @@ class AuthNotifier extends _$AuthNotifier {
 
     try {
       final dio = DioClient.create();
-      final response = await dio.post('/api/auth/login', data: {
-        'email': email,
-        'password': password,
-      });
+      final response = await dio.post(
+        '/api/auth/login',
+        data: {'email': email, 'password': password},
+      );
 
       if (response.statusCode == 200) {
         final data = response.data;
+        AppLogger.info('Login response data: $data', 'AuthNotifier');
+
+        // 응답 구조에 따라 data 필드에서 사용자 정보 추출
+        final responseData = data['data'] ?? data;
+        final userId = responseData['user_id']?.toString();
+        final userEmail = responseData['email']?.toString();
+
+        // 토큰을 여러 위치에서 찾기
+        final token =
+            data['access_token']?.toString() ??
+            data['token']?.toString() ??
+            responseData['access_token']?.toString() ??
+            responseData['token']?.toString() ??
+            data['data']?['access_token']?.toString() ??
+            data['data']?['token']?.toString();
+
+        AppLogger.info(
+          'Extracted token: ${token?.substring(0, 10) ?? 'null'}...',
+          'AuthNotifier',
+        );
+        AppLogger.info('Extracted userId: $userId', 'AuthNotifier');
+        AppLogger.info('Extracted userEmail: $userEmail', 'AuthNotifier');
+
+        // 토큰과 사용자 정보 저장
+        if (token != null && token.isNotEmpty) {
+          AppLogger.info('Saving auth token...', 'AuthNotifier');
+          await AuthStorageService.instance.saveAuthToken(token);
+          AppLogger.info('Auth token save completed', 'AuthNotifier');
+        } else {
+          AppLogger.error('No token found in response!', tag: 'AuthNotifier');
+          AppLogger.error(
+            'Full response structure: ${response.data}',
+            tag: 'AuthNotifier',
+          );
+          // 백엔드에서 토큰을 반환하지 않는 경우, 임시 토큰 생성 또는 세션 기반 인증 사용
+          AppLogger.warning(
+            'Using session-based authentication fallback',
+            'AuthNotifier',
+          );
+          // 임시로 더미 토큰 저장 (실제 프로덕션에서는 사용하지 말 것)
+          const dummyToken = 'session_authenticated_user';
+          await AuthStorageService.instance.saveAuthToken(dummyToken);
+          AppLogger.info(
+            'Dummy token saved for session-based auth',
+            'AuthNotifier',
+          );
+        }
+        if (userId != null) {
+          await AuthStorageService.instance.saveUserId(userId);
+        }
+        if (userEmail != null) {
+          await AuthStorageService.instance.saveUserEmail(userEmail);
+        }
+
         state = state.copyWith(
           isAuthenticated: true,
-          userId: data['user_id']?.toString(),
-          userEmail: data['email']?.toString(),
+          userId: userId,
+          userEmail: userEmail,
           isLoading: false,
         );
 
-        AppLogger.info('Login successful for user: $email');
+        AppLogger.info('Login successful for user: $email, token saved');
         return true;
       } else {
         throw Exception('로그인에 실패했습니다.');
@@ -122,10 +191,7 @@ class AuthNotifier extends _$AuthNotifier {
         errorMessage = '네트워크 연결을 확인해주세요.';
       }
 
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: errorMessage,
-      );
+      state = state.copyWith(isLoading: false, errorMessage: errorMessage);
       return false;
     }
   }
@@ -136,15 +202,10 @@ class AuthNotifier extends _$AuthNotifier {
 
     try {
       final dio = DioClient.create();
-      AppLogger.info('Signup request for: $email with nickname: $nickname');
-
-      final response = await dio.post('/api/auth/signup', data: {
-        'email': email,
-        'password': password,
-        'nickname': nickname,
-      });
-
-      AppLogger.info('Signup response: ${response.statusCode} - ${response.data}');
+      final response = await dio.post(
+        '/api/auth/signup',
+        data: {'email': email, 'password': password, 'nickname': nickname},
+      );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = response.data;
@@ -167,13 +228,16 @@ class AuthNotifier extends _$AuthNotifier {
 
       // DioException에서 상세 에러 정보 추출
       if (e is DioException && e.response != null) {
-        AppLogger.error('Signup error response: ${e.response?.statusCode} - ${e.response?.data}');
+        AppLogger.error(
+          'Signup error response: ${e.response?.statusCode} - ${e.response?.data}',
+        );
 
         if (e.response?.statusCode == 422) {
           final responseData = e.response?.data;
           if (responseData is Map && responseData.containsKey('detail')) {
             errorMessage = responseData['detail'].toString();
-          } else if (responseData is Map && responseData.containsKey('message')) {
+          } else if (responseData is Map &&
+              responseData.containsKey('message')) {
             errorMessage = responseData['message'].toString();
           } else {
             errorMessage = '입력 정보를 다시 확인해주세요.';
@@ -185,16 +249,15 @@ class AuthNotifier extends _$AuthNotifier {
         errorMessage = '네트워크 연결을 확인해주세요.';
       }
 
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: errorMessage,
-      );
+      state = state.copyWith(isLoading: false, errorMessage: errorMessage);
       return false;
     }
   }
 
   /// 로그아웃
   Future<void> logout() async {
+    // 저장된 인증 데이터 모두 삭제
+    await AuthStorageService.instance.clearAllAuthData();
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {
@@ -229,10 +292,7 @@ class AuthNotifier extends _$AuthNotifier {
       state = state.copyWith(isLoading: false);
       return true;
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: e.toString(),
-      );
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
       return false;
     }
   }
@@ -247,10 +307,7 @@ class AuthNotifier extends _$AuthNotifier {
       state = state.copyWith(isLoading: false);
       return true;
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: e.toString(),
-      );
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
       return false;
     }
   }
@@ -309,11 +366,14 @@ class AuthNotifier extends _$AuthNotifier {
       final dio = DioClient.create();
       AppLogger.info('Sending verification email to: $email');
 
-      final response = await dio.post('/api/auth/send-verification-email', data: {
-        'email': email,
-      });
+      final response = await dio.post(
+        '/api/auth/send-verification-email',
+        data: {'email': email},
+      );
 
-      AppLogger.info('Verification email response: ${response.statusCode} - ${response.data}');
+      AppLogger.info(
+        'Verification email response: ${response.statusCode} - ${response.data}',
+      );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         AppLogger.info('Verification email sent successfully to: $email');
@@ -333,10 +393,10 @@ class AuthNotifier extends _$AuthNotifier {
 
     try {
       final dio = DioClient.create();
-      final response = await dio.post('/api/auth/verify-email', data: {
-        'email': email,
-        'verification_code': verificationCode,
-      });
+      final response = await dio.post(
+        '/api/auth/verify-email',
+        data: {'email': email, 'verification_code': verificationCode},
+      );
 
       if (response.statusCode == 200) {
         AppLogger.info('Email verification successful: $email');

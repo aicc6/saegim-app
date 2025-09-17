@@ -1,4 +1,6 @@
 import 'package:dio/dio.dart';
+import 'package:dio_cookie_manager/dio_cookie_manager.dart';
+import 'package:cookie_jar/cookie_jar.dart';
 import 'package:saegim/core/config/environment.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
 
@@ -17,6 +19,10 @@ class DioClient {
     );
 
     final dio = Dio(baseOptions);
+
+    // 쿠키 매니저 추가 (세션 기반 인증 지원)
+    final cookieJar = CookieJar();
+    dio.interceptors.add(CookieManager(cookieJar));
 
     dio.interceptors.add(
       InterceptorsWrapper(
