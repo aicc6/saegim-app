@@ -2,7 +2,6 @@ import 'package:dio/dio.dart';
 import 'package:saegim/core/network/dio_client.dart';
 import 'package:saegim/features/calendar/data/models/diary_model.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
-import 'package:saegim/core/services/auth_storage_service.dart';
 
 /// 다이어리 API 서비스
 class DiaryApiService {
@@ -11,58 +10,8 @@ class DiaryApiService {
   static final DiaryApiService _instance = DiaryApiService._();
   static DiaryApiService get instance => _instance;
 
-  Dio? _dio;
-
-  /// 초기화
-  void initialize() {
-    _dio = DioClient.create();
-  }
-
-  /// Dio 인스턴스 가져오기 (lazy initialization)
-  Dio get dio {
-    if (_dio == null) {
-      initialize();
-    }
-    return _dio!;
-  }
-
-  /// 인증 헤더가 포함된 Dio 인스턴스 가져오기
-  Future<Dio> get authenticatedDio async {
-    // 매번 새로운 Dio 인스턴스를 생성하여 최신 토큰 적용
-    final dioInstance = DioClient.create();
-
-    // 토큰 로드 재시도 (타이밍 문제 해결)
-    String? token;
-    for (int i = 0; i < 3; i++) {
-      token = await AuthStorageService.instance.getAuthToken();
-      if (token != null && token.isNotEmpty) {
-        break;
-      }
-      AppLogger.warning('Token not found, retry ${i + 1}/3', 'DiaryApiService');
-      await Future.delayed(const Duration(milliseconds: 100));
-    }
-
-    if (token != null && token.isNotEmpty) {
-      if (token == 'session_authenticated_user') {
-        // 세션 기반 인증의 경우 쿠키나 다른 방식 사용
-        AppLogger.info('Using session-based authentication', 'DiaryApiService');
-        // 실제로는 쿠키가 자동으로 포함되거나 다른 인증 방식 사용
-      } else {
-        dioInstance.options.headers['Authorization'] = 'Bearer $token';
-      }
-      AppLogger.info(
-        'Auth token added to request headers: ${token.substring(0, 10)}...',
-        'DiaryApiService',
-      );
-    } else {
-      AppLogger.error(
-        'No auth token found after 3 retries',
-        tag: 'DiaryApiService',
-      );
-    }
-
-    return dioInstance;
-  }
+  /// 중앙화된 Dio 인스턴스 사용 (CookieManager가 자동으로 쿠키 기반 인증 처리)
+  Dio get dio => DioClient.instance.dio;
 
   /// 월간 통계 데이터 조회
   ///
@@ -173,7 +122,6 @@ class DiaryApiService {
             'DiaryApiService',
           );
 
-          final authDio = await authenticatedDio;
           // 월의 첫 날과 마지막 날 계산
           final startDate = DateTime(year, month, 1);
           final endDate = DateTime(year, month + 1, 0);
@@ -182,7 +130,8 @@ class DiaryApiService {
           final endDateString =
               '${endDate.year}-${endDate.month.toString().padLeft(2, '0')}-${endDate.day.toString().padLeft(2, '0')}';
 
-          final response = await authDio.get(
+          // 중앙화된 Dio 인스턴스 사용 (CookieManager가 자동으로 쿠키 기반 인증 처리)
+          final response = await dio.get(
             endpoint,
             queryParameters: {
               'start_date': startDateString,
@@ -282,23 +231,41 @@ class DiaryApiService {
     );
 
     final mockDiaries = <DiaryEntry>[];
-    final emotions = ['행복', '슬픔', '화남', '평온', '불안'];
+
+    // 목업 키워드 목록
     final keywords = [
       '가족',
       '친구',
-      '직장',
-      '취미',
-      '운동',
-      '음식',
-      '여행',
-      '공부',
-      '휴식',
-      '스트레스',
       '사랑',
-      '건강',
       '성장',
       '도전',
+      '희망',
       '감사',
+      '추억',
+      '꿈',
+      '목표',
+      '운동',
+      '독서',
+      '여행',
+      '음식',
+      '영화',
+      '음악',
+      '자연',
+      '햇살',
+      '비',
+      '바람',
+      '커피',
+      '책',
+      '글쓰기',
+      '그림',
+      '산책',
+      '휴식',
+      '명상',
+      '일',
+      '공부',
+      '취미',
+      '건강',
+      '평화',
     ];
 
     // 현재 월의 일부 날짜에 다이어리 생성

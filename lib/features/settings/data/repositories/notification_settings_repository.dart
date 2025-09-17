@@ -9,13 +9,16 @@ class NotificationSettingsRepository {
   late final Dio _dio;
 
   NotificationSettingsRepository() {
-    _dio = DioClient.create();
+    _dio = DioClient.instance.dio;
   }
 
   /// 알림 설정 조회
   Future<NotificationSettingsModel> getNotificationSettings() async {
     try {
-      AppLogger.info('Fetching notification settings', 'NotificationSettingsRepository');
+      AppLogger.info(
+        'Fetching notification settings',
+        'NotificationSettingsRepository',
+      );
 
       final response = await _dio.get('/api/notifications/settings');
 
@@ -28,7 +31,10 @@ class NotificationSettingsRepository {
 
         if (responseData['success'] == true) {
           final data = responseData['data'] as Map<String, dynamic>;
-          AppLogger.info('Successfully fetched notification settings', 'NotificationSettingsRepository');
+          AppLogger.info(
+            'Successfully fetched notification settings',
+            'NotificationSettingsRepository',
+          );
           return NotificationSettingsModel.fromJson(data);
         } else {
           final error = responseData['message'] ?? '알림 설정을 불러오는데 실패했습니다.';
@@ -38,7 +44,11 @@ class NotificationSettingsRepository {
         throw Exception('서버 오류: ${response.statusCode}');
       }
     } on DioException catch (e) {
-      AppLogger.error('Failed to fetch notification settings', error: e, tag: 'NotificationSettingsRepository');
+      AppLogger.error(
+        'Failed to fetch notification settings',
+        error: e,
+        tag: 'NotificationSettingsRepository',
+      );
 
       String errorMessage = '알림 설정을 불러오는데 실패했습니다.';
 
@@ -47,7 +57,7 @@ class NotificationSettingsRepository {
       } else if (e.response?.statusCode == 403) {
         errorMessage = '알림 설정에 접근할 권한이 없습니다.';
       } else if (e.type == DioExceptionType.connectionTimeout ||
-                 e.type == DioExceptionType.receiveTimeout) {
+          e.type == DioExceptionType.receiveTimeout) {
         errorMessage = '네트워크 연결이 불안정합니다. 다시 시도해주세요.';
       } else if (e.type == DioExceptionType.connectionError) {
         errorMessage = '인터넷 연결을 확인해주세요.';
@@ -55,15 +65,24 @@ class NotificationSettingsRepository {
 
       throw Exception(errorMessage);
     } catch (e) {
-      AppLogger.error('Unexpected error while fetching notification settings', error: e, tag: 'NotificationSettingsRepository');
+      AppLogger.error(
+        'Unexpected error while fetching notification settings',
+        error: e,
+        tag: 'NotificationSettingsRepository',
+      );
       throw Exception('알림 설정을 불러오는 중 예상치 못한 오류가 발생했습니다.');
     }
   }
 
   /// 알림 설정 업데이트
-  Future<NotificationSettingsModel> updateNotificationSettings(NotificationSettingsUpdateRequest request) async {
+  Future<NotificationSettingsModel> updateNotificationSettings(
+    NotificationSettingsUpdateRequest request,
+  ) async {
     try {
-      AppLogger.info('Updating notification settings', 'NotificationSettingsRepository');
+      AppLogger.info(
+        'Updating notification settings',
+        'NotificationSettingsRepository',
+      );
 
       final response = await _dio.patch(
         '/api/notifications/settings',
@@ -79,7 +98,10 @@ class NotificationSettingsRepository {
 
         if (responseData['success'] == true) {
           final data = responseData['data'] as Map<String, dynamic>;
-          AppLogger.info('Successfully updated notification settings', 'NotificationSettingsRepository');
+          AppLogger.info(
+            'Successfully updated notification settings',
+            'NotificationSettingsRepository',
+          );
           return NotificationSettingsModel.fromJson(data);
         } else {
           final error = responseData['message'] ?? '알림 설정 업데이트에 실패했습니다.';
@@ -89,7 +111,11 @@ class NotificationSettingsRepository {
         throw Exception('서버 오류: ${response.statusCode}');
       }
     } on DioException catch (e) {
-      AppLogger.error('Failed to update notification settings', error: e, tag: 'NotificationSettingsRepository');
+      AppLogger.error(
+        'Failed to update notification settings',
+        error: e,
+        tag: 'NotificationSettingsRepository',
+      );
 
       String errorMessage = '알림 설정 업데이트에 실패했습니다.';
 
@@ -98,7 +124,7 @@ class NotificationSettingsRepository {
       } else if (e.response?.statusCode == 403) {
         errorMessage = '알림 설정을 변경할 권한이 없습니다.';
       } else if (e.type == DioExceptionType.connectionTimeout ||
-                 e.type == DioExceptionType.receiveTimeout) {
+          e.type == DioExceptionType.receiveTimeout) {
         errorMessage = '네트워크 연결이 불안정합니다. 다시 시도해주세요.';
       } else if (e.type == DioExceptionType.connectionError) {
         errorMessage = '인터넷 연결을 확인해주세요.';
@@ -106,13 +132,18 @@ class NotificationSettingsRepository {
 
       throw Exception(errorMessage);
     } catch (e) {
-      AppLogger.error('Unexpected error while updating notification settings', error: e, tag: 'NotificationSettingsRepository');
+      AppLogger.error(
+        'Unexpected error while updating notification settings',
+        error: e,
+        tag: 'NotificationSettingsRepository',
+      );
       throw Exception('알림 설정 업데이트 중 예상치 못한 오류가 발생했습니다.');
     }
   }
 }
 
 /// Provider 정의
-final notificationSettingsRepositoryProvider = Provider<NotificationSettingsRepository>((ref) {
-  return NotificationSettingsRepository();
-});
+final notificationSettingsRepositoryProvider =
+    Provider<NotificationSettingsRepository>((ref) {
+      return NotificationSettingsRepository();
+    });

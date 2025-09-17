@@ -35,7 +35,11 @@ class NotificationSettingsPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildSettingsContent(BuildContext context, WidgetRef ref, NotificationSettingsModel settings) {
+  Widget _buildSettingsContent(
+    BuildContext context,
+    WidgetRef ref,
+    NotificationSettingsModel settings,
+  ) {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -43,7 +47,11 @@ class NotificationSettingsPage extends ConsumerWidget {
         const Center(
           child: Column(
             children: [
-              Icon(Icons.notifications_outlined, size: 60, color: Color(0xFFB2C5B8)),
+              Icon(
+                Icons.notifications_outlined,
+                size: 60,
+                color: Color(0xFFB2C5B8),
+              ),
               SizedBox(height: 16),
               Text(
                 '알림 설정',
@@ -64,9 +72,11 @@ class NotificationSettingsPage extends ConsumerWidget {
           title: '푸시 알림',
           subtitle: '새김 앱의 모든 알림을 받습니다',
           value: settings.pushEnabled,
-          onChanged: (value) => ref.read(notificationSettingsProvider.notifier).togglePushNotification(value),
+          onChanged: (value) => ref
+              .read(notificationSettingsProvider.notifier)
+              .togglePushNotification(value),
         ),
-        
+
         const SizedBox(height: 24),
 
         // 다이어리 알림
@@ -75,14 +85,20 @@ class NotificationSettingsPage extends ConsumerWidget {
           title: '다이어리 작성 알림',
           subtitle: '매일 다이어리 작성을 알려드립니다',
           value: settings.diaryReminderEnabled,
-          onChanged: (value) => ref.read(notificationSettingsProvider.notifier).toggleDiaryReminder(value),
+          onChanged: (value) => ref
+              .read(notificationSettingsProvider.notifier)
+              .toggleDiaryReminder(value),
         ),
-        
+
         if (settings.diaryReminderEnabled)
           _buildTimeTile(
             title: '알림 시간',
             subtitle: settings.diaryReminderTime ?? '20:00',
-            onTap: () => _showTimePicker(context, ref, settings.diaryReminderTime ?? '20:00'),
+            onTap: () => _showTimePicker(
+              context,
+              ref,
+              settings.diaryReminderTime ?? '20:00',
+            ),
           ),
 
         const SizedBox(height: 24),
@@ -93,30 +109,17 @@ class NotificationSettingsPage extends ConsumerWidget {
           title: '주간 리포트 알림',
           subtitle: '감정 분석 리포트가 생성되면 알려드립니다',
           value: settings.reportNotificationEnabled,
-          onChanged: (value) => ref.read(notificationSettingsProvider.notifier).toggleReportNotification(value),
+          onChanged: (value) => ref
+              .read(notificationSettingsProvider.notifier)
+              .toggleReportNotification(value),
         ),
         _buildSwitchTile(
           title: 'AI 처리 완료 알림',
           subtitle: 'AI 감정 분석이 완료되면 알려드립니다',
           value: settings.aiProcessingNotificationEnabled,
-          onChanged: (value) => ref.read(notificationSettingsProvider.notifier).toggleAiProcessingNotification(value),
-        ),
-
-        const SizedBox(height: 24),
-
-        // 소셜 알림
-        _buildSectionTitle('소셜 알림'),
-        _buildSwitchTile(
-          title: '댓글 알림',
-          subtitle: '내 다이어리에 댓글이 달리면 알려드립니다',
-          value: settings.commentNotificationEnabled,
-          onChanged: (value) => ref.read(notificationSettingsProvider.notifier).toggleCommentNotification(value),
-        ),
-        _buildSwitchTile(
-          title: '좋아요 알림',
-          subtitle: '내 다이어리에 좋아요가 눌리면 알려드립니다',
-          value: settings.likeNotificationEnabled,
-          onChanged: (value) => ref.read(notificationSettingsProvider.notifier).toggleLikeNotification(value),
+          onChanged: (value) => ref
+              .read(notificationSettingsProvider.notifier)
+              .toggleAiProcessingNotification(value),
         ),
 
         const SizedBox(height: 32),
@@ -170,10 +173,7 @@ class NotificationSettingsPage extends ConsumerWidget {
         ),
         subtitle: Text(
           subtitle,
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey[600],
-          ),
+          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
         ),
         value: value,
         onChanged: onChanged,
@@ -213,16 +213,17 @@ class NotificationSettingsPage extends ConsumerWidget {
             color: Color(0xFFB2C5B8),
           ),
         ),
-        trailing: const Icon(
-          Icons.access_time,
-          color: Color(0xFFB2C5B8),
-        ),
+        trailing: const Icon(Icons.access_time, color: Color(0xFFB2C5B8)),
         onTap: onTap,
       ),
     );
   }
 
-  Future<void> _showTimePicker(BuildContext context, WidgetRef ref, String currentTime) async {
+  Future<void> _showTimePicker(
+    BuildContext context,
+    WidgetRef ref,
+    String currentTime,
+  ) async {
     final parts = currentTime.split(':');
     final initialTime = TimeOfDay(
       hour: int.parse(parts[0]),
@@ -235,9 +236,9 @@ class NotificationSettingsPage extends ConsumerWidget {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme.copyWith(
-              primary: const Color(0xFFB2C5B8),
-            ),
+            colorScheme: Theme.of(
+              context,
+            ).colorScheme.copyWith(primary: const Color(0xFFB2C5B8)),
           ),
           child: child!,
         );
@@ -245,8 +246,11 @@ class NotificationSettingsPage extends ConsumerWidget {
     );
 
     if (picked != null) {
-      final timeString = '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
-      ref.read(notificationSettingsProvider.notifier).updateDiaryReminderTime(timeString);
+      final timeString =
+          '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+      ref
+          .read(notificationSettingsProvider.notifier)
+          .updateDiaryReminderTime(timeString);
     }
   }
 }
