@@ -24,6 +24,19 @@ class EmotionData {
   });
 }
 
+// 키워드 데이터 모델
+class KeywordData {
+  final String name;
+  final int count;
+  final double percentage;
+
+  KeywordData({
+    required this.name,
+    required this.count,
+    required this.percentage,
+  });
+}
+
 class _CalendarPageState extends State<CalendarPage> {
   late DateTime _currentDate;
   late DateTime? _selectedDate;
@@ -65,6 +78,20 @@ class _CalendarPageState extends State<CalendarPage> {
 
   int get totalEmotions =>
       emotionData.fold(0, (sum, emotion) => sum + emotion.count);
+
+  // 키워드 데이터 (예시 데이터)
+  List<KeywordData> get keywordData => [
+    KeywordData(name: '데이터삭제', count: 3, percentage: 13.6),
+    KeywordData(name: '슬픔', count: 3, percentage: 13.6),
+    KeywordData(name: '논문', count: 3, percentage: 13.6),
+    KeywordData(name: '우울', count: 2, percentage: 9.1),
+    KeywordData(name: '협동', count: 2, percentage: 9.1),
+    KeywordData(name: '괴롭힘', count: 2, percentage: 9.1),
+    KeywordData(name: '불안', count: 2, percentage: 9.1),
+    KeywordData(name: '긴장', count: 2, percentage: 9.1),
+    KeywordData(name: '조마조마', count: 2, percentage: 9.1),
+    KeywordData(name: '비', count: 1, percentage: 4.5),
+  ];
 
   @override
   void initState() {
@@ -223,7 +250,7 @@ class _CalendarPageState extends State<CalendarPage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const SizedBox(width: 60), // 왼쪽 공간 확보
+                  const SizedBox(width: 30), // 왼쪽 공간 확보
                   // 월 네비게이션 (중앙)
                   Row(
                     mainAxisSize: MainAxisSize.min,
@@ -265,7 +292,7 @@ class _CalendarPageState extends State<CalendarPage> {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
+                          color: Colors.black.withValues(alpha: 0.1),
                           blurRadius: 4,
                           offset: const Offset(0, 2),
                         ),
@@ -307,7 +334,7 @@ class _CalendarPageState extends State<CalendarPage> {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 10,
                     offset: const Offset(0, 2),
                   ),
@@ -489,7 +516,7 @@ class _CalendarPageState extends State<CalendarPage> {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 10,
                     offset: const Offset(0, 2),
                   ),
@@ -594,6 +621,145 @@ class _CalendarPageState extends State<CalendarPage> {
                                     style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w500,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+
+            // 주요 키워드 막대그래프
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        '주요 키워드',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF333333),
+                        ),
+                      ),
+                      Text(
+                        '총 22개',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  // 키워드 막대그래프 목록
+                  Column(
+                    children: keywordData.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final keyword = entry.value;
+
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Row(
+                          children: [
+                            // 순위 번호
+                            Container(
+                              width: 16,
+                              alignment: Alignment.center,
+                              child: Text(
+                                '${index + 1}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            // 키워드명
+                            SizedBox(
+                              width: 60,
+                              child: Text(
+                                keyword.name,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF333333),
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            // 막대그래프
+                            Expanded(
+                              child: Stack(
+                                children: [
+                                  // 배경 막대
+                                  Container(
+                                    height: 20,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF0F4F1),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  // 실제 데이터 막대
+                                  FractionallySizedBox(
+                                    widthFactor: keyword.percentage / 100,
+                                    child: Container(
+                                      height: 20,
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            const Color(0xFF8BC4A0),
+                                            const Color(0xFF71A281),
+                                          ],
+                                        ),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            // 개수와 퍼센트
+                            SizedBox(
+                              width: 40,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    '${keyword.count}개',
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF333333),
+                                    ),
+                                  ),
+                                  Text(
+                                    '${keyword.percentage}%',
+                                    style: TextStyle(
+                                      fontSize: 9,
                                       color: Colors.grey[600],
                                     ),
                                   ),
