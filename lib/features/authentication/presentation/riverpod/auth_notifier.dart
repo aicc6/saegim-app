@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:saegim/core/network/dio_client.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
@@ -135,11 +136,15 @@ class AuthNotifier extends _$AuthNotifier {
 
     try {
       final dio = DioClient.create();
+      AppLogger.info('Signup request for: $email with nickname: $nickname');
+
       final response = await dio.post('/api/auth/signup', data: {
         'email': email,
         'password': password,
         'nickname': nickname,
       });
+
+      AppLogger.info('Signup response: ${response.statusCode} - ${response.data}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = response.data;
@@ -159,7 +164,22 @@ class AuthNotifier extends _$AuthNotifier {
       AppLogger.error('Signup failed for user: $email', error: e);
 
       String errorMessage = '회원가입에 실패했습니다.';
-      if (e.toString().contains('email')) {
+
+      // DioException에서 상세 에러 정보 추출
+      if (e is DioException && e.response != null) {
+        AppLogger.error('Signup error response: ${e.response?.statusCode} - ${e.response?.data}');
+
+        if (e.response?.statusCode == 422) {
+          final responseData = e.response?.data;
+          if (responseData is Map && responseData.containsKey('detail')) {
+            errorMessage = responseData['detail'].toString();
+          } else if (responseData is Map && responseData.containsKey('message')) {
+            errorMessage = responseData['message'].toString();
+          } else {
+            errorMessage = '입력 정보를 다시 확인해주세요.';
+          }
+        }
+      } else if (e.toString().contains('email')) {
         errorMessage = '이미 사용 중인 이메일입니다.';
       } else if (e.toString().contains('network')) {
         errorMessage = '네트워크 연결을 확인해주세요.';
@@ -278,6 +298,54 @@ class AuthNotifier extends _$AuthNotifier {
     } catch (e) {
       AppLogger.error('Nickname duplicate check failed: $nickname', error: e);
       return false; // 에러 시에는 중복되지 않은 것으로 처리
+    }
+  }
+
+  /// 이메일 인증 코드 발송
+  Future<bool> sendVerificationEmail(String email) async {
+    if (email.isEmpty) return false;
+
+    try {
+      final dio = DioClient.create();
+      AppLogger.info('Sending verification email to: $email');
+
+      final response = await dio.post('/api/auth/send-verification-email', data: {
+        'email': email,
+      });
+
+      AppLogger.info('Verification email response: ${response.statusCode} - ${response.data}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        AppLogger.info('Verification email sent successfully to: $email');
+        return true;
+      }
+      AppLogger.warning('Unexpected status code: ${response.statusCode}');
+      return false;
+    } catch (e) {
+      AppLogger.error('Failed to send verification email: $email', error: e);
+      return false;
+    }
+  }
+
+  /// 이메일 인증 코드 검증
+  Future<bool> verifyEmail(String email, String verificationCode) async {
+    if (email.isEmpty || verificationCode.isEmpty) return false;
+
+    try {
+      final dio = DioClient.create();
+      final response = await dio.post('/api/auth/verify-email', data: {
+        'email': email,
+        'verification_code': verificationCode,
+      });
+
+      if (response.statusCode == 200) {
+        AppLogger.info('Email verification successful: $email');
+        return true;
+      }
+      return false;
+    } catch (e) {
+      AppLogger.error('Email verification failed: $email', error: e);
+      return false;
     }
   }
 }
