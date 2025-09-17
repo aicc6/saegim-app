@@ -16,6 +16,9 @@ dependencies:
   fl_chart: ^0.68.0
   dio: ^5.9.0
   flutter_dotenv: ^5.2.1
+  flutter_secure_storage: ^9.2.2
+  freezed_annotation: ^3.0.0
+  json_annotation: ^4.9.0
 
 dev_dependencies:
   flutter_test:
@@ -24,6 +27,8 @@ dev_dependencies:
   flutter_launcher_icons: ^0.13.1
   riverpod_generator: ^2.6.5
   build_runner: ^2.5.4
+  freezed: ^3.1.0
+  json_serializable: ^6.8.0
 
 flutter:
   uses-material-design: true
