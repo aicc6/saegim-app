@@ -23,16 +23,25 @@ sealed class NotificationItem with _$NotificationItem {
   const factory NotificationItem({
     required String id, // 서버에서 UUID 문자열로 옴
     required String title,
-    @JsonKey(name: 'body') required String message, // 서버의 'body' → 'message'
+    required String message, // 서버의 'body' → 'message'
     @Default(false) bool isRead, // status는 'sent' 등의 값이므로 별도 처리 필요
-    @JsonKey(name: 'notification_type') required String type, // 서버의 'notification_type' → 'type'
-    @JsonKey(name: 'created_at') required DateTime createdAt, // 서버의 'created_at' → 'createdAt'
-    @JsonKey(name: 'read_at') DateTime? readAt,
-    @JsonKey(name: 'fcm_response') Map<String, dynamic>? metadata, // 서버의 'fcm_response' → 'metadata'
+    required String type, // 서버의 'notification_type' → 'type'
+    required DateTime createdAt, // 서버의 'created_at' → 'createdAt'
+    DateTime? readAt,
+    Map<String, dynamic>? metadata, // 서버의 'fcm_response' → 'metadata'
   }) = _NotificationItem;
 
   factory NotificationItem.fromJson(Map<String, dynamic> json) =>
-      _$NotificationItemFromJson(json);
+      NotificationItem(
+        id: json['id'] as String,
+        title: json['title'] as String,
+        message: json['body'] as String,
+        isRead: json['is_read'] as bool? ?? false,
+        type: json['notification_type'] as String,
+        createdAt: DateTime.parse(json['created_at'] as String),
+        readAt: json['read_at'] != null ? DateTime.parse(json['read_at'] as String) : null,
+        metadata: json['fcm_response'] as Map<String, dynamic>?,
+      );
 }
 
 /// 알림 히스토리 응답 모델

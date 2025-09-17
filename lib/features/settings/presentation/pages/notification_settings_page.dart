@@ -151,7 +151,7 @@ class NotificationSettingsPage extends ConsumerWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             spreadRadius: 1,
             blurRadius: 4,
             offset: const Offset(0, 2),
@@ -177,8 +177,8 @@ class NotificationSettingsPage extends ConsumerWidget {
         ),
         value: value,
         onChanged: onChanged,
-        activeColor: const Color(0xFFB2C5B8),
-        activeTrackColor: const Color(0xFFB2C5B8).withOpacity(0.5),
+        activeThumbColor: const Color(0xFFB2C5B8),
+        activeTrackColor: const Color(0xFFB2C5B8).withValues(alpha: 0.5),
       ),
     );
   }
@@ -193,7 +193,7 @@ class NotificationSettingsPage extends ConsumerWidget {
       decoration: BoxDecoration(
         color: Colors.grey[50],
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.withOpacity(0.2)),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
