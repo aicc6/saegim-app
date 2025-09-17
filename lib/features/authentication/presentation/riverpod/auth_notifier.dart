@@ -107,7 +107,7 @@ class AuthNotifier extends _$AuthNotifier {
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {
-      final dio = DioClient.create();
+      final dio = DioClient.instance.dio;
       final response = await dio.post(
         '/api/auth/login',
         data: {'email': email, 'password': password},
@@ -117,67 +117,112 @@ class AuthNotifier extends _$AuthNotifier {
         final data = response.data;
         AppLogger.info('Login response data: $data', 'AuthNotifier');
 
-        // 응답 구조에 따라 data 필드에서 사용자 정보 추출
+        // 백엔드 API 응답 구조: 바디에는 user 정보, 헤더(Set-Cookie)에는 토큰
         final responseData = data['data'] ?? data;
         final userId = responseData['user_id']?.toString();
         final userEmail = responseData['email']?.toString();
 
-        // 토큰을 여러 위치에서 찾기
-        final token =
-            data['access_token']?.toString() ??
-            data['token']?.toString() ??
-            responseData['access_token']?.toString() ??
-            responseData['token']?.toString() ??
-            data['data']?['access_token']?.toString() ??
-            data['data']?['token']?.toString();
+        // Set-Cookie 헤더에서 access_token 추출
+        String? accessToken;
+        String? refreshToken;
+
+        final setCookieHeaders = response.headers['set-cookie'];
+        AppLogger.info('Set-Cookie headers: $setCookieHeaders', 'AuthNotifier');
+
+        if (setCookieHeaders != null) {
+          for (final cookieHeader in setCookieHeaders) {
+            AppLogger.info('Processing cookie: $cookieHeader', 'AuthNotifier');
+
+            // access_token 쿠키 찾기
+            if (cookieHeader.startsWith('access_token=')) {
+              final tokenPart = cookieHeader.split(';')[0]; // 쿠키 옵션 제거
+              accessToken = tokenPart.split('=')[1]; // 토큰 값만 추출
+              AppLogger.info(
+                'Found access_token in cookie: ${accessToken.substring(0, 10)}...',
+                'AuthNotifier',
+              );
+            }
+
+            // refresh_token 쿠키 찾기
+            if (cookieHeader.startsWith('refresh_token=')) {
+              final tokenPart = cookieHeader.split(';')[0]; // 쿠키 옵션 제거
+              refreshToken = tokenPart.split('=')[1]; // 토큰 값만 추출
+              AppLogger.info(
+                'Found refresh_token in cookie: ${refreshToken.substring(0, 10)}...',
+                'AuthNotifier',
+              );
+            }
+          }
+        } else {
+          AppLogger.warning('No Set-Cookie headers found', 'AuthNotifier');
+        }
+
+        // 전체 응답 구조 로깅 (디버깅용)
+        AppLogger.info('Full login response: ${response.data}', 'AuthNotifier');
+        AppLogger.info(
+          'Response status: ${response.statusCode}',
+          'AuthNotifier',
+        );
+        AppLogger.info('Response headers: ${response.headers}', 'AuthNotifier');
 
         AppLogger.info(
-          'Extracted token: ${token?.substring(0, 10) ?? 'null'}...',
+          'Extracted accessToken: ${accessToken?.substring(0, 10) ?? 'null'}...',
+          'AuthNotifier',
+        );
+        AppLogger.info(
+          'Extracted refreshToken: ${refreshToken?.substring(0, 10) ?? 'null'}...',
           'AuthNotifier',
         );
         AppLogger.info('Extracted userId: $userId', 'AuthNotifier');
         AppLogger.info('Extracted userEmail: $userEmail', 'AuthNotifier');
 
         // 토큰과 사용자 정보 저장
-        if (token != null && token.isNotEmpty) {
+        if (accessToken != null && accessToken.isNotEmpty) {
           AppLogger.info('Saving auth token...', 'AuthNotifier');
-          await AuthStorageService.instance.saveAuthToken(token);
+          await AuthStorageService.instance.saveAuthToken(accessToken);
           AppLogger.info('Auth token save completed', 'AuthNotifier');
+
+          // refresh_token도 별도 저장
+          if (refreshToken != null && refreshToken.isNotEmpty) {
+            await AuthStorageService.instance.saveRefreshToken(refreshToken);
+            AppLogger.info('Refresh token save completed', 'AuthNotifier');
+          }
+
+          // 사용자 정보도 저장
+          if (userId != null) {
+            await AuthStorageService.instance.saveUserId(userId);
+          }
+          if (userEmail != null) {
+            await AuthStorageService.instance.saveUserEmail(userEmail);
+          }
+
+          state = state.copyWith(
+            isAuthenticated: true,
+            userId: userId,
+            userEmail: userEmail,
+            isLoading: false,
+          );
+
+          AppLogger.info('Login successful for user: $email, token saved');
+          return true;
         } else {
-          AppLogger.error('No token found in response!', tag: 'AuthNotifier');
           AppLogger.error(
-            'Full response structure: ${response.data}',
+            'No access_token found in Set-Cookie headers!',
             tag: 'AuthNotifier',
           );
-          // 백엔드에서 토큰을 반환하지 않는 경우, 임시 토큰 생성 또는 세션 기반 인증 사용
-          AppLogger.warning(
-            'Using session-based authentication fallback',
-            'AuthNotifier',
+          AppLogger.error(
+            'Login failed: Backend did not return access_token in cookies',
+            tag: 'AuthNotifier',
           );
-          // 임시로 더미 토큰 저장 (실제 프로덕션에서는 사용하지 말 것)
-          const dummyToken = 'session_authenticated_user';
-          await AuthStorageService.instance.saveAuthToken(dummyToken);
-          AppLogger.info(
-            'Dummy token saved for session-based auth',
-            'AuthNotifier',
+
+          state = state.copyWith(
+            isAuthenticated: false,
+            isLoading: false,
+            errorMessage: '백엔드 서버에서 인증 토큰을 반환하지 않았습니다.',
           );
-        }
-        if (userId != null) {
-          await AuthStorageService.instance.saveUserId(userId);
-        }
-        if (userEmail != null) {
-          await AuthStorageService.instance.saveUserEmail(userEmail);
-        }
 
-        state = state.copyWith(
-          isAuthenticated: true,
-          userId: userId,
-          userEmail: userEmail,
-          isLoading: false,
-        );
-
-        AppLogger.info('Login successful for user: $email, token saved');
-        return true;
+          return false;
+        }
       } else {
         throw Exception('로그인에 실패했습니다.');
       }
@@ -201,7 +246,7 @@ class AuthNotifier extends _$AuthNotifier {
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {
-      final dio = DioClient.create();
+      final dio = DioClient.instance.dio;
       final response = await dio.post(
         '/api/auth/signup',
         data: {'email': email, 'password': password, 'nickname': nickname},
@@ -322,7 +367,7 @@ class AuthNotifier extends _$AuthNotifier {
     if (email.isEmpty) return false;
 
     try {
-      final dio = DioClient.create();
+      final dio = DioClient.instance.dio;
       final response = await dio.get('/api/auth/check-email/$email');
 
       if (response.statusCode == 200) {
@@ -343,7 +388,7 @@ class AuthNotifier extends _$AuthNotifier {
     if (nickname.isEmpty) return false;
 
     try {
-      final dio = DioClient.create();
+      final dio = DioClient.instance.dio;
       final response = await dio.get('/api/auth/check-nickname/$nickname');
 
       if (response.statusCode == 200) {
@@ -363,7 +408,7 @@ class AuthNotifier extends _$AuthNotifier {
     if (email.isEmpty) return false;
 
     try {
-      final dio = DioClient.create();
+      final dio = DioClient.instance.dio;
       AppLogger.info('Sending verification email to: $email');
 
       final response = await dio.post(
@@ -392,7 +437,7 @@ class AuthNotifier extends _$AuthNotifier {
     if (email.isEmpty || verificationCode.isEmpty) return false;
 
     try {
-      final dio = DioClient.create();
+      final dio = DioClient.instance.dio;
       final response = await dio.post(
         '/api/auth/verify-email',
         data: {'email': email, 'verification_code': verificationCode},
