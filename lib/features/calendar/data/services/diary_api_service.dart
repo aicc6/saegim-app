@@ -303,48 +303,34 @@ class DiaryApiService {
 
     // 현재 월의 일부 날짜에 다이어리 생성
     final mockData = [
-      {
-        'day': 3,
-        'emotion': '행복',
-        'keywords': ['가족', '음식'],
-      },
-      {
-        'day': 7,
-        'emotion': '평온',
-        'keywords': ['휴식', '취미'],
-      },
-      {
-        'day': 12,
-        'emotion': '슬픔',
-        'keywords': ['직장', '스트레스'],
-      },
-      {
-        'day': 15,
-        'emotion': '행복',
-        'keywords': ['친구', '여행'],
-      },
-      {
-        'day': 18,
-        'emotion': '불안',
-        'keywords': ['공부', '도전'],
-      },
-      {
-        'day': 22,
-        'emotion': '평온',
-        'keywords': ['운동', '건강'],
-      },
-      {
-        'day': 25,
-        'emotion': '행복',
-        'keywords': ['사랑', '감사'],
-      },
+      {'day': 3, 'emotion': '행복'},
+      {'day': 7, 'emotion': '평온'},
+      {'day': 12, 'emotion': '슬픔'},
+      {'day': 15, 'emotion': '행복'},
+      {'day': 18, 'emotion': '불안'},
+      {'day': 22, 'emotion': '평온'},
+      {'day': 25, 'emotion': '행복'},
+      {'day': 28, 'emotion': '화남'},
+      {'day': 30, 'emotion': '행복'},
     ];
 
     for (int i = 0; i < mockData.length; i++) {
       final data = mockData[i];
       final day = data['day'] as int;
       final emotion = data['emotion'] as String;
-      final diaryKeywords = data['keywords'] as List<String>;
+
+      // 1~9개의 랜덤 키워드 생성
+      final random = DateTime.now().millisecondsSinceEpoch + i;
+      final keywordCount = (random % 9) + 1; // 1~9개
+      final diaryKeywords = <String>[];
+
+      // 중복 없이 키워드 선택
+      final shuffledKeywords = List<String>.from(keywords);
+      shuffledKeywords.shuffle();
+
+      for (int j = 0; j < keywordCount && j < shuffledKeywords.length; j++) {
+        diaryKeywords.add(shuffledKeywords[j]);
+      }
 
       // 해당 월의 유효한 날짜인지 확인
       final daysInMonth = DateTime(year, month + 1, 0).day;

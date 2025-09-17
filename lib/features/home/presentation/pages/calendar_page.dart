@@ -57,7 +57,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
         return const Color(0xFF7B9BD1); // 파란색
       case '화남':
       case 'angry':
-        return const Color(0xFFB8956A); // 갈색
+        return const Color(0xFFFF7043); // 주황색
       case '평온':
       case 'calm':
         return const Color(0xFF8BC4A0); // 초록색
@@ -587,13 +587,12 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                                             calendarState.monthlyDiaries,
                                           ))
                                             Positioned(
-                                              left: 5,
-                                              top: 0,
-                                              bottom: 0,
+                                              left: 4,
+                                              top: 4,
                                               child: Column(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment.center,
                                                 mainAxisSize: MainAxisSize.min,
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
                                                 children: [
                                                   // 이모티콘
                                                   Text(
@@ -608,20 +607,26 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                                                   ),
                                                   const SizedBox(height: 1),
                                                   // 키워드
-                                                  Text(
-                                                    '# ${_getDiaryKeyword(date, calendarState.monthlyDiaries)}',
-                                                    style: TextStyle(
-                                                      fontSize: 6,
-                                                      fontWeight:
-                                                          FontWeight.w800,
-                                                      color: isToday
-                                                          ? Colors.white
-                                                          : const Color(
-                                                              0xFF333333,
-                                                            ),
+                                                  SizedBox(
+                                                    width: 32,
+                                                    child: Text(
+                                                      '# ${_getDiaryKeyword(date, calendarState.monthlyDiaries)}',
+                                                      style: TextStyle(
+                                                        fontSize: 6,
+                                                        fontWeight:
+                                                            FontWeight.w800,
+                                                        color: isToday
+                                                            ? Colors.white
+                                                            : isSelected
+                                                            ? Colors.white
+                                                            : const Color(
+                                                                0xFF333333,
+                                                              ),
+                                                      ),
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      maxLines: 1,
                                                     ),
-                                                    overflow: TextOverflow.clip,
-                                                    maxLines: 1,
                                                   ),
                                                 ],
                                               ),
@@ -640,6 +645,23 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                       ],
                     ),
                   ),
+
+                  const SizedBox(height: 16),
+
+                  // 선택된 날짜의 다이어리 상세 정보 (조건부 표시)
+                  if (calendarState.selectedDate != null &&
+                      calendarState.monthlyDiaries.any(
+                        (diary) =>
+                            diary.diaryDate.year ==
+                                calendarState.selectedDate!.year &&
+                            diary.diaryDate.month ==
+                                calendarState.selectedDate!.month &&
+                            diary.diaryDate.day ==
+                                calendarState.selectedDate!.day,
+                      ))
+                    _buildSelectedDiaryDetail(calendarState),
+
+                  const SizedBox(height: 16),
 
                   // 감정 분포 차트
                   Container(
@@ -712,7 +734,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 16),
                         // 범례 (차트 아래)
                         Column(
                           children: calendarState.emotionStatistics.map((
@@ -768,6 +790,8 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                       ],
                     ),
                   ),
+
+                  const SizedBox(height: 16),
 
                   // 주요 키워드 막대그래프
                   Container(
@@ -923,9 +947,444 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                   ),
 
                   const SizedBox(height: 16),
+
+                  // 이달의 요약 섹션
+                  _buildMonthlySummary(calendarState),
                 ],
               ),
             ),
+    );
+  }
+
+  // 선택된 날짜의 다이어리 상세 정보 빌드
+  Widget _buildSelectedDiaryDetail(CalendarState calendarState) {
+    final selectedDate = calendarState.selectedDate!;
+
+    // 선택된 날짜에 다이어리가 있는지 확인
+    final diary = calendarState.monthlyDiaries
+        .where(
+          (diary) =>
+              diary.diaryDate.year == selectedDate.year &&
+              diary.diaryDate.month == selectedDate.month &&
+              diary.diaryDate.day == selectedDate.day,
+        )
+        .firstOrNull;
+
+    if (diary == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 헤더 (날짜와 닫기 버튼)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')} 기록',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF333333),
+                ),
+              ),
+              IconButton(
+                onPressed: () {
+                  ref.read(calendarNotifierProvider.notifier).selectDate(null);
+                },
+                icon: Icon(Icons.close, color: Colors.grey[400], size: 20),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // 제목과 감정 이모지
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      diary.title ??
+                          '${selectedDate.month}월 ${selectedDate.day}일의 일기',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF333333),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      diary.content,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[700],
+                        height: 1.4,
+                      ),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              Text(diary.emotionEmoji, style: const TextStyle(fontSize: 32)),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // 감정
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: _getEmotionColor(diary.emotion).withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: _getEmotionColor(diary.emotion).withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Text(
+                  diary.emotion,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: _getEmotionColor(diary.emotion),
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // 키워드들
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: diary.keywords.map((keyword) {
+              return Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8F9FA),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE9ECEF), width: 1),
+                ),
+                child: Text(
+                  '#$keyword',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey[700],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+
+          const SizedBox(height: 16),
+
+          // 이미지 섹션 (플레이스홀더)
+          Container(
+            height: 120,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8F9FA),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE9ECEF), width: 1),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.camera_alt_outlined,
+                  size: 32,
+                  color: Colors.grey[400],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '이미지 없음',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // 상세보기 버튼
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () {
+                // TODO: 상세보기 페이지로 이동
+                AppLogger.info(
+                  'Navigate to diary detail: ${diary.id}',
+                  'CalendarPage',
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF6C5CE7),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                elevation: 0,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    '클릭하여 상세 보기',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.arrow_forward_ios, size: 14),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 이달의 요약 섹션 빌드
+  Widget _buildMonthlySummary(CalendarState calendarState) {
+    // 가장 많은 감정 찾기
+    final topEmotion = calendarState.emotionStatistics.isNotEmpty
+        ? calendarState.emotionStatistics.reduce(
+            (a, b) => a.count > b.count ? a : b,
+          )
+        : null;
+
+    // 가장 많은 키워드 찾기
+    final topKeyword = calendarState.keywordStatistics.isNotEmpty
+        ? calendarState.keywordStatistics.reduce(
+            (a, b) => a.count > b.count ? a : b,
+          )
+        : null;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text(
+                '이달의 요약',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF333333),
+                ),
+              ),
+              const Spacer(),
+              Icon(Icons.analytics_outlined, color: Colors.grey[400], size: 20),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          Row(
+            children: [
+              // 총 기록 수
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8F9FA),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: const Color(0xFFE9ECEF),
+                      width: 1,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '총 기록 수',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${calendarState.monthlyDiaries.length}개',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF333333),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(width: 12),
+
+              // 가장 많은 감정
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8F9FA),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: const Color(0xFFE9ECEF),
+                      width: 1,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '가장 많은 감정',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      if (topEmotion != null) ...[
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
+                            Text(
+                              topEmotion.emotion,
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: _getEmotionColor(topEmotion.emotion),
+                              ),
+                            ),
+                            Text(
+                              '${topEmotion.count}회',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ] else ...[
+                        Text(
+                          '-',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[400],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // 주요 키워드
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8F9FA),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE9ECEF), width: 1),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '주요 키워드',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (topKeyword != null) ...[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        topKeyword.keyword,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF333333),
+                        ),
+                      ),
+                      Text(
+                        '${topKeyword.count}회',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                    ],
+                  ),
+                ] else ...[
+                  Text(
+                    '-',
+                    style: TextStyle(fontSize: 16, color: Colors.grey[400]),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
