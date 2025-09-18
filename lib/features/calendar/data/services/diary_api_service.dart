@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:saegim/core/network/dio_client.dart';
 import 'package:saegim/features/calendar/data/models/diary_model.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
@@ -123,23 +122,10 @@ class DiaryApiService {
       final endDateString =
           '${endDate.year}-${endDate.month.toString().padLeft(2, '0')}-${endDate.day.toString().padLeft(2, '0')}';
 
-      // 요청 전 로깅 - 쿠키 정보 포함
-      final cookieJar =
-          (dio.interceptors.whereType<CookieManager>().firstOrNull)?.cookieJar;
-
       AppLogger.info(
-        'Making API request to /api/diary for $year-$month (will filter client-side)',
+        'Fetching monthly diaries for $year-$month',
         'DiaryApiService',
       );
-
-      if (cookieJar != null) {
-        final uri = Uri.parse('${dio.options.baseUrl}/api/diary');
-        final cookies = await cookieJar.loadForRequest(uri);
-        AppLogger.info(
-          'Cookies for request: ${cookies.map((c) => '${c.name}=${c.value}').join('; ')}',
-          'DiaryApiService',
-        );
-      }
 
       // 실제 백엔드 API 호출 - 올바른 파라미터 사용
       final response = await dio.get(
@@ -151,19 +137,7 @@ class DiaryApiService {
         },
       );
 
-      AppLogger.info(
-        'API response received - Status: ${response.statusCode}, '
-            'Headers: ${response.headers}, '
-            'Data type: ${response.data.runtimeType}',
-        'DiaryApiService',
-      );
-
       if (response.statusCode == 200) {
-        AppLogger.info(
-          'Successfully fetched diary data from backend',
-          'DiaryApiService',
-        );
-
         // 응답 데이터 구조 파싱
         List<dynamic> dataList = [];
         if (response.data is Map<String, dynamic>) {
@@ -213,17 +187,16 @@ class DiaryApiService {
             }).toList();
 
             AppLogger.info(
-              'Parsed ${allDiaries.length} total diaries, filtered to ${monthlyDiaries.length} for $year-$month',
+              'Loaded ${monthlyDiaries.length} diaries for $year-$month',
               'DiaryApiService',
             );
             return monthlyDiaries;
           } catch (parseError) {
             AppLogger.error(
-              'Failed to parse diary data: $parseError\nRaw data: $dataList',
+              'Failed to parse diary data',
               tag: 'DiaryApiService',
               error: parseError,
             );
-            // 파싱 실패 시 빈 배열 반환
             return [];
           }
         } else {
@@ -241,29 +214,18 @@ class DiaryApiService {
         return []; // 목업 데이터 대신 빈 배열 반환
       }
     } on DioException catch (dioError) {
-      AppLogger.error(
-        'DioException details - Status: ${dioError.response?.statusCode}, '
-        'Message: ${dioError.message}, '
-        'Response data: ${dioError.response?.data}, '
-        'Headers: ${dioError.response?.headers}',
-        tag: 'DiaryApiService',
-        error: dioError,
-      );
-
       if (dioError.response?.statusCode == 401) {
         AppLogger.warning(
-          'Authentication required - user needs to login',
+          'Authentication required for diary access',
           'DiaryApiService',
         );
-        // 인증이 필요한 경우 빈 배열 반환 (로그인 유도)
         return [];
       } else {
         AppLogger.error(
-          'Dio error loading monthly diaries for $year-$month: ${dioError.message}',
+          'Failed to load diaries for $year-$month',
           tag: 'DiaryApiService',
           error: dioError,
         );
-        // 목업 데이터 대신 빈 배열 반환하여 실제 문제를 확인
         return [];
       }
     } catch (e) {
