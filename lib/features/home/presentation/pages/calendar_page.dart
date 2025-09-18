@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:saegim/shared/widgets/common_app_bar.dart';
 import 'package:saegim/features/calendar/presentation/riverpod/calendar_notifier.dart';
 import 'package:saegim/features/calendar/data/models/diary_model.dart';
@@ -1095,19 +1096,25 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: _getEmotionColor(diary.emotion).withOpacity(0.15),
+                  color: _getEmotionColor(
+                    diary.emotion ?? diary.aiEmotion ?? '평온',
+                  ).withOpacity(0.15),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: _getEmotionColor(diary.emotion).withOpacity(0.3),
+                    color: _getEmotionColor(
+                      diary.emotion ?? diary.aiEmotion ?? '평온',
+                    ).withOpacity(0.3),
                     width: 1,
                   ),
                 ),
                 child: Text(
-                  diary.emotion,
+                  diary.emotion ?? diary.aiEmotion ?? '평온',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: _getEmotionColor(diary.emotion),
+                    color: _getEmotionColor(
+                      diary.emotion ?? diary.aiEmotion ?? '평온',
+                    ),
                   ),
                 ),
               ),

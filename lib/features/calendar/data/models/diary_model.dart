@@ -15,7 +15,7 @@ class DiaryEntry {
   final String content;
 
   @JsonKey(name: 'user_emotion')
-  final String emotion;
+  final String? emotion;
 
   @JsonKey(name: 'ai_emotion')
   final String? aiEmotion;
@@ -36,7 +36,7 @@ class DiaryEntry {
     required this.id,
     this.title,
     required this.content,
-    required this.emotion,
+    this.emotion,
     this.aiEmotion,
     required this.keywords,
     required this.diaryDate,
@@ -46,7 +46,8 @@ class DiaryEntry {
 
   // 감정 이모티콘 매핑
   String get emotionEmoji {
-    switch (emotion.toLowerCase()) {
+    final emotionValue = emotion ?? aiEmotion ?? '평온';
+    switch (emotionValue.toLowerCase()) {
       case '행복':
       case 'happy':
         return '😊';

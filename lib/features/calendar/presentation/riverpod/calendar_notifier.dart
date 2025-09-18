@@ -1,4 +1,5 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:saegim/features/authentication/presentation/riverpod/auth_notifier.dart';
 import 'package:saegim/features/calendar/data/models/diary_model.dart';
 import 'package:saegim/features/calendar/data/services/diary_api_service.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
@@ -60,6 +61,32 @@ class CalendarNotifier extends _$CalendarNotifier {
   CalendarState build() {
     final now = DateTime.now();
     final initialState = CalendarState(currentDate: now);
+
+    // AuthNotifier 상태를 감지하여 인증 상태 변화 시 데이터 새로고침
+    ref.listen(authNotifierProvider, (previous, next) {
+      // 인증 상태가 변경되었을 때 (로그인/로그아웃)
+      if (previous?.isAuthenticated != next.isAuthenticated) {
+        AppLogger.info(
+          'Auth state changed: ${previous?.isAuthenticated} -> ${next.isAuthenticated}',
+          'CalendarNotifier',
+        );
+
+        if (next.isAuthenticated) {
+          // 로그인 성공 시 현재 월 데이터 새로고침
+          Future.microtask(() {
+            final currentDate = state.currentDate;
+            _loadMonthlyData(currentDate.year, currentDate.month);
+          });
+        } else {
+          // 로그아웃 시 데이터 클리어
+          state = state.copyWith(
+            monthlyDiaries: [],
+            emotionStatistics: [],
+            keywordStatistics: [],
+          );
+        }
+      }
+    });
 
     // 초기 데이터 로드 (비동기로 실행)
     Future.microtask(() => _loadMonthlyData(now.year, now.month));

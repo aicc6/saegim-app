@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:saegim/core/network/dio_client.dart';
 import 'package:saegim/features/calendar/data/models/diary_model.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
@@ -109,117 +110,170 @@ class DiaryApiService {
     required int month,
   }) async {
     try {
-      // 실제 백엔드 API 엔드포인트 사용
-      final endpoints = [
-        '/api/diary/calendar', // 캘린더용 다이어리 API
-        '/api/diary', // 일반 다이어리 목록 API
-      ];
-
-      for (final endpoint in endpoints) {
-        try {
-          AppLogger.info(
-            'Trying endpoint: $endpoint with year=$year, month=$month',
-            'DiaryApiService',
-          );
-
-          // 월의 첫 날과 마지막 날 계산
-          final startDate = DateTime(year, month, 1);
-          final endDate = DateTime(year, month + 1, 0);
-          final startDateString =
-              '${startDate.year}-${startDate.month.toString().padLeft(2, '0')}-${startDate.day.toString().padLeft(2, '0')}';
-          final endDateString =
-              '${endDate.year}-${endDate.month.toString().padLeft(2, '0')}-${endDate.day.toString().padLeft(2, '0')}';
-
-          // 중앙화된 Dio 인스턴스 사용 (CookieManager가 자동으로 쿠키 기반 인증 처리)
-          final response = await dio.get(
-            endpoint,
-            queryParameters: {
-              'start_date': startDateString,
-              'end_date': endDateString,
-              'page_size': 100, // 한 달치 데이터 모두 가져오기
-            },
-          );
-
-          if (response.statusCode == 200) {
-            AppLogger.info(
-              'Successfully connected to $endpoint',
-              'DiaryApiService',
-            );
-
-            // 응답 데이터 구조 로깅
-            AppLogger.info(
-              'Response data: ${response.data}',
-              'DiaryApiService',
-            );
-
-            // 응답 구조 파싱
-            List<dynamic> dataList = [];
-            if (response.data is Map<String, dynamic>) {
-              final responseMap = response.data as Map<String, dynamic>;
-              if (responseMap.containsKey('success') &&
-                  responseMap['success'] == true) {
-                dataList = responseMap['data'] ?? [];
-              } else {
-                dataList =
-                    responseMap['diaries'] ??
-                    responseMap['data'] ??
-                    responseMap['items'] ??
-                    responseMap['entries'] ??
-                    [];
-              }
-            } else if (response.data is List) {
-              dataList = response.data;
-            }
-
-            if (dataList.isNotEmpty) {
-              try {
-                final diaries = dataList
-                    .map(
-                      (json) =>
-                          DiaryEntry.fromJson(json as Map<String, dynamic>),
-                    )
-                    .toList();
-
-                AppLogger.info(
-                  'Monthly diaries loaded: ${diaries.length} entries',
-                  'DiaryApiService',
-                );
-                return diaries;
-              } catch (parseError) {
-                AppLogger.warning(
-                  'Failed to parse diaries from $endpoint: $parseError',
-                  'DiaryApiService',
-                );
-                // 파싱 실패 시 다음 엔드포인트 시도
-                continue;
-              }
-            } else {
-              AppLogger.info(
-                'No diary data found for $year-$month',
-                'DiaryApiService',
-              );
-              return []; // 빈 배열 반환 (정상적인 응답이지만 데이터 없음)
-            }
-          }
-        } catch (e) {
-          AppLogger.warning('Endpoint $endpoint failed: $e', 'DiaryApiService');
-          continue;
-        }
-      }
-
-      // 모든 엔드포인트 실패 - 목업 데이터로 fallback
-      AppLogger.warning(
-        'All diary endpoints failed for $year-$month, using mock data',
+      AppLogger.info(
+        'Fetching monthly diaries for $year-$month',
         'DiaryApiService',
       );
-      return _generateMockDiaries(year, month);
+
+      // 월의 첫 날과 마지막 날 계산
+      final startDate = DateTime(year, month, 1);
+      final endDate = DateTime(year, month + 1, 0);
+      final startDateString =
+          '${startDate.year}-${startDate.month.toString().padLeft(2, '0')}-${startDate.day.toString().padLeft(2, '0')}';
+      final endDateString =
+          '${endDate.year}-${endDate.month.toString().padLeft(2, '0')}-${endDate.day.toString().padLeft(2, '0')}';
+
+      // 요청 전 로깅 - 쿠키 정보 포함
+      final cookieJar =
+          (dio.interceptors.whereType<CookieManager>().firstOrNull)?.cookieJar;
+
+      AppLogger.info(
+        'Making API request to /api/diary for $year-$month (will filter client-side)',
+        'DiaryApiService',
+      );
+
+      if (cookieJar != null) {
+        final uri = Uri.parse('${dio.options.baseUrl}/api/diary');
+        final cookies = await cookieJar.loadForRequest(uri);
+        AppLogger.info(
+          'Cookies for request: ${cookies.map((c) => '${c.name}=${c.value}').join('; ')}',
+          'DiaryApiService',
+        );
+      }
+
+      // 실제 백엔드 API 호출 - 올바른 파라미터 사용
+      final response = await dio.get(
+        '/api/diary',
+        queryParameters: {
+          'page': 1,
+          'page_size': 100, // 한 달치 데이터 모두 가져오기
+          // 날짜 필터링은 클라이언트 측에서 처리
+        },
+      );
+
+      AppLogger.info(
+        'API response received - Status: ${response.statusCode}, '
+            'Headers: ${response.headers}, '
+            'Data type: ${response.data.runtimeType}',
+        'DiaryApiService',
+      );
+
+      if (response.statusCode == 200) {
+        AppLogger.info(
+          'Successfully fetched diary data from backend',
+          'DiaryApiService',
+        );
+
+        // 응답 데이터 구조 파싱
+        List<dynamic> dataList = [];
+        if (response.data is Map<String, dynamic>) {
+          final responseMap = response.data as Map<String, dynamic>;
+
+          // 다양한 응답 구조에 대응
+          if (responseMap.containsKey('success') &&
+              responseMap['success'] == true) {
+            dataList = responseMap['data'] ?? [];
+          } else if (responseMap.containsKey('data')) {
+            final data = responseMap['data'];
+            if (data is List) {
+              dataList = data;
+            } else if (data is Map && data.containsKey('diaries')) {
+              dataList = data['diaries'] ?? [];
+            }
+          } else {
+            // 직접 다이어리 배열이 있는지 확인
+            dataList =
+                responseMap['diaries'] ??
+                responseMap['entries'] ??
+                responseMap['items'] ??
+                [];
+          }
+        } else if (response.data is List) {
+          dataList = response.data;
+        }
+
+        if (dataList.isNotEmpty) {
+          try {
+            final allDiaries = dataList
+                .map(
+                  (json) => DiaryEntry.fromJson(json as Map<String, dynamic>),
+                )
+                .toList();
+
+            // 클라이언트 측에서 해당 월의 데이터만 필터링
+            final startDate = DateTime(year, month, 1);
+            final endDate = DateTime(year, month + 1, 0);
+
+            final monthlyDiaries = allDiaries.where((diary) {
+              final diaryDate = diary.diaryDate;
+              return diaryDate.isAfter(
+                    startDate.subtract(const Duration(days: 1)),
+                  ) &&
+                  diaryDate.isBefore(endDate.add(const Duration(days: 1)));
+            }).toList();
+
+            AppLogger.info(
+              'Parsed ${allDiaries.length} total diaries, filtered to ${monthlyDiaries.length} for $year-$month',
+              'DiaryApiService',
+            );
+            return monthlyDiaries;
+          } catch (parseError) {
+            AppLogger.error(
+              'Failed to parse diary data: $parseError\nRaw data: $dataList',
+              tag: 'DiaryApiService',
+              error: parseError,
+            );
+            // 파싱 실패 시 빈 배열 반환
+            return [];
+          }
+        } else {
+          AppLogger.info(
+            'No diary data found for $year-$month',
+            'DiaryApiService',
+          );
+          return []; // 빈 배열 반환 (정상적인 응답이지만 데이터 없음)
+        }
+      } else {
+        AppLogger.warning(
+          'Backend returned status ${response.statusCode} with data: ${response.data}',
+          'DiaryApiService',
+        );
+        return []; // 목업 데이터 대신 빈 배열 반환
+      }
+    } on DioException catch (dioError) {
+      AppLogger.error(
+        'DioException details - Status: ${dioError.response?.statusCode}, '
+        'Message: ${dioError.message}, '
+        'Response data: ${dioError.response?.data}, '
+        'Headers: ${dioError.response?.headers}',
+        tag: 'DiaryApiService',
+        error: dioError,
+      );
+
+      if (dioError.response?.statusCode == 401) {
+        AppLogger.warning(
+          'Authentication required - user needs to login',
+          'DiaryApiService',
+        );
+        // 인증이 필요한 경우 빈 배열 반환 (로그인 유도)
+        return [];
+      } else {
+        AppLogger.error(
+          'Dio error loading monthly diaries for $year-$month: ${dioError.message}',
+          tag: 'DiaryApiService',
+          error: dioError,
+        );
+        // 목업 데이터 대신 빈 배열 반환하여 실제 문제를 확인
+        return [];
+      }
     } catch (e) {
       AppLogger.error(
-        'Error loading monthly diaries for $year-$month',
+        'Unexpected error loading monthly diaries for $year-$month',
         tag: 'DiaryApiService',
         error: e,
       );
-      return _generateMockDiaries(year, month);
+      // 목업 데이터 대신 빈 배열 반환하여 실제 문제를 확인
+      return [];
     }
   }
 
@@ -443,7 +497,7 @@ class DiaryApiService {
     final emotionEmojis = <String, String>{};
 
     for (final diary in diaries) {
-      final emotion = diary.emotion;
+      final emotion = diary.emotion ?? diary.aiEmotion ?? '평온';
       emotionCounts[emotion] = (emotionCounts[emotion] ?? 0) + 1;
       emotionEmojis[emotion] = diary.emotionEmoji;
     }
