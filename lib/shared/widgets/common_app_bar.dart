@@ -6,11 +6,13 @@ import 'package:saegim/app/routes/route_paths.dart';
 class CommonAppBar extends StatelessWidget implements PreferredSizeWidget {
   final bool showBackButton;
   final bool showMenuButton;
+  final String? title;
 
   const CommonAppBar({
     super.key,
     this.showBackButton = false,
     this.showMenuButton = true,
+    this.title,
   });
 
   @override
@@ -28,9 +30,9 @@ class CommonAppBar extends StatelessWidget implements PreferredSizeWidget {
               ),
             )
           : null,
-      title: const Text(
-        '새김',
-        style: TextStyle(
+      title: Text(
+        title ?? '새김',
+        style: const TextStyle(
           fontSize: 24,
           fontWeight: FontWeight.bold,
           color: Color(0xFFB2C5B8),
