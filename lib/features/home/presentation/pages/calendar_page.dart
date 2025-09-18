@@ -202,28 +202,29 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     });
   }
 
-  // 특정 날짜의 다이어리 이모티콘 가져오기
-  String _getDiaryEmoji(DateTime date, List<DiaryEntry> diaries) {
-    final diary = diaries.cast<DiaryEntry?>().firstWhere((diary) {
-      if (diary == null) return false;
+  // 특정 날짜의 다이어리 목록 가져오기
+  List<DiaryEntry> _getDiariesForDate(DateTime date, List<DiaryEntry> diaries) {
+    return diaries.where((diary) {
       final diaryDate = diary.diaryDate;
       return diaryDate.year == date.year &&
           diaryDate.month == date.month &&
           diaryDate.day == date.day;
-    }, orElse: () => null);
-    return diary?.emotionEmoji ?? '😊';
+    }).toList();
   }
 
-  // 특정 날짜의 다이어리 키워드 가져오기
+  // 특정 날짜의 다이어리 이모티콘 가져오기 (첫 번째 다이어리 기준)
+  String _getDiaryEmoji(DateTime date, List<DiaryEntry> diaries) {
+    final dailyDiaries = _getDiariesForDate(date, diaries);
+    return dailyDiaries.isNotEmpty ? dailyDiaries.first.emotionEmoji : '😊';
+  }
+
+  // 특정 날짜의 다이어리 키워드 가져오기 (첫 번째 다이어리 기준)
   String _getDiaryKeyword(DateTime date, List<DiaryEntry> diaries) {
-    final diary = diaries.cast<DiaryEntry?>().firstWhere((diary) {
-      if (diary == null) return false;
-      final diaryDate = diary.diaryDate;
-      return diaryDate.year == date.year &&
-          diaryDate.month == date.month &&
-          diaryDate.day == date.day;
-    }, orElse: () => null);
-    return diary?.keywords.isNotEmpty == true ? diary!.keywords.first : '감정';
+    final dailyDiaries = _getDiariesForDate(date, diaries);
+    if (dailyDiaries.isNotEmpty && dailyDiaries.first.keywords.isNotEmpty) {
+      return dailyDiaries.first.keywords.first;
+    }
+    return '감정';
   }
 
   @override
@@ -605,6 +606,41 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                                                 ],
                                               ),
                                             ),
+                                          // 다이어리 개수 배지 (여러 개일 때만)
+                                          if (_getDiariesForDate(
+                                                date,
+                                                calendarState.monthlyDiaries,
+                                              ).length >
+                                              1)
+                                            Positioned(
+                                              right: 2,
+                                              bottom: 2,
+                                              child: Container(
+                                                width: 16,
+                                                height: 16,
+                                                decoration: BoxDecoration(
+                                                  color: const Color(
+                                                    0xFF4A7C59,
+                                                  ),
+                                                  shape: BoxShape.circle,
+                                                  border: Border.all(
+                                                    color: Colors.white,
+                                                    width: 1,
+                                                  ),
+                                                ),
+                                                child: Center(
+                                                  child: Text(
+                                                    '${_getDiariesForDate(date, calendarState.monthlyDiaries).length}',
+                                                    style: const TextStyle(
+                                                      fontSize: 8,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: Colors.white,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
                                         ],
                                       ),
                                     ),
@@ -624,15 +660,10 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
 
                   // 선택된 날짜의 다이어리 상세 정보 (조건부 표시)
                   if (calendarState.selectedDate != null &&
-                      calendarState.monthlyDiaries.any(
-                        (diary) =>
-                            diary.diaryDate.year ==
-                                calendarState.selectedDate!.year &&
-                            diary.diaryDate.month ==
-                                calendarState.selectedDate!.month &&
-                            diary.diaryDate.day ==
-                                calendarState.selectedDate!.day,
-                      ))
+                      _getDiariesForDate(
+                        calendarState.selectedDate!,
+                        calendarState.monthlyDiaries,
+                      ).isNotEmpty)
                     Container(
                       key: _diaryDetailKey,
                       child: _buildSelectedDiaryDetail(calendarState),
@@ -937,17 +968,13 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
   Widget _buildSelectedDiaryDetail(CalendarState calendarState) {
     final selectedDate = calendarState.selectedDate!;
 
-    // 선택된 날짜에 다이어리가 있는지 확인
-    final diary = calendarState.monthlyDiaries
-        .where(
-          (diary) =>
-              diary.diaryDate.year == selectedDate.year &&
-              diary.diaryDate.month == selectedDate.month &&
-              diary.diaryDate.day == selectedDate.day,
-        )
-        .firstOrNull;
+    // 선택된 날짜의 모든 다이어리 가져오기
+    final dailyDiaries = _getDiariesForDate(
+      selectedDate,
+      calendarState.monthlyDiaries,
+    );
 
-    if (diary == null) {
+    if (dailyDiaries.isEmpty) {
       return const SizedBox.shrink();
     }
 
@@ -993,81 +1020,127 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
 
           const SizedBox(height: 16),
 
-          // 제목과 감정 이모지
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      diary.title ??
-                          '${selectedDate.month}월 ${selectedDate.day}일의 일기',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF333333),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      diary.aiGeneratedText ?? diary.content,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[700],
-                        height: 1.4,
-                      ),
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
+          // 여러 다이어리 목록 표시
+          ...dailyDiaries.asMap().entries.map((entry) {
+            final index = entry.key;
+            final diary = entry.value;
+
+            return Column(
+              children: [
+                if (index > 0) ...[
+                  const SizedBox(height: 16),
+                  Divider(color: Colors.grey[300], thickness: 1, height: 1),
+                  const SizedBox(height: 16),
+                ],
+                _buildSingleDiaryCard(diary, selectedDate, index + 1),
+              ],
+            );
+          }).toList(),
+        ],
+      ),
+    );
+  }
+
+  // 개별 다이어리 카드 빌드
+  Widget _buildSingleDiaryCard(
+    DiaryEntry diary,
+    DateTime selectedDate,
+    int diaryNumber,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 다이어리 번호 (여러 개일 때만 표시)
+        if (_getDiariesForDate(
+              selectedDate,
+              ref.read(calendarNotifierProvider).monthlyDiaries,
+            ).length >
+            1)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              '다이어리 $diaryNumber',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[600],
               ),
-              const SizedBox(width: 16),
-              Text(diary.emotionEmoji, style: const TextStyle(fontSize: 32)),
-            ],
+            ),
           ),
 
-          const SizedBox(height: 16),
+        // 제목과 감정 이모지
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    diary.title ??
+                        '${selectedDate.month}월 ${selectedDate.day}일의 일기',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF333333),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    diary.aiGeneratedText ?? diary.content,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[700],
+                      height: 1.4,
+                    ),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+            Text(diary.emotionEmoji, style: const TextStyle(fontSize: 32)),
+          ],
+        ),
 
-          // 감정
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
+        const SizedBox(height: 16),
+
+        // 감정
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: _getEmotionColor(
+                  diary.emotion ?? diary.aiEmotion ?? '평온',
+                ).withOpacity(0.15),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
                   color: _getEmotionColor(
                     diary.emotion ?? diary.aiEmotion ?? '평온',
-                  ).withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: _getEmotionColor(
-                      diary.emotion ?? diary.aiEmotion ?? '평온',
-                    ).withOpacity(0.3),
-                    width: 1,
-                  ),
+                  ).withOpacity(0.3),
+                  width: 1,
                 ),
-                child: Text(
-                  diary.emotion ?? diary.aiEmotion ?? '평온',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: _getEmotionColor(
-                      diary.emotion ?? diary.aiEmotion ?? '평온',
-                    ),
+              ),
+              child: Text(
+                diary.emotion ?? diary.aiEmotion ?? '평온',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: _getEmotionColor(
+                    diary.emotion ?? diary.aiEmotion ?? '평온',
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
+        ),
 
-          const SizedBox(height: 12),
+        const SizedBox(height: 12),
 
-          // 키워드들
+        // 키워드들
+        if (diary.keywords.isNotEmpty)
           Wrap(
             spacing: 8,
             runSpacing: 6,
@@ -1094,72 +1167,43 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
             }).toList(),
           ),
 
-          const SizedBox(height: 16),
+        const SizedBox(height: 16),
 
-          // 이미지 섹션 (플레이스홀더)
-          Container(
-            height: 120,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8F9FA),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE9ECEF), width: 1),
+        // 상세보기 버튼
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: () {
+              // 다이어리 상세 페이지로 이동
+              AppLogger.info(
+                'Navigate to diary detail: ${diary.id}',
+                'CalendarPage',
+              );
+              context.go('/diary/${diary.id}');
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF4A7C59),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              elevation: 0,
             ),
-            child: Column(
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.camera_alt_outlined,
-                  size: 32,
-                  color: Colors.grey[400],
+                const Text(
+                  '상세 보기',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  '이미지 없음',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                ),
+                const SizedBox(width: 8),
+                const Icon(Icons.arrow_forward_ios, size: 14),
               ],
             ),
           ),
-
-          const SizedBox(height: 16),
-
-          // 상세보기 버튼
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () {
-                // 다이어리 상세 페이지로 이동
-                AppLogger.info(
-                  'Navigate to diary detail: ${diary.id}',
-                  'CalendarPage',
-                );
-                context.go('/diary/${diary.id}');
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4A7C59),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                elevation: 0,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text(
-                    '클릭하여 상세 보기',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(width: 8),
-                  const Icon(Icons.arrow_forward_ios, size: 14),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
