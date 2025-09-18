@@ -1012,7 +1012,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      diary.content,
+                      diary.aiGeneratedText ?? diary.content,
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey[700],

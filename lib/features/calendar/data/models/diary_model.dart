@@ -14,6 +14,9 @@ class DiaryEntry {
   @JsonKey(name: 'content')
   final String content;
 
+  @JsonKey(name: 'ai_generated_text')
+  final String? aiGeneratedText;
+
   @JsonKey(name: 'user_emotion')
   final String? emotion;
 
@@ -36,6 +39,7 @@ class DiaryEntry {
     required this.id,
     this.title,
     required this.content,
+    this.aiGeneratedText,
     this.emotion,
     this.aiEmotion,
     required this.keywords,
