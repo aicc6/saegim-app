@@ -18,6 +18,33 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
   bool isLoading = true;
   String? errorMessage;
 
+  /// 감정을 한글로 변환
+  String _getKoreanEmotion(String? emotion) {
+    if (emotion == null || emotion.isEmpty) return '설정되지 않음';
+
+    switch (emotion.toLowerCase()) {
+      case 'happy':
+      case '행복':
+        return '행복';
+      case 'peaceful':
+      case '평온':
+        return '평온';
+      case 'unrest':
+      case 'anxious':
+      case '불안':
+        return '불안';
+      case 'angry':
+      case '분노':
+      case '화남':
+        return '분노';
+      case 'sad':
+      case '슬픔':
+        return '슬픔';
+      default:
+        return emotion; // 이미 한글이거나 알 수 없는 감정인 경우 그대로 반환
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -232,8 +259,8 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
   Widget _buildEmotionAnalysisSection() {
     if (diary == null) return const SizedBox.shrink();
 
-    final userEmotion = diary!.emotion ?? '평온';
-    final aiEmotion = diary!.aiEmotion ?? userEmotion;
+    final userEmotion = _getKoreanEmotion(diary!.emotion);
+    final aiEmotion = _getKoreanEmotion(diary!.aiEmotion);
     final userEmoji = diary!.emotionEmoji;
 
     return Row(
@@ -256,8 +283,11 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                       '사용자 감정 : ',
                       style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
                     ),
-                    Text(userEmoji, style: const TextStyle(fontSize: 20)),
-                    const SizedBox(width: 4),
+                    if (diary!.emotion != null &&
+                        diary!.emotion!.isNotEmpty) ...[
+                      Text(userEmoji, style: const TextStyle(fontSize: 20)),
+                      const SizedBox(width: 4),
+                    ],
                     Text(
                       userEmotion,
                       style: const TextStyle(
