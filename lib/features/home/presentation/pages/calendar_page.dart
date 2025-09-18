@@ -1129,11 +1129,12 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () {
-                // TODO: 상세보기 페이지로 이동
+                // 다이어리 상세 페이지로 이동
                 AppLogger.info(
                   'Navigate to diary detail: ${diary.id}',
                   'CalendarPage',
                 );
+                context.go('/diary/${diary.id}');
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF4A7C59),
