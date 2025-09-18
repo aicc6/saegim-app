@@ -51,26 +51,26 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
   final GlobalKey _diaryDetailKey = GlobalKey();
   late PageController _pageController;
 
-  // 감정 색상 매핑
+  // 감정 색상 매핑 (5가지 기본 감정) - 채도 조정
   Color _getEmotionColor(String emotion) {
     switch (emotion.toLowerCase()) {
       case '행복':
       case 'happy':
-        return const Color(0xFFE6C77D); // 노란색
+        return const Color(0xFFF9C74F); // 부드러운 노란색 (채도 낮춤)
+      case '평온':
+      case 'peaceful':
+        return const Color(0xFF90C695); // 부드러운 초록색 (채도 낮춤)
+      case '불안':
+      case 'unrest':
+        return const Color(0xFFB388C4); // 부드러운 보라색 (채도 낮춤)
+      case '분노':
+      case 'angry':
+        return const Color(0xFFE76F51); // 주황에 빨간색 섞인 색 (채도 낮춤)
       case '슬픔':
       case 'sad':
-        return const Color(0xFF7B9BD1); // 파란색
-      case '화남':
-      case 'angry':
-        return const Color(0xFFFF7043); // 주황색
-      case '평온':
-      case 'calm':
-        return const Color(0xFF8BC4A0); // 초록색
-      case '불안':
-      case 'anxious':
-        return const Color(0xFF9B7BB8); // 보라색
+        return const Color(0xFF6FA8DC); // 부드러운 파란색 (채도 낮춤)
       default:
-        return const Color(0xFFB2C5B8); // 기본 색상
+        return const Color(0xFF90C695); // 기본 색상 (평온한 초록색)
     }
   }
 
@@ -295,62 +295,6 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                 children: [
                   // 테스트 로그인 위젯 (개발용)
                   if (!authState.isAuthenticated) const TestLoginWidget(),
-
-                  // 인증 상태 디버그 정보 (개발용)
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    margin: const EdgeInsets.symmetric(horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: authState.isAuthenticated
-                          ? Colors.green[50]
-                          : Colors.red[50],
-                      border: Border.all(
-                        color: authState.isAuthenticated
-                            ? Colors.green
-                            : Colors.red,
-                      ),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          authState.isAuthenticated
-                              ? Icons.check_circle
-                              : Icons.error,
-                          color: authState.isAuthenticated
-                              ? Colors.green
-                              : Colors.red,
-                          size: 16,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            authState.isAuthenticated
-                                ? '인증됨: ${authState.userEmail ?? "사용자"}'
-                                : '인증 필요',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: authState.isAuthenticated
-                                  ? Colors.green[700]
-                                  : Colors.red[700],
-                            ),
-                          ),
-                        ),
-                        if (authState.isAuthenticated)
-                          TextButton(
-                            onPressed: () {
-                              ref
-                                  .read(calendarNotifierProvider.notifier)
-                                  .refresh();
-                            },
-                            child: const Text(
-                              '새로고침',
-                              style: TextStyle(fontSize: 10),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
 
                   // 상단 헤더
                   Container(

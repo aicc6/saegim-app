@@ -44,27 +44,27 @@ class DiaryEntry {
     this.isPublic,
   });
 
-  // 감정 이모티콘 매핑
+  // 감정 이모티콘 매핑 (5가지 기본 감정)
   String get emotionEmoji {
     final emotionValue = emotion ?? aiEmotion ?? '평온';
     switch (emotionValue.toLowerCase()) {
       case '행복':
       case 'happy':
         return '😊';
+      case '평온':
+      case 'peaceful':
+        return '😌';
+      case '불안':
+      case 'unrest':
+        return '😰';
+      case '분노':
+      case 'angry':
+        return '😠';
       case '슬픔':
       case 'sad':
         return '😢';
-      case '화남':
-      case 'angry':
-        return '😠';
-      case '평온':
-      case 'calm':
-        return '😌';
-      case '불안':
-      case 'anxious':
-        return '😰';
       default:
-        return '😐';
+        return '😌'; // 기본값: 평온
     }
   }
 
