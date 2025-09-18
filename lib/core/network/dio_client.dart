@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:saegim/core/config/environment.dart';
+import 'package:saegim/core/services/auth_storage_service.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
 
 import 'secure_cookie_jar.dart';
@@ -54,6 +55,9 @@ class DioClient {
     final secureCookieJar = SecureCookieJar();
     await secureCookieJar.init();
     _dio.interceptors.add(CookieManager(secureCookieJar));
+
+    // JWT 토큰 인증 인터셉터 추가
+    _dio.interceptors.add(_createAuthInterceptor());
 
     // 로깅 인터셉터 추가
     _dio.interceptors.add(
@@ -137,6 +141,96 @@ class DioClient {
         responseType: ResponseType.stream,
       ),
     );
+  }
+
+  /// JWT 토큰 인증 인터셉터 생성
+  InterceptorsWrapper _createAuthInterceptor() {
+    return InterceptorsWrapper(
+      onRequest: (options, handler) async {
+        // 토큰이 필요한 API 호출에 Authorization 헤더 추가
+        final token = await AuthStorageService.instance.getAuthToken();
+        if (token != null && token.isNotEmpty) {
+          options.headers['Authorization'] = 'Bearer $token';
+          AppLogger.info(
+            'Added Authorization header to ${options.method} ${options.path}',
+            'DioClient',
+          );
+        }
+        handler.next(options);
+      },
+      onError: (error, handler) async {
+        // 401 Unauthorized 에러 처리
+        if (error.response?.statusCode == 401) {
+          AppLogger.warning(
+            'Received 401 Unauthorized for ${error.requestOptions.method} ${error.requestOptions.path}',
+            'DioClient',
+          );
+
+          // 토큰 갱신 시도 (리프레시 토큰이 있는 경우)
+          final refreshToken = await AuthStorageService.instance
+              .getRefreshToken();
+          if (refreshToken != null && refreshToken.isNotEmpty) {
+            try {
+              final newToken = await _refreshToken(refreshToken);
+              if (newToken != null) {
+                // 새 토큰으로 원래 요청 재시도
+                final options = error.requestOptions;
+                options.headers['Authorization'] = 'Bearer $newToken';
+
+                AppLogger.info(
+                  'Retrying request with refreshed token',
+                  'DioClient',
+                );
+
+                final response = await _dio.fetch(options);
+                return handler.resolve(response);
+              }
+            } catch (refreshError) {
+              AppLogger.error(
+                'Token refresh failed',
+                tag: 'DioClient',
+                error: refreshError,
+              );
+            }
+          }
+
+          // 토큰 갱신 실패 또는 리프레시 토큰 없음 - 인증 데이터 정리
+          await AuthStorageService.instance.clearAllAuthData();
+          AppLogger.warning(
+            'Cleared authentication data due to 401 error',
+            'DioClient',
+          );
+        }
+        handler.next(error);
+      },
+    );
+  }
+
+  /// 토큰 갱신
+  Future<String?> _refreshToken(String refreshToken) async {
+    try {
+      final response = await _dio.post(
+        '/api/auth/refresh',
+        data: {'refresh_token': refreshToken},
+        options: Options(headers: {'Authorization': 'Bearer $refreshToken'}),
+      );
+
+      if (response.statusCode == 200) {
+        final newToken = response.data['access_token'] as String?;
+        if (newToken != null) {
+          await AuthStorageService.instance.saveAuthToken(newToken);
+          AppLogger.info('Token refreshed successfully', 'DioClient');
+          return newToken;
+        }
+      }
+    } catch (e) {
+      AppLogger.error(
+        'Token refresh request failed',
+        tag: 'DioClient',
+        error: e,
+      );
+    }
+    return null;
   }
 
   /// 리소스 정리 (앱 종료 시 호출)

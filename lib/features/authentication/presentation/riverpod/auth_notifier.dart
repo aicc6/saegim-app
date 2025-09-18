@@ -72,18 +72,31 @@ class AuthNotifier extends _$AuthNotifier {
     try {
       // 저장된 토큰 확인
       final token = await AuthStorageService.instance.getAuthToken();
-      final userId = await AuthStorageService.instance.getUserId();
-      final userEmail = await AuthStorageService.instance.getUserEmail();
 
       if (token != null && token.isNotEmpty) {
-        // 토큰이 있으면 유효성 검사 (선택적)
-        state = state.copyWith(
-          isAuthenticated: true,
-          userId: userId,
-          userEmail: userEmail,
-          isLoading: false,
-        );
-        AppLogger.info('User authenticated with stored token', 'AuthNotifier');
+        // 서버에서 토큰 유효성 검증
+        final isValid = await _validateTokenWithServer(token);
+
+        if (isValid) {
+          final userId = await AuthStorageService.instance.getUserId();
+          final userEmail = await AuthStorageService.instance.getUserEmail();
+
+          state = state.copyWith(
+            isAuthenticated: true,
+            userId: userId,
+            userEmail: userEmail,
+            isLoading: false,
+          );
+          AppLogger.info('User authenticated with valid token', 'AuthNotifier');
+        } else {
+          // 토큰이 유효하지 않으면 인증 데이터 정리
+          await AuthStorageService.instance.clearAllAuthData();
+          state = state.copyWith(isAuthenticated: false, isLoading: false);
+          AppLogger.warning(
+            'Token validation failed, cleared auth data',
+            'AuthNotifier',
+          );
+        }
       } else {
         state = state.copyWith(isAuthenticated: false, isLoading: false);
         AppLogger.info('No authentication token found', 'AuthNotifier');
@@ -295,6 +308,31 @@ class AuthNotifier extends _$AuthNotifier {
       }
 
       state = state.copyWith(isLoading: false, errorMessage: errorMessage);
+      return false;
+    }
+  }
+
+  /// 서버에서 토큰 유효성 검증
+  Future<bool> _validateTokenWithServer(String token) async {
+    try {
+      // 간단한 사용자 정보 조회로 토큰 유효성 확인
+      final response = await DioClient.instance.dio.get(
+        '/api/user/profile',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.statusCode == 200) {
+        AppLogger.info('Token validation successful', 'AuthNotifier');
+        return true;
+      } else {
+        AppLogger.warning(
+          'Token validation failed with status: ${response.statusCode}',
+          'AuthNotifier',
+        );
+        return false;
+      }
+    } catch (e) {
+      AppLogger.warning('Token validation failed: $e', 'AuthNotifier');
       return false;
     }
   }
