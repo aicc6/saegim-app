@@ -1,10 +1,64 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:saegim/features/calendar/data/models/diary_model.dart';
+import 'package:saegim/features/calendar/data/services/diary_api_service.dart';
+import 'package:saegim/shared/utils/app_logger.dart';
 
-class DiaryDetailPage extends StatelessWidget {
+class DiaryDetailPage extends StatefulWidget {
   final String diaryId;
 
   const DiaryDetailPage({super.key, required this.diaryId});
+
+  @override
+  State<DiaryDetailPage> createState() => _DiaryDetailPageState();
+}
+
+class _DiaryDetailPageState extends State<DiaryDetailPage> {
+  DiaryEntry? diary;
+  bool isLoading = true;
+  String? errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDiary();
+  }
+
+  /// 다이어리 데이터 로드
+  Future<void> _loadDiary() async {
+    try {
+      setState(() {
+        isLoading = true;
+        errorMessage = null;
+      });
+
+      final loadedDiary = await DiaryApiService.instance.getDiaryById(
+        widget.diaryId,
+      );
+
+      if (mounted) {
+        setState(() {
+          diary = loadedDiary;
+          isLoading = false;
+          if (loadedDiary == null) {
+            errorMessage = '다이어리를 불러올 수 없습니다.';
+          }
+        });
+      }
+    } catch (e) {
+      AppLogger.error(
+        'Failed to load diary: ${widget.diaryId}',
+        tag: 'DiaryDetailPage',
+        error: e,
+      );
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          errorMessage = '다이어리를 불러오는 중 오류가 발생했습니다.';
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,38 +72,82 @@ class DiaryDetailPage extends StatelessWidget {
 
             // 스크롤 가능한 콘텐츠
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 제목과 날짜
-                    _buildTitleSection(),
+              child: isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF4A7C59),
+                      ),
+                    )
+                  : errorMessage != null
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.error_outline,
+                            size: 64,
+                            color: Colors.grey[400],
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            errorMessage!,
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey[600],
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: _loadDiary,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF4A7C59),
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text('다시 시도'),
+                          ),
+                        ],
+                      ),
+                    )
+                  : diary == null
+                  ? const Center(
+                      child: Text(
+                        '다이어리를 찾을 수 없습니다.',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    )
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // 제목과 날짜
+                          _buildTitleSection(),
 
-                    const SizedBox(height: 24),
+                          const SizedBox(height: 24),
 
-                    // 감정 분석 섹션
-                    _buildEmotionAnalysisSection(),
+                          // 감정 분석 섹션
+                          _buildEmotionAnalysisSection(),
 
-                    const SizedBox(height: 20),
+                          const SizedBox(height: 20),
 
-                    // 키워드 섹션
-                    _buildKeywordSection(),
+                          // 키워드 섹션
+                          _buildKeywordSection(),
 
-                    const SizedBox(height: 24),
+                          const SizedBox(height: 24),
 
-                    // AI 생성 글 섹션
-                    _buildAiContentSection(),
+                          // AI 생성 글 섹션
+                          _buildAiContentSection(),
 
-                    const SizedBox(height: 32),
+                          const SizedBox(height: 32),
 
-                    // 수정/삭제 버튼
-                    _buildActionButtons(context),
+                          // 수정/삭제 버튼
+                          _buildActionButtons(context),
 
-                    const SizedBox(height: 20),
-                  ],
-                ),
-              ),
+                          const SizedBox(height: 20),
+                        ],
+                      ),
+                    ),
             ),
           ],
         ),
@@ -105,21 +203,26 @@ class DiaryDetailPage extends StatelessWidget {
 
   // 제목과 날짜 섹션
   Widget _buildTitleSection() {
+    if (diary == null) return const SizedBox.shrink();
+
+    final diaryDate = diary!.diaryDate;
+    final formattedDate = '${diaryDate.month}월 ${diaryDate.day}일';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          '9월 16일 일기',
-          style: TextStyle(
+        Text(
+          diary!.title ?? '$formattedDate 일기',
+          style: const TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
             color: Color(0xFF1F2937),
           ),
         ),
         const SizedBox(height: 8),
-        const Text(
-          '9월 16일',
-          style: TextStyle(fontSize: 16, color: Color(0xFF6B7280)),
+        Text(
+          formattedDate,
+          style: const TextStyle(fontSize: 16, color: Color(0xFF6B7280)),
         ),
       ],
     );
@@ -127,6 +230,12 @@ class DiaryDetailPage extends StatelessWidget {
 
   // 감정 분석 섹션
   Widget _buildEmotionAnalysisSection() {
+    if (diary == null) return const SizedBox.shrink();
+
+    final userEmotion = diary!.emotion ?? '평온';
+    final aiEmotion = diary!.aiEmotion ?? userEmotion;
+    final userEmoji = diary!.emotionEmoji;
+
     return Row(
       children: [
         // 사용자 감정
@@ -138,20 +247,20 @@ class DiaryDetailPage extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: const Color(0xFFE9ECEF)),
             ),
-            child: const Column(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Text(
+                    const Text(
                       '사용자 감정 : ',
                       style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
                     ),
-                    Text('😰', style: TextStyle(fontSize: 20)),
-                    SizedBox(width: 4),
+                    Text(userEmoji, style: const TextStyle(fontSize: 20)),
+                    const SizedBox(width: 4),
                     Text(
-                      '불안',
-                      style: TextStyle(
+                      userEmotion,
+                      style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: Color(0xFF1F2937),
@@ -159,26 +268,26 @@ class DiaryDetailPage extends StatelessWidget {
                     ),
                   ],
                 ),
-                SizedBox(height: 12),
+                const SizedBox(height: 12),
                 Row(
                   children: [
-                    Text(
+                    const Text(
                       'AI 분석 감정 : ',
                       style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
                     ),
-                    Text('😰', style: TextStyle(fontSize: 20)),
-                    SizedBox(width: 4),
+                    Text(userEmoji, style: const TextStyle(fontSize: 20)),
+                    const SizedBox(width: 4),
                     Text(
-                      '불안',
-                      style: TextStyle(
+                      aiEmotion,
+                      style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: Color(0xFF1F2937),
                       ),
                     ),
-                    SizedBox(width: 4),
-                    Text(
-                      '(80%)',
+                    const SizedBox(width: 4),
+                    const Text(
+                      '(AI 분석)',
                       style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
                     ),
                   ],
@@ -193,6 +302,32 @@ class DiaryDetailPage extends StatelessWidget {
 
   // 키워드 섹션
   Widget _buildKeywordSection() {
+    if (diary == null || diary!.keywords.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE9ECEF)),
+        ),
+        child: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '키워드 :',
+              style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+            ),
+            SizedBox(height: 12),
+            Text(
+              '키워드가 없습니다.',
+              style: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF)),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -212,13 +347,9 @@ class DiaryDetailPage extends StatelessWidget {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: [
-              _buildKeywordChip('#시험'),
-              _buildKeywordChip('#초조함'),
-              _buildKeywordChip('#불안'),
-              _buildKeywordChip('#월레벌떡'),
-              _buildKeywordChip('#안쓰러움'),
-            ],
+            children: diary!.keywords
+                .map((keyword) => _buildKeywordChip('#$keyword'))
+                .toList(),
           ),
         ],
       ),
@@ -246,6 +377,12 @@ class DiaryDetailPage extends StatelessWidget {
 
   // AI 생성 글 섹션
   Widget _buildAiContentSection() {
+    if (diary == null) return const SizedBox.shrink();
+
+    final aiContent = diary!.aiGeneratedText;
+    final originalContent = diary!.content;
+    final displayContent = aiContent ?? originalContent;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -254,19 +391,30 @@ class DiaryDetailPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFE9ECEF)),
       ),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (aiContent != null) ...[
+            const Text(
+              'AI 생성 글',
+              style: TextStyle(
+                fontSize: 14,
+                color: Color(0xFF6B7280),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
           Text(
-            '흔느끼는 시계소리, 초조함의 나락에서\n불안한 내 그림자는 월레벌떡 고개 숙여\n빗속의 고독처럼 안쓰러게 젖어드는,\n숨 쉬는 것조차, 시험의 검은 날개 아래서.',
-            style: TextStyle(
+            displayContent,
+            style: const TextStyle(
               fontSize: 16,
               height: 1.6,
               color: Color(0xFF1F2937),
             ),
           ),
-          SizedBox(height: 100),
-          Center(
+          const SizedBox(height: 40),
+          const Center(
             child: Text(
               '•',
               style: TextStyle(fontSize: 24, color: Color(0xFFB2C5B8)),
@@ -375,7 +523,11 @@ class DiaryDetailPage extends StatelessWidget {
                 Navigator.of(context).pop();
                 // TODO: 실제 삭제 기능 구현
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('삭제 기능은 아직 구현되지 않았습니다.')),
+                  SnackBar(
+                    content: Text(
+                      '다이어리 ${widget.diaryId} 삭제 기능은 아직 구현되지 않았습니다.',
+                    ),
+                  ),
                 );
               },
               child: const Text(
