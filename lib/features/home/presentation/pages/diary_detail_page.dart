@@ -68,7 +68,7 @@ class DiaryDetailPage extends StatelessWidget {
       child: Row(
         children: [
           GestureDetector(
-            onTap: () => context.pop(),
+            onTap: () => _handleBackNavigation(context),
             child: const Icon(
               Icons.arrow_back_ios,
               size: 20,
@@ -87,6 +87,20 @@ class DiaryDetailPage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  // 뒤로가기 네비게이션 처리
+  void _handleBackNavigation(BuildContext context) {
+    final uri = GoRouter.of(context).routeInformationProvider.value.uri;
+    final from = uri.queryParameters['from'];
+
+    if (from == 'calendar') {
+      // 캘린더에서 왔다면 캘린더로 돌아가기
+      context.go('/calendar');
+    } else {
+      // 그 외의 경우는 기본 pop 동작 (다이어리 목록으로)
+      context.pop();
+    }
   }
 
   // 제목과 날짜 섹션
