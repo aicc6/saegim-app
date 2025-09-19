@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:saegim/shared/widgets/common_app_bar.dart';
 import 'package:saegim/features/calendar/presentation/riverpod/calendar_notifier.dart';
 import 'package:saegim/features/calendar/data/models/diary_model.dart';
+import 'package:saegim/features/calendar/data/models/diary_image_model.dart';
+import 'package:saegim/features/calendar/data/services/diary_api_service.dart';
 import 'package:saegim/features/calendar/presentation/widgets/test_login_widget.dart';
 import 'package:saegim/features/authentication/presentation/riverpod/auth_notifier.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
@@ -51,6 +53,10 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
   final GlobalKey _diaryDetailKey = GlobalKey();
   late PageController _pageController;
 
+  // 다이어리별 이미지 캐시
+  final Map<String, List<DiaryImage>> _diaryImagesCache = {};
+  final Set<String> _loadingImages = {};
+
   // 감정 색상 매핑 (5가지 기본 감정) - 채도 조정
   Color _getEmotionColor(String emotion) {
     switch (emotion.toLowerCase()) {
@@ -85,6 +91,40 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     _scrollController.dispose();
     _pageController.dispose();
     super.dispose();
+  }
+
+  /// 다이어리 이미지 로드
+  Future<void> _loadDiaryImages(String diaryId) async {
+    // 이미 로딩 중이거나 캐시에 있으면 스킵
+    if (_loadingImages.contains(diaryId) ||
+        _diaryImagesCache.containsKey(diaryId)) {
+      return;
+    }
+
+    _loadingImages.add(diaryId);
+
+    try {
+      final images = await DiaryApiService.instance.getDiaryImages(diaryId);
+
+      if (mounted) {
+        setState(() {
+          _diaryImagesCache[diaryId] = images;
+          _loadingImages.remove(diaryId);
+        });
+      }
+    } catch (e) {
+      AppLogger.error(
+        'Failed to load images for diary: $diaryId',
+        tag: 'CalendarPage',
+        error: e,
+      );
+      if (mounted) {
+        setState(() {
+          _diaryImagesCache[diaryId] = [];
+          _loadingImages.remove(diaryId);
+        });
+      }
+    }
   }
 
   // 해당 월의 첫 번째 날짜
@@ -374,7 +414,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.1),
+                                color: Colors.black.withOpacity(0.1),
                                 blurRadius: 4,
                                 offset: const Offset(0, 2),
                               ),
@@ -416,7 +456,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
+                          color: Colors.black.withOpacity(0.05),
                           blurRadius: 10,
                           offset: const Offset(0, 2),
                         ),
@@ -680,7 +720,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
+                          color: Colors.black.withOpacity(0.05),
                           blurRadius: 10,
                           offset: const Offset(0, 2),
                         ),
@@ -810,7 +850,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
+                          color: Colors.black.withOpacity(0.05),
                           blurRadius: 10,
                           offset: const Offset(0, 2),
                         ),
@@ -986,7 +1026,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
+            color: Colors.black.withOpacity(0.08),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -1114,12 +1154,12 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
               decoration: BoxDecoration(
                 color: _getEmotionColor(
                   diary.emotion ?? diary.aiEmotion ?? '평온',
-                ).withValues(alpha:0.15),
+                ).withOpacity(0.15),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: _getEmotionColor(
                     diary.emotion ?? diary.aiEmotion ?? '평온',
-                  ).withValues(alpha:0.3),
+                  ).withOpacity(0.3),
                   width: 1,
                 ),
               ),
@@ -1166,6 +1206,11 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
               );
             }).toList(),
           ),
+
+        const SizedBox(height: 12),
+
+        // 이미지 섹션
+        _buildDiaryImages(diary),
 
         const SizedBox(height: 16),
 
@@ -1231,7 +1276,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
+            color: Colors.black.withOpacity(0.08),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -1433,5 +1478,256 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
         ),
       );
     }).toList();
+  }
+
+  /// 다이어리 이미지 섹션 빌드
+  Widget _buildDiaryImages(DiaryEntry diary) {
+    // 이미지 로드 시작 (캐시에 없는 경우)
+    if (!_diaryImagesCache.containsKey(diary.id) &&
+        !_loadingImages.contains(diary.id)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _loadDiaryImages(diary.id);
+      });
+    }
+
+    final images = _diaryImagesCache[diary.id] ?? [];
+    final isLoading = _loadingImages.contains(diary.id);
+
+    // 이미지가 없고 로딩 중도 아니면 빈 위젯 반환
+    if (images.isEmpty && !isLoading) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (isLoading)
+          Container(
+            height: 80,
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4A7C59)),
+                ),
+              ),
+            ),
+          )
+        else if (images.isNotEmpty)
+          SizedBox(
+            height: 80,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: images.length,
+              separatorBuilder: (context, index) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final image = images[index];
+                return _buildImageThumbnail(image, index, images);
+              },
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// 이미지 썸네일 빌드
+  Widget _buildImageThumbnail(
+    DiaryImage image,
+    int index,
+    List<DiaryImage> allImages,
+  ) {
+    final imageUrl = image.fullImageUrl;
+
+    if (imageUrl.isEmpty) {
+      return Container(
+        width: 80,
+        height: 80,
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFE9ECEF)),
+        ),
+        child: const Icon(
+          Icons.broken_image_outlined,
+          color: Color(0xFF9CA3AF),
+          size: 24,
+        ),
+      );
+    }
+
+    return GestureDetector(
+      onTap: () => _showImageFullScreen(image, index, allImages),
+      child: Container(
+        width: 80,
+        height: 80,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFE9ECEF)),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.network(
+            imageUrl,
+            fit: BoxFit.cover,
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+
+              return Container(
+                color: Colors.grey[100],
+                child: const Center(
+                  child: SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Color(0xFF4A7C59),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                color: Colors.grey[100],
+                child: const Icon(
+                  Icons.broken_image_outlined,
+                  color: Color(0xFF9CA3AF),
+                  size: 24,
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 이미지 풀스크린 표시
+  void _showImageFullScreen(
+    DiaryImage image,
+    int initialIndex,
+    List<DiaryImage> allImages,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog.fullscreen(
+        backgroundColor: Colors.black,
+        child: Stack(
+          children: [
+            // 이미지 페이지뷰
+            PageView.builder(
+              controller: PageController(initialPage: initialIndex),
+              itemCount: allImages.length,
+              itemBuilder: (context, index) {
+                final currentImage = allImages[index];
+                final imageUrl = currentImage.fullImageUrl;
+
+                if (imageUrl.isEmpty) {
+                  return const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.broken_image_outlined,
+                          size: 64,
+                          color: Colors.white54,
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          '이미지 경로가 없습니다',
+                          style: TextStyle(color: Colors.white54, fontSize: 16),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return Center(
+                  child: InteractiveViewer(
+                    child: Image.network(
+                      imageUrl,
+                      fit: BoxFit.contain,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+
+                        return const Center(
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.broken_image_outlined,
+                                size: 64,
+                                color: Colors.white54,
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                '이미지를 불러올 수 없습니다',
+                                style: TextStyle(
+                                  color: Colors.white54,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                );
+              },
+            ),
+            // 닫기 버튼
+            Positioned(
+              top: 50,
+              right: 20,
+              child: IconButton(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.close, color: Colors.white, size: 32),
+              ),
+            ),
+            // 이미지 정보
+            if (allImages.length > 1)
+              Positioned(
+                bottom: 50,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${initialIndex + 1} / ${allImages.length}',
+                      style: const TextStyle(color: Colors.white, fontSize: 14),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }

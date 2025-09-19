@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:saegim/core/network/dio_client.dart';
 import 'package:saegim/features/calendar/data/models/diary_model.dart';
+import 'package:saegim/features/calendar/data/models/diary_image_model.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
 
 /// 다이어리 API 서비스
@@ -652,5 +653,187 @@ class DiaryApiService {
     // 개수 순으로 정렬하고 상위 10개만 반환
     statistics.sort((a, b) => b.count.compareTo(a.count));
     return statistics.take(10).toList();
+  }
+
+  /// 다이어리 이미지 목록 조회
+  ///
+  /// [diaryId]: 다이어리 ID
+  Future<List<DiaryImage>> getDiaryImages(String diaryId) async {
+    try {
+      AppLogger.info(
+        '🖼️ Fetching images for diary: $diaryId',
+        'DiaryApiService',
+      );
+
+      final response = await dio.get('/api/diary/$diaryId/images');
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+
+        // 디버깅: 실제 응답 데이터 확인
+        AppLogger.info('🔍 Raw API response: $data', 'DiaryApiService');
+
+        if (data is List) {
+          // 직접 배열로 반환되는 경우
+          AppLogger.info(
+            '📋 Processing as List with ${data.length} items',
+            'DiaryApiService',
+          );
+
+          final images = data
+              .map((item) {
+                AppLogger.info('🔍 Processing item: $item', 'DiaryApiService');
+                return DiaryImage.fromJson(item as Map<String, dynamic>);
+              })
+              .where((image) {
+                // 유효한 이미지만 필터링 (filePath가 null이 아니고 비어있지 않은 경우)
+                final isValid =
+                    image.filePath != null &&
+                    image.filePath!.isNotEmpty &&
+                    image.fullImageUrl.isNotEmpty;
+                if (!isValid) {
+                  AppLogger.warning(
+                    '⚠️ Skipping invalid image: filePath=${image.filePath}',
+                    'DiaryApiService',
+                  );
+                }
+                return isValid;
+              })
+              .toList();
+
+          AppLogger.info(
+            '✅ Successfully loaded ${images.length} images for diary: $diaryId',
+            'DiaryApiService',
+          );
+          return images;
+        } else if (data is Map<String, dynamic>) {
+          // 객체로 감싸져서 반환되는 경우
+          if (data.containsKey('images')) {
+            final imagesList = data['images'] as List;
+            final images = imagesList
+                .map(
+                  (item) => DiaryImage.fromJson(item as Map<String, dynamic>),
+                )
+                .where(
+                  (image) =>
+                      image.filePath != null &&
+                      image.filePath!.isNotEmpty &&
+                      image.fullImageUrl.isNotEmpty,
+                )
+                .toList();
+
+            AppLogger.info(
+              '✅ Successfully loaded ${images.length} images for diary: $diaryId',
+              'DiaryApiService',
+            );
+            return images;
+          } else if (data.containsKey('data')) {
+            final imagesList = data['data'] as List;
+            final images = imagesList
+                .map(
+                  (item) => DiaryImage.fromJson(item as Map<String, dynamic>),
+                )
+                .where(
+                  (image) =>
+                      image.filePath != null &&
+                      image.filePath!.isNotEmpty &&
+                      image.fullImageUrl.isNotEmpty,
+                )
+                .toList();
+
+            AppLogger.info(
+              '✅ Successfully loaded ${images.length} images for diary: $diaryId',
+              'DiaryApiService',
+            );
+            return images;
+          }
+        }
+
+        AppLogger.warning(
+          'Unexpected response format for diary images',
+          'DiaryApiService',
+        );
+        return [];
+      } else {
+        AppLogger.warning(
+          'Failed to load diary images: ${response.statusCode}',
+          'DiaryApiService',
+        );
+        return [];
+      }
+    } on DioException catch (dioError) {
+      final statusCode = dioError.response?.statusCode;
+
+      if (statusCode == 404) {
+        AppLogger.info(
+          'No images found for diary: $diaryId',
+          'DiaryApiService',
+        );
+        return [];
+      }
+
+      AppLogger.error(
+        '❌ DioException loading diary images: $diaryId - Status: $statusCode',
+        tag: 'DiaryApiService',
+        error: dioError,
+      );
+      return [];
+    } catch (e) {
+      AppLogger.error(
+        'Unexpected error loading diary images: $diaryId',
+        tag: 'DiaryApiService',
+        error: e,
+      );
+      return [];
+    }
+  }
+
+  /// 단일 이미지 조회 (이미지 ID로)
+  ///
+  /// [imageId]: 이미지 ID
+  Future<DiaryImage?> getDiaryImageById(String imageId) async {
+    try {
+      AppLogger.info('🖼️ Fetching image: $imageId', 'DiaryApiService');
+
+      final response = await dio.get('/api/image/$imageId');
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+        final image = DiaryImage.fromJson(data as Map<String, dynamic>);
+
+        AppLogger.info(
+          '✅ Successfully loaded image: $imageId',
+          'DiaryApiService',
+        );
+        return image;
+      } else {
+        AppLogger.warning(
+          'Failed to load image: $imageId - Status: ${response.statusCode}',
+          'DiaryApiService',
+        );
+        return null;
+      }
+    } on DioException catch (dioError) {
+      final statusCode = dioError.response?.statusCode;
+
+      if (statusCode == 404) {
+        AppLogger.info('Image not found: $imageId', 'DiaryApiService');
+        return null;
+      }
+
+      AppLogger.error(
+        '❌ DioException loading image: $imageId - Status: $statusCode',
+        tag: 'DiaryApiService',
+        error: dioError,
+      );
+      return null;
+    } catch (e) {
+      AppLogger.error(
+        'Unexpected error loading image: $imageId',
+        tag: 'DiaryApiService',
+        error: e,
+      );
+      return null;
+    }
   }
 }

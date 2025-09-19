@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:saegim/features/calendar/data/models/diary_model.dart';
+import 'package:saegim/features/calendar/data/models/diary_image_model.dart';
 import 'package:saegim/features/calendar/data/services/diary_api_service.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
 
@@ -25,6 +26,10 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
   late TextEditingController _keywordsController;
   late TextEditingController _aiGeneratedTextController;
   String? _selectedEmotion;
+
+  // 이미지 관련 변수들
+  List<DiaryImage> diaryImages = [];
+  bool isLoadingImages = false;
 
   // 감정 옵션 (서버 호환을 위해 정확한 영어 값 사용)
   final List<Map<String, String>> _emotions = [
@@ -205,6 +210,8 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
           } else {
             // 편집 모드를 위한 컨트롤러 초기화
             _initializeEditControllers();
+            // 이미지 로드
+            _loadDiaryImages();
           }
         });
       }
@@ -218,6 +225,37 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         setState(() {
           isLoading = false;
           errorMessage = '다이어리를 불러오는 중 오류가 발생했습니다.';
+        });
+      }
+    }
+  }
+
+  /// 다이어리 이미지 로드
+  Future<void> _loadDiaryImages() async {
+    if (diary == null) return;
+
+    setState(() {
+      isLoadingImages = true;
+    });
+
+    try {
+      final images = await DiaryApiService.instance.getDiaryImages(diary!.id);
+
+      if (mounted) {
+        setState(() {
+          diaryImages = images;
+          isLoadingImages = false;
+        });
+      }
+    } catch (e) {
+      AppLogger.error(
+        'Failed to load diary images: ${diary!.id}',
+        tag: 'DiaryDetailPage',
+        error: e,
+      );
+      if (mounted) {
+        setState(() {
+          isLoadingImages = false;
         });
       }
     }
@@ -501,6 +539,11 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
                           // AI 생성 글 섹션
                           _buildAiContentSection(),
+
+                          const SizedBox(height: 24),
+
+                          // 이미지 섹션
+                          _buildImageSection(),
 
                           const SizedBox(height: 32),
 
@@ -1119,6 +1162,324 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
           ],
         );
       },
+    );
+  }
+
+  // 이미지 섹션
+  Widget _buildImageSection() {
+    if (diary == null) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE9ECEF)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.photo_library_outlined,
+                size: 20,
+                color: Color(0xFF6B7280),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                '이미지',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1F2937),
+                ),
+              ),
+              const Spacer(),
+              if (isLoadingImages)
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Color(0xFF4A7C59),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (isLoadingImages)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4A7C59)),
+                ),
+              ),
+            )
+          else if (diaryImages.isEmpty)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.photo_outlined,
+                      size: 48,
+                      color: Color(0xFF9CA3AF),
+                    ),
+                    SizedBox(height: 12),
+                    Text(
+                      '등록된 이미지가 없습니다.',
+                      style: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF)),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            _buildImageGrid(),
+        ],
+      ),
+    );
+  }
+
+  // 이미지 그리드
+  Widget _buildImageGrid() {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 1,
+      ),
+      itemCount: diaryImages.length,
+      itemBuilder: (context, index) {
+        final image = diaryImages[index];
+        return _buildImageCard(image, index);
+      },
+    );
+  }
+
+  // 개별 이미지 카드
+  Widget _buildImageCard(DiaryImage image, int index) {
+    final imageUrl = image.fullImageUrl;
+
+    // 유효하지 않은 이미지 URL인 경우 에러 위젯 표시
+    if (imageUrl.isEmpty) {
+      return Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFE9ECEF)),
+          color: Colors.grey[100],
+        ),
+        child: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.broken_image_outlined,
+                size: 32,
+                color: Color(0xFF9CA3AF),
+              ),
+              SizedBox(height: 8),
+              Text(
+                '이미지 경로 없음',
+                style: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return GestureDetector(
+      onTap: () => _showImageFullScreen(image, index),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFE9ECEF)),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.network(
+            imageUrl,
+            fit: BoxFit.cover,
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+
+              return Container(
+                color: Colors.grey[100],
+                child: Center(
+                  child: CircularProgressIndicator(
+                    value: loadingProgress.expectedTotalBytes != null
+                        ? loadingProgress.cumulativeBytesLoaded /
+                              loadingProgress.expectedTotalBytes!
+                        : null,
+                    strokeWidth: 2,
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      Color(0xFF4A7C59),
+                    ),
+                  ),
+                ),
+              );
+            },
+            errorBuilder: (context, error, stackTrace) {
+              AppLogger.error(
+                'Failed to load image: ${image.fullImageUrl}',
+                tag: 'DiaryDetailPage',
+                error: error,
+              );
+
+              return Container(
+                color: Colors.grey[100],
+                child: const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.broken_image_outlined,
+                        size: 32,
+                        color: Color(0xFF9CA3AF),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        '이미지 로드 실패',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF9CA3AF),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 이미지 풀스크린 표시
+  void _showImageFullScreen(DiaryImage image, int initialIndex) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog.fullscreen(
+        backgroundColor: Colors.black,
+        child: Stack(
+          children: [
+            // 이미지 페이지뷰
+            PageView.builder(
+              controller: PageController(initialPage: initialIndex),
+              itemCount: diaryImages.length,
+              itemBuilder: (context, index) {
+                final currentImage = diaryImages[index];
+                final imageUrl = currentImage.fullImageUrl;
+
+                if (imageUrl.isEmpty) {
+                  return const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.broken_image_outlined,
+                          size: 64,
+                          color: Colors.white54,
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          '이미지 경로가 없습니다',
+                          style: TextStyle(color: Colors.white54, fontSize: 16),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return Center(
+                  child: InteractiveViewer(
+                    child: Image.network(
+                      imageUrl,
+                      fit: BoxFit.contain,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+
+                        return const Center(
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.broken_image_outlined,
+                                size: 64,
+                                color: Colors.white54,
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                '이미지를 불러올 수 없습니다',
+                                style: TextStyle(
+                                  color: Colors.white54,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                );
+              },
+            ),
+            // 닫기 버튼
+            Positioned(
+              top: 50,
+              right: 20,
+              child: IconButton(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.close, color: Colors.white, size: 32),
+              ),
+            ),
+            // 이미지 정보
+            if (diaryImages.length > 1)
+              Positioned(
+                bottom: 50,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${initialIndex + 1} / ${diaryImages.length}',
+                      style: const TextStyle(color: Colors.white, fontSize: 14),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
