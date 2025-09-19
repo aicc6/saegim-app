@@ -1,25 +1,573 @@
 import 'package:flutter/material.dart';
-import 'package:saegim/shared/widgets/common_app_bar.dart';
+import 'package:go_router/go_router.dart';
+import 'package:saegim/features/calendar/data/models/diary_model.dart';
+import 'package:saegim/features/calendar/data/services/diary_api_service.dart';
+import 'package:saegim/shared/utils/app_logger.dart';
 
-class DiaryDetailPage extends StatelessWidget {
+class DiaryDetailPage extends StatefulWidget {
   final String diaryId;
-  
+
   const DiaryDetailPage({super.key, required this.diaryId});
+
+  @override
+  State<DiaryDetailPage> createState() => _DiaryDetailPageState();
+}
+
+class _DiaryDetailPageState extends State<DiaryDetailPage> {
+  DiaryEntry? diary;
+  bool isLoading = true;
+  String? errorMessage;
+
+  /// 감정을 한글로 변환
+  String _getKoreanEmotion(String? emotion) {
+    if (emotion == null || emotion.isEmpty) return '설정되지 않음';
+
+    switch (emotion.toLowerCase()) {
+      case 'happy':
+      case '행복':
+        return '행복';
+      case 'peaceful':
+      case '평온':
+        return '평온';
+      case 'unrest':
+      case 'anxious':
+      case '불안':
+        return '불안';
+      case 'angry':
+      case '분노':
+      case '화남':
+        return '분노';
+      case 'sad':
+      case '슬픔':
+        return '슬픔';
+      default:
+        return emotion; // 이미 한글이거나 알 수 없는 감정인 경우 그대로 반환
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDiary();
+  }
+
+  /// 다이어리 데이터 로드
+  Future<void> _loadDiary() async {
+    try {
+      setState(() {
+        isLoading = true;
+        errorMessage = null;
+      });
+
+      final loadedDiary = await DiaryApiService.instance.getDiaryById(
+        widget.diaryId,
+      );
+
+      if (mounted) {
+        setState(() {
+          diary = loadedDiary;
+          isLoading = false;
+          if (loadedDiary == null) {
+            errorMessage = '다이어리를 불러올 수 없습니다.';
+          }
+        });
+      }
+    } catch (e) {
+      AppLogger.error(
+        'Failed to load diary: ${widget.diaryId}',
+        tag: 'DiaryDetailPage',
+        error: e,
+      );
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          errorMessage = '다이어리를 불러오는 중 오류가 발생했습니다.';
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const CommonAppBar(showBackButton: true),
-      body: Center(
+      backgroundColor: const Color(0xFFF8F9FA),
+      body: SafeArea(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.book, size: 80, color: Color(0xFFB2C5B8)),
-            const SizedBox(height: 24),
-            Text('다이어리 상세: $diaryId', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            // 커스텀 앱바
+            _buildCustomAppBar(context),
+
+            // 스크롤 가능한 콘텐츠
+            Expanded(
+              child: isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF4A7C59),
+                      ),
+                    )
+                  : errorMessage != null
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.error_outline,
+                            size: 64,
+                            color: Colors.grey[400],
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            errorMessage!,
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey[600],
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: _loadDiary,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF4A7C59),
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text('다시 시도'),
+                          ),
+                        ],
+                      ),
+                    )
+                  : diary == null
+                  ? const Center(
+                      child: Text(
+                        '다이어리를 찾을 수 없습니다.',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    )
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // 제목과 날짜
+                          _buildTitleSection(),
+
+                          const SizedBox(height: 24),
+
+                          // 감정 분석 섹션
+                          _buildEmotionAnalysisSection(),
+
+                          const SizedBox(height: 20),
+
+                          // 키워드 섹션
+                          _buildKeywordSection(),
+
+                          const SizedBox(height: 24),
+
+                          // AI 생성 글 섹션
+                          _buildAiContentSection(),
+
+                          const SizedBox(height: 32),
+
+                          // 수정/삭제 버튼
+                          _buildActionButtons(context),
+
+                          const SizedBox(height: 20),
+                        ],
+                      ),
+                    ),
+            ),
           ],
         ),
       ),
+    );
+  }
+
+  // 커스텀 앱바
+  Widget _buildCustomAppBar(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Color(0xFFE9ECEF), width: 1)),
+      ),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => _handleBackNavigation(context),
+            child: const Icon(
+              Icons.arrow_back_ios,
+              size: 20,
+              color: Color(0xFF6B7280),
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Text(
+            '뒤로가기',
+            style: TextStyle(
+              fontSize: 16,
+              color: Color(0xFF6B7280),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 뒤로가기 네비게이션 처리
+  void _handleBackNavigation(BuildContext context) {
+    final uri = GoRouter.of(context).routeInformationProvider.value.uri;
+    final from = uri.queryParameters['from'];
+
+    if (from == 'calendar') {
+      // 캘린더에서 왔다면 캘린더로 돌아가기
+      context.go('/calendar');
+    } else {
+      // 그 외의 경우는 기본 pop 동작 (다이어리 목록으로)
+      context.pop();
+    }
+  }
+
+  // 제목과 날짜 섹션
+  Widget _buildTitleSection() {
+    if (diary == null) return const SizedBox.shrink();
+
+    final diaryDate = diary!.diaryDate;
+    final formattedDate = '${diaryDate.month}월 ${diaryDate.day}일';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          diary!.title ?? '$formattedDate 일기',
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF1F2937),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          formattedDate,
+          style: const TextStyle(fontSize: 16, color: Color(0xFF6B7280)),
+        ),
+      ],
+    );
+  }
+
+  // 감정 분석 섹션
+  Widget _buildEmotionAnalysisSection() {
+    if (diary == null) return const SizedBox.shrink();
+
+    final userEmotion = _getKoreanEmotion(diary!.emotion);
+    final aiEmotion = _getKoreanEmotion(diary!.aiEmotion);
+    final userEmoji = diary!.emotionEmoji;
+
+    return Row(
+      children: [
+        // 사용자 감정
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE9ECEF)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Text(
+                      '사용자 감정 : ',
+                      style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+                    ),
+                    if (diary!.emotion != null &&
+                        diary!.emotion!.isNotEmpty) ...[
+                      Text(userEmoji, style: const TextStyle(fontSize: 20)),
+                      const SizedBox(width: 4),
+                    ],
+                    Text(
+                      userEmotion,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1F2937),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Text(
+                      'AI 분석 감정 : ',
+                      style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+                    ),
+                    Text(userEmoji, style: const TextStyle(fontSize: 20)),
+                    const SizedBox(width: 4),
+                    Text(
+                      aiEmotion,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1F2937),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Text(
+                      '(AI 분석)',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // 키워드 섹션
+  Widget _buildKeywordSection() {
+    if (diary == null || diary!.keywords.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE9ECEF)),
+        ),
+        child: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '키워드 :',
+              style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+            ),
+            SizedBox(height: 12),
+            Text(
+              '키워드가 없습니다.',
+              style: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE9ECEF)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '키워드 :',
+            style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: diary!.keywords
+                .map((keyword) => _buildKeywordChip('#$keyword'))
+                .toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 키워드 칩
+  Widget _buildKeywordChip(String keyword) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8F5E8),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Text(
+        keyword,
+        style: const TextStyle(
+          fontSize: 12,
+          color: Color(0xFF4A7C59),
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
+  // AI 생성 글 섹션
+  Widget _buildAiContentSection() {
+    if (diary == null) return const SizedBox.shrink();
+
+    final aiContent = diary!.aiGeneratedText;
+    final originalContent = diary!.content;
+    final displayContent = aiContent ?? originalContent;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE9ECEF)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (aiContent != null) ...[
+            const Text(
+              'AI 생성 글',
+              style: TextStyle(
+                fontSize: 14,
+                color: Color(0xFF6B7280),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+          Text(
+            displayContent,
+            style: const TextStyle(
+              fontSize: 16,
+              height: 1.6,
+              color: Color(0xFF1F2937),
+            ),
+          ),
+          const SizedBox(height: 40),
+          const Center(
+            child: Text(
+              '•',
+              style: TextStyle(fontSize: 24, color: Color(0xFFB2C5B8)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 수정/삭제 버튼
+  Widget _buildActionButtons(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // 수정 버튼
+        Container(
+          width: 120,
+          height: 48,
+          decoration: BoxDecoration(
+            color: const Color(0xFFB2C5B8),
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: TextButton(
+            onPressed: () {
+              // TODO: 수정 기능 구현
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('수정 기능은 아직 구현되지 않았습니다.')),
+              );
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+            ),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.edit, size: 16),
+                SizedBox(width: 4),
+                Text(
+                  '수정',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        const SizedBox(width: 12),
+
+        // 삭제 버튼
+        Container(
+          width: 120,
+          height: 48,
+          decoration: BoxDecoration(
+            color: const Color(0xFFEF4444),
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: TextButton(
+            onPressed: () {
+              _showDeleteConfirmDialog(context);
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+            ),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.delete_outline, size: 16),
+                SizedBox(width: 4),
+                Text(
+                  '삭제',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // 삭제 확인 다이얼로그
+  void _showDeleteConfirmDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('일기 삭제'),
+          content: const Text('정말로 이 일기를 삭제하시겠습니까?\n삭제된 일기는 복구할 수 없습니다.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text(
+                '취소',
+                style: TextStyle(color: Color(0xFF6B7280)),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                // TODO: 실제 삭제 기능 구현
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      '다이어리 ${widget.diaryId} 삭제 기능은 아직 구현되지 않았습니다.',
+                    ),
+                  ),
+                );
+              },
+              child: const Text(
+                '삭제',
+                style: TextStyle(color: Color(0xFFEF4444)),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

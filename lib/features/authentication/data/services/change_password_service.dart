@@ -43,10 +43,7 @@ class ChangePasswordService {
         return false;
       }
     } on DioException catch (e) {
-      AppLogger.error(
-        'Failed to change password',
-        error: e,
-      );
+      AppLogger.error('Failed to change password', error: e);
 
       // 401은 현재 비밀번호가 잘못된 경우
       if (e.response?.statusCode == 401) {
@@ -57,9 +54,10 @@ class ChangePasswordService {
       if (e.response?.statusCode == 422) {
         final errorData = e.response?.data;
         if (errorData is Map<String, dynamic>) {
-          final message = errorData['message'] as String? ??
-                         errorData['detail'] as String? ??
-                         '비밀번호 형식이 올바르지 않습니다.';
+          final message =
+              errorData['message'] as String? ??
+              errorData['detail'] as String? ??
+              '비밀번호 형식이 올바르지 않습니다.';
           throw ChangePasswordException(message);
         }
         throw ChangePasswordException('비밀번호 형식이 올바르지 않습니다.');
@@ -75,10 +73,7 @@ class ChangePasswordService {
 
       throw ChangePasswordException('비밀번호 변경에 실패했습니다.');
     } catch (e) {
-      AppLogger.error(
-        'Unexpected error changing password',
-        error: e,
-      );
+      AppLogger.error('Unexpected error changing password', error: e);
 
       if (e is ChangePasswordException) {
         rethrow;
@@ -92,7 +87,7 @@ class ChangePasswordService {
   static bool isValidPassword(String password) {
     // 최소 8자, 영문자와 숫자 포함
     return password.length >= 8 &&
-           RegExp(r'^(?=.*[A-Za-z])(?=.*\d)').hasMatch(password);
+        RegExp(r'^(?=.*[A-Za-z])(?=.*\d)').hasMatch(password);
   }
 
   /// 비밀번호 강도 검증 메시지

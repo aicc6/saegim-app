@@ -54,10 +54,7 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
     } on ChangePasswordException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.message),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text(e.message), backgroundColor: Colors.red),
         );
       }
     } catch (e) {
@@ -81,9 +78,7 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const CommonAppBar(
-        showBackButton: true,
-      ),
+      appBar: const CommonAppBar(showBackButton: true),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Form(
@@ -97,7 +92,11 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
               const Center(
                 child: Column(
                   children: [
-                    Icon(Icons.lock_outline, size: 60, color: Color(0xFFB2C5B8)),
+                    Icon(
+                      Icons.lock_outline,
+                      size: 60,
+                      color: Color(0xFFB2C5B8),
+                    ),
                     SizedBox(height: 16),
                     Text(
                       '비밀번호 변경',
@@ -250,10 +249,7 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
                 padding: EdgeInsets.only(left: 4),
                 child: Text(
                   '8자 이상, 영문자 및 숫자를 포함해주세요',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey,
-                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ),
 
@@ -333,7 +329,9 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
                           ),
                         )
                       : const Text(
@@ -365,10 +363,7 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
                   ),
                   child: const Text(
                     '취소',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
@@ -378,5 +373,4 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
       ),
     );
   }
-
 }

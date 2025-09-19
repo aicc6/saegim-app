@@ -208,3 +208,7 @@ lib/
 - 앱 아이콘 설정은 `assets/icon.png`를 참조합니다.
 - 플랫폼별 요구사항은 `docs/platform-requirements.md`를 참조하세요.
 - 앱 아이콘 설정 방법은 `docs/app-icon-setup.md`를 참조하세요.
+
+## riverpod 사용시 상태 모델에 변경이 있는 경우 아래 명령어 실행
+
+dart run build_runner build

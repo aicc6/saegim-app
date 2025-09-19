@@ -114,19 +114,6 @@ class DiaryApiService {
         'DiaryApiService',
       );
 
-      // 월의 첫 날과 마지막 날 계산
-      final startDate = DateTime(year, month, 1);
-      final endDate = DateTime(year, month + 1, 0);
-      final startDateString =
-          '${startDate.year}-${startDate.month.toString().padLeft(2, '0')}-${startDate.day.toString().padLeft(2, '0')}';
-      final endDateString =
-          '${endDate.year}-${endDate.month.toString().padLeft(2, '0')}-${endDate.day.toString().padLeft(2, '0')}';
-
-      AppLogger.info(
-        'Fetching monthly diaries for $year-$month',
-        'DiaryApiService',
-      );
-
       // 실제 백엔드 API 호출 - 올바른 파라미터 사용
       final response = await dio.get(
         '/api/diary',
@@ -237,109 +224,6 @@ class DiaryApiService {
       // 목업 데이터 대신 빈 배열 반환하여 실제 문제를 확인
       return [];
     }
-  }
-
-  /// 목업 다이어리 데이터 생성 (백엔드 연동 실패 시 사용)
-  List<DiaryEntry> _generateMockDiaries(int year, int month) {
-    AppLogger.info(
-      'Generating mock diary data for $year-$month',
-      'DiaryApiService',
-    );
-
-    final mockDiaries = <DiaryEntry>[];
-
-    // 목업 키워드 목록
-    final keywords = [
-      '가족',
-      '친구',
-      '사랑',
-      '성장',
-      '도전',
-      '희망',
-      '감사',
-      '추억',
-      '꿈',
-      '목표',
-      '운동',
-      '독서',
-      '여행',
-      '음식',
-      '영화',
-      '음악',
-      '자연',
-      '햇살',
-      '비',
-      '바람',
-      '커피',
-      '책',
-      '글쓰기',
-      '그림',
-      '산책',
-      '휴식',
-      '명상',
-      '일',
-      '공부',
-      '취미',
-      '건강',
-      '평화',
-    ];
-
-    // 현재 월의 일부 날짜에 다이어리 생성
-    final mockData = [
-      {'day': 3, 'emotion': '행복'},
-      {'day': 7, 'emotion': '평온'},
-      {'day': 12, 'emotion': '슬픔'},
-      {'day': 15, 'emotion': '행복'},
-      {'day': 18, 'emotion': '불안'},
-      {'day': 22, 'emotion': '평온'},
-      {'day': 25, 'emotion': '행복'},
-      {'day': 28, 'emotion': '화남'},
-      {'day': 30, 'emotion': '행복'},
-    ];
-
-    for (int i = 0; i < mockData.length; i++) {
-      final data = mockData[i];
-      final day = data['day'] as int;
-      final emotion = data['emotion'] as String;
-
-      // 1~9개의 랜덤 키워드 생성
-      final random = DateTime.now().millisecondsSinceEpoch + i;
-      final keywordCount = (random % 9) + 1; // 1~9개
-      final diaryKeywords = <String>[];
-
-      // 중복 없이 키워드 선택
-      final shuffledKeywords = List<String>.from(keywords);
-      shuffledKeywords.shuffle();
-
-      for (int j = 0; j < keywordCount && j < shuffledKeywords.length; j++) {
-        diaryKeywords.add(shuffledKeywords[j]);
-      }
-
-      // 해당 월의 유효한 날짜인지 확인
-      final daysInMonth = DateTime(year, month + 1, 0).day;
-      if (day <= daysInMonth) {
-        mockDiaries.add(
-          DiaryEntry(
-            id: 'mock_${year}_${month}_$i',
-            title: '$emotion한 하루',
-            content:
-                '오늘은 ${diaryKeywords.join(', ')}에 대해 생각하며 $emotion한 감정을 느꼈습니다. 백엔드 연동이 완료되면 실제 데이터로 대체됩니다.',
-            emotion: emotion,
-            aiEmotion: emotion,
-            keywords: diaryKeywords,
-            diaryDate: DateTime(year, month, day),
-            createdAt: DateTime(year, month, day, 20, 30),
-            isPublic: false,
-          ),
-        );
-      }
-    }
-
-    AppLogger.info(
-      'Generated ${mockDiaries.length} mock diaries',
-      'DiaryApiService',
-    );
-    return mockDiaries;
   }
 
   /// 감정 통계 조회 (기간별)
@@ -482,6 +366,94 @@ class DiaryApiService {
     // 개수 순으로 정렬
     statistics.sort((a, b) => b.count.compareTo(a.count));
     return statistics;
+  }
+
+  /// 특정 다이어리 조회
+  ///
+  /// [diaryId]: 조회할 다이어리 ID
+  Future<DiaryEntry?> getDiaryById(String diaryId) async {
+    try {
+      AppLogger.info('Fetching diary by ID: $diaryId', 'DiaryApiService');
+
+      final response = await dio.get('/api/diary/$diaryId');
+
+      if (response.statusCode == 200) {
+        // 응답 데이터 구조 파싱
+        Map<String, dynamic> diaryData = {};
+
+        if (response.data is Map<String, dynamic>) {
+          final responseMap = response.data as Map<String, dynamic>;
+
+          // 다양한 응답 구조에 대응
+          if (responseMap.containsKey('success') &&
+              responseMap['success'] == true) {
+            diaryData = responseMap['data'] ?? {};
+          } else if (responseMap.containsKey('data')) {
+            final data = responseMap['data'];
+            if (data is Map<String, dynamic>) {
+              diaryData = data;
+            }
+          } else {
+            diaryData = responseMap;
+          }
+        }
+
+        if (diaryData.isNotEmpty) {
+          try {
+            final diary = DiaryEntry.fromJson(diaryData);
+            AppLogger.info(
+              'Successfully loaded diary: $diaryId',
+              'DiaryApiService',
+            );
+            return diary;
+          } catch (parseError) {
+            AppLogger.error(
+              'Failed to parse diary data for ID: $diaryId',
+              tag: 'DiaryApiService',
+              error: parseError,
+            );
+            return null;
+          }
+        } else {
+          AppLogger.warning(
+            'No diary data found for ID: $diaryId',
+            'DiaryApiService',
+          );
+          return null;
+        }
+      } else {
+        AppLogger.warning(
+          'Backend returned status ${response.statusCode} for diary ID: $diaryId',
+          'DiaryApiService',
+        );
+        return null;
+      }
+    } on DioException catch (dioError) {
+      if (dioError.response?.statusCode == 401) {
+        AppLogger.warning(
+          'Authentication required for diary access',
+          'DiaryApiService',
+        );
+        return null;
+      } else if (dioError.response?.statusCode == 404) {
+        AppLogger.warning('Diary not found: $diaryId', 'DiaryApiService');
+        return null;
+      } else {
+        AppLogger.error(
+          'Failed to load diary: $diaryId',
+          tag: 'DiaryApiService',
+          error: dioError,
+        );
+        return null;
+      }
+    } catch (e) {
+      AppLogger.error(
+        'Unexpected error loading diary: $diaryId',
+        tag: 'DiaryApiService',
+        error: e,
+      );
+      return null;
+    }
   }
 
   /// 클라이언트 측에서 키워드 통계 계산
