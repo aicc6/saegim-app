@@ -456,6 +456,168 @@ class DiaryApiService {
     }
   }
 
+  /// 다이어리 수정
+  ///
+  /// [diaryId]: 수정할 다이어리 ID
+  /// [title]: 수정할 제목
+  /// [content]: 다이어리 내용 (기존 내용 유지하려면 전달)
+  /// [emotion]: 수정할 사용자 감정
+  /// [keywords]: 수정할 키워드 목록
+  /// [aiGeneratedText]: 수정할 AI 생성 글
+  Future<bool> updateDiary({
+    required String diaryId,
+    String? title,
+    String? content,
+    String? emotion,
+    List<String>? keywords,
+    String? aiGeneratedText,
+  }) async {
+    try {
+      AppLogger.info('📝 Updating diary: $diaryId', 'DiaryApiService');
+
+      // API 문서에서 확인된 요청 데이터 형식
+      final updateData = <String, dynamic>{};
+
+      if (title != null) updateData['title'] = title;
+      // content는 서버에서 읽기 전용으로 처리되어 500 에러 발생 - 제외
+      // if (content != null) updateData['content'] = content;
+      // user_emotion은 null이어도 전송 (사용자가 새로 선택한 감정)
+      if (emotion != null) updateData['user_emotion'] = emotion;
+      if (keywords != null) updateData['keywords'] = keywords;
+      if (aiGeneratedText != null)
+        updateData['ai_generated_text'] = aiGeneratedText;
+
+      AppLogger.info('📊 Update request data: $updateData', 'DiaryApiService');
+
+      // API 문서에서 확인된 정확한 엔드포인트 사용: PUT /api/diary/{diary_id}
+      AppLogger.info(
+        '🎯 Using confirmed API: PUT /api/diary/$diaryId',
+        'DiaryApiService',
+      );
+
+      final response = await dio.put(
+        '/api/diary/$diaryId',
+        data: updateData,
+        options: Options(headers: {'Content-Type': 'application/json'}),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        AppLogger.info(
+          '✅ Successfully updated diary: $diaryId, status: ${response.statusCode}',
+          'DiaryApiService',
+        );
+        return true;
+      }
+
+      AppLogger.warning(
+        'Update request returned unexpected status: ${response.statusCode}',
+        'DiaryApiService',
+      );
+      return false;
+    } on DioException catch (dioError) {
+      final statusCode = dioError.response?.statusCode;
+      final errorData = dioError.response?.data;
+
+      AppLogger.error(
+        '❌ DioException updating diary: $diaryId - Status: $statusCode, Data: $errorData',
+        tag: 'DiaryApiService',
+        error: dioError,
+      );
+
+      if (statusCode == 401) {
+        AppLogger.warning(
+          '🔒 Authentication required for diary update',
+          'DiaryApiService',
+        );
+      } else if (statusCode == 404) {
+        AppLogger.warning('🔍 Diary not found: $diaryId', 'DiaryApiService');
+      } else if (statusCode == 405) {
+        AppLogger.warning(
+          '🚫 Method not allowed for diary update',
+          'DiaryApiService',
+        );
+      } else if (statusCode == 422) {
+        AppLogger.warning(
+          '📋 Validation error for diary update data',
+          'DiaryApiService',
+        );
+      }
+      return false;
+    } catch (e) {
+      AppLogger.error(
+        '💥 Unexpected error updating diary: $diaryId',
+        tag: 'DiaryApiService',
+        error: e,
+      );
+      return false;
+    }
+  }
+
+  /// 다이어리 삭제
+  ///
+  /// [diaryId]: 삭제할 다이어리 ID
+  Future<bool> deleteDiary(String diaryId) async {
+    try {
+      AppLogger.info('🗑️ Deleting diary: $diaryId', 'DiaryApiService');
+
+      // API 문서에서 확인된 정확한 엔드포인트 사용: DELETE /api/diary/{diary_id}
+      AppLogger.info(
+        '🎯 Using confirmed API: DELETE /api/diary/$diaryId',
+        'DiaryApiService',
+      );
+
+      final response = await dio.delete(
+        '/api/diary/$diaryId',
+        options: Options(headers: {'Content-Type': 'application/json'}),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        AppLogger.info(
+          '✅ Successfully deleted diary: $diaryId, status: ${response.statusCode}',
+          'DiaryApiService',
+        );
+        return true;
+      }
+
+      AppLogger.warning(
+        'Delete request returned unexpected status: ${response.statusCode}',
+        'DiaryApiService',
+      );
+      return false;
+    } on DioException catch (dioError) {
+      final statusCode = dioError.response?.statusCode;
+      final errorData = dioError.response?.data;
+
+      AppLogger.error(
+        '❌ DioException deleting diary: $diaryId - Status: $statusCode, Data: $errorData',
+        tag: 'DiaryApiService',
+        error: dioError,
+      );
+
+      if (statusCode == 401) {
+        AppLogger.warning(
+          '🔒 Authentication required for diary deletion',
+          'DiaryApiService',
+        );
+      } else if (statusCode == 404) {
+        AppLogger.warning('🔍 Diary not found: $diaryId', 'DiaryApiService');
+      } else if (statusCode == 405) {
+        AppLogger.warning(
+          '🚫 Method not allowed for diary deletion',
+          'DiaryApiService',
+        );
+      }
+      return false;
+    } catch (e) {
+      AppLogger.error(
+        '💥 Unexpected error deleting diary: $diaryId',
+        tag: 'DiaryApiService',
+        error: e,
+      );
+      return false;
+    }
+  }
+
   /// 클라이언트 측에서 키워드 통계 계산
   List<KeywordStatistics> _calculateKeywordStatistics(
     List<DiaryEntry> diaries,

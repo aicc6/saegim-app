@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:saegim/features/calendar/data/models/diary_model.dart';
 import 'package:saegim/features/calendar/data/services/diary_api_service.dart';
+import 'package:saegim/features/home/presentation/pages/diary_edit_page.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
 
 class DiaryDetailPage extends StatefulWidget {
@@ -85,6 +86,88 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         });
       }
     }
+  }
+
+  /// 다이어리 수정 페이지로 이동
+  Future<void> _editDiary() async {
+    if (diary == null) return;
+
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (context) => DiaryEditPage(diary: diary!)),
+    );
+
+    // 수정이 완료된 경우 데이터 다시 로드
+    if (result == true) {
+      await _loadDiary();
+    }
+  }
+
+  /// 다이어리 삭제
+  Future<void> _deleteDiary() async {
+    if (diary == null) return;
+
+    try {
+      final success = await DiaryApiService.instance.deleteDiary(diary!.id);
+
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('다이어리가 성공적으로 삭제되었습니다.'),
+              backgroundColor: Color(0xFF4A7C59),
+            ),
+          );
+          // 삭제 후 이전 페이지로 돌아가기
+          _handleBackNavigation(context);
+        } else {
+          _showDeleteNotAvailableDialog(context);
+        }
+      }
+    } catch (e) {
+      AppLogger.error(
+        'Error deleting diary: ${diary!.id}',
+        tag: 'DiaryDetailPage',
+        error: e,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('다이어리 삭제 중 오류가 발생했습니다.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  /// 삭제 기능이 사용 불가능할 때 보여줄 다이얼로그
+  void _showDeleteNotAvailableDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('삭제 기능 준비 중'),
+          content: const Text(
+            '죄송합니다. 다이어리 삭제 기능이 아직 준비 중입니다.\n\n'
+            '현재 상황:\n'
+            '• 백엔드 서버에서 삭제 API 개발 중\n'
+            '• 읽기 전용 모드로 운영 중\n'
+            '• 곧 삭제 기능을 제공할 예정입니다\n\n'
+            '양해 부탁드립니다.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text(
+                '확인',
+                style: TextStyle(color: Color(0xFF4A7C59)),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -469,12 +552,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
             borderRadius: BorderRadius.circular(24),
           ),
           child: TextButton(
-            onPressed: () {
-              // TODO: 수정 기능 구현
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('수정 기능은 아직 구현되지 않았습니다.')),
-              );
-            },
+            onPressed: _editDiary,
             style: TextButton.styleFrom(
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
@@ -551,14 +629,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                // TODO: 실제 삭제 기능 구현
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      '다이어리 ${widget.diaryId} 삭제 기능은 아직 구현되지 않았습니다.',
-                    ),
-                  ),
-                );
+                _deleteDiary();
               },
               child: const Text(
                 '삭제',
