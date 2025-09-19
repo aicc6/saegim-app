@@ -7,47 +7,31 @@ part 'change_password_notifier.g.dart';
 /// 비밀번호 변경 상태 모델
 class ChangePasswordState {
   final bool isLoading;
-  final bool isCurrentPasswordVerifying;
-  final bool isPasswordChanging;
   final String? errorMessage;
   final String? successMessage;
-  final bool isCurrentPasswordValid;
-  final PasswordValidation? passwordValidation;
 
   const ChangePasswordState({
     this.isLoading = false,
-    this.isCurrentPasswordVerifying = false,
-    this.isPasswordChanging = false,
     this.errorMessage,
     this.successMessage,
-    this.isCurrentPasswordValid = false,
-    this.passwordValidation,
   });
 
   /// 상태 복사 메서드
   ChangePasswordState copyWith({
     bool? isLoading,
-    bool? isCurrentPasswordVerifying,
-    bool? isPasswordChanging,
     String? errorMessage,
     String? successMessage,
-    bool? isCurrentPasswordValid,
-    PasswordValidation? passwordValidation,
   }) {
     return ChangePasswordState(
       isLoading: isLoading ?? this.isLoading,
-      isCurrentPasswordVerifying: isCurrentPasswordVerifying ?? this.isCurrentPasswordVerifying,
-      isPasswordChanging: isPasswordChanging ?? this.isPasswordChanging,
       errorMessage: errorMessage,
       successMessage: successMessage,
-      isCurrentPasswordValid: isCurrentPasswordValid ?? this.isCurrentPasswordValid,
-      passwordValidation: passwordValidation ?? this.passwordValidation,
     );
   }
 
   @override
   String toString() {
-    return 'ChangePasswordState(isLoading: $isLoading, isPasswordChanging: $isPasswordChanging, isCurrentPasswordValid: $isCurrentPasswordValid)';
+    return 'ChangePasswordState(isLoading: $isLoading, errorMessage: $errorMessage)';
   }
 }
 
@@ -59,51 +43,9 @@ class ChangePasswordNotifier extends _$ChangePasswordNotifier {
     return const ChangePasswordState();
   }
 
-  /// 현재 비밀번호 확인
-  Future<void> verifyCurrentPassword(String password) async {
-    if (password.isEmpty) {
-      state = state.copyWith(
-        isCurrentPasswordValid: false,
-        errorMessage: '현재 비밀번호를 입력해주세요.',
-      );
-      return;
-    }
-
-    state = state.copyWith(
-      isCurrentPasswordVerifying: true,
-      errorMessage: null,
-      isCurrentPasswordValid: false,
-    );
-
-    try {
-      final isValid = await ChangePasswordService.verifyCurrentPassword(password);
-      
-      state = state.copyWith(
-        isCurrentPasswordVerifying: false,
-        isCurrentPasswordValid: isValid,
-        errorMessage: isValid ? null : '현재 비밀번호가 올바르지 않습니다.',
-      );
-
-      AppLogger.info('Current password verification result: $isValid');
-    } catch (e) {
-      AppLogger.error('Failed to verify current password', error: e);
-      
-      state = state.copyWith(
-        isCurrentPasswordVerifying: false,
-        isCurrentPasswordValid: false,
-        errorMessage: '비밀번호 확인 중 오류가 발생했습니다.',
-      );
-    }
-  }
-
   /// 새 비밀번호 검증
-  void validateNewPassword(String password) {
-    final validation = ChangePasswordService.validatePassword(password);
-    
-    state = state.copyWith(
-      passwordValidation: validation,
-      errorMessage: validation.isValid ? null : validation.errors.first,
-    );
+  String? validateNewPassword(String password) {
+    return ChangePasswordService.validatePassword(password);
   }
 
   /// 비밀번호 변경
@@ -135,52 +77,55 @@ class ChangePasswordNotifier extends _$ChangePasswordNotifier {
     }
 
     // 새 비밀번호 강도 검증
-    final validation = ChangePasswordService.validatePassword(newPassword);
-    if (!validation.isValid) {
+    final validationError = ChangePasswordService.validatePassword(newPassword);
+    if (validationError != null) {
       state = state.copyWith(
-        errorMessage: validation.errors.first,
-        passwordValidation: validation,
+        errorMessage: validationError,
       );
       return false;
     }
 
     state = state.copyWith(
-      isPasswordChanging: true,
       isLoading: true,
       errorMessage: null,
       successMessage: null,
     );
 
     try {
-      final response = await ChangePasswordService.changePassword(
-        currentPassword: currentPassword,
-        newPassword: newPassword,
+      final success = await ChangePasswordService.changePassword(
+        currentPassword,
+        newPassword,
       );
 
-      if (response.success) {
+      if (success) {
         state = state.copyWith(
-          isPasswordChanging: false,
           isLoading: false,
-          successMessage: response.message,
+          successMessage: '비밀번호가 성공적으로 변경되었습니다.',
         );
 
         AppLogger.info('Password changed successfully');
         return true;
       } else {
         state = state.copyWith(
-          isPasswordChanging: false,
           isLoading: false,
-          errorMessage: response.message,
+          errorMessage: '비밀번호 변경에 실패했습니다.',
         );
 
-        AppLogger.warning('Password change failed: ${response.message}');
+        AppLogger.warning('Password change failed');
         return false;
       }
-    } catch (e) {
-      AppLogger.error('Failed to change password', error: e);
-      
+    } on ChangePasswordException catch (e) {
+      AppLogger.error('Password change failed', error: e);
+
       state = state.copyWith(
-        isPasswordChanging: false,
+        isLoading: false,
+        errorMessage: e.message,
+      );
+      return false;
+    } catch (e) {
+      AppLogger.error('Unexpected error during password change', error: e);
+
+      state = state.copyWith(
         isLoading: false,
         errorMessage: '비밀번호 변경 중 오류가 발생했습니다.',
       );
@@ -209,16 +154,5 @@ class ChangePasswordNotifier extends _$ChangePasswordNotifier {
   /// 상태 초기화 (페이지 이탈 시 사용)
   void reset() {
     state = const ChangePasswordState();
-  }
-
-  /// 실시간 비밀번호 강도 검증 (입력하는 동안)
-  void checkPasswordStrength(String password) {
-    if (password.isEmpty) {
-      state = state.copyWith(passwordValidation: null);
-      return;
-    }
-
-    final validation = ChangePasswordService.validatePassword(password);
-    state = state.copyWith(passwordValidation: validation);
   }
 }
