@@ -1,5 +1,3 @@
-/// 비밀번호 찾기 관련 데이터 모델들
-
 /// 비밀번호 재설정 이메일 요청 모델
 class PasswordResetEmailRequest {
   final String email;

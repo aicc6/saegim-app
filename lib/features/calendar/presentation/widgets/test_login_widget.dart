@@ -53,25 +53,32 @@ class _TestLoginWidgetState extends ConsumerState<TestLoginWidget> {
           await Future.delayed(const Duration(milliseconds: 500));
           // CalendarNotifier의 refresh 메서드 호출
           ref.read(calendarNotifierProvider.notifier).refresh();
-        }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('로그인 성공! 다이어리 데이터를 새로고침합니다.'),
-            backgroundColor: Colors.green,
-          ),
-        );
+          // ScaffoldMessenger 사용 전 mounted 체크
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('로그인 성공! 다이어리 데이터를 새로고침합니다.'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        }
       } else {
         AppLogger.warning('Test login failed', 'TestLoginWidget');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('로그인 실패'), backgroundColor: Colors.red),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('로그인 실패'), backgroundColor: Colors.red),
+          );
+        }
       }
     } catch (e) {
       AppLogger.error('Test login error', tag: 'TestLoginWidget', error: e);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('로그인 에러: $e'), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('로그인 에러: $e'), backgroundColor: Colors.red),
+        );
+      }
     } finally {
       setState(() {
         _isLoading = false;
