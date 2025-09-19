@@ -986,7 +986,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -1035,7 +1035,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                 _buildSingleDiaryCard(diary, selectedDate, index + 1),
               ],
             );
-          }).toList(),
+          }),
         ],
       ),
     );
@@ -1114,12 +1114,12 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
               decoration: BoxDecoration(
                 color: _getEmotionColor(
                   diary.emotion ?? diary.aiEmotion ?? '평온',
-                ).withOpacity(0.15),
+                ).withValues(alpha:0.15),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: _getEmotionColor(
                     diary.emotion ?? diary.aiEmotion ?? '평온',
-                  ).withOpacity(0.3),
+                  ).withValues(alpha:0.3),
                   width: 1,
                 ),
               ),
@@ -1231,7 +1231,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
