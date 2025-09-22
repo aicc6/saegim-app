@@ -15,9 +15,16 @@ class DiaryDetailPage extends StatefulWidget {
 }
 
 class _DiaryDetailPageState extends State<DiaryDetailPage> {
+  // 현재 보고 있는 일기
   DiaryEntry? diary;
   bool isLoading = true;
   String? errorMessage;
+
+  // 같은 날짜의 모든 일기들
+  List<DiaryEntry> dailyDiaries = [];
+  int currentDiaryIndex = 0;
+  PageController? _pageController;
+  bool isLoadingDailyDiaries = false;
 
   // 인라인 편집 모드 관련 변수들
   bool isEditMode = false;
@@ -186,6 +193,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
     _titleController.dispose();
     _keywordsController.dispose();
     _aiGeneratedTextController.dispose();
+    _pageController?.dispose();
     super.dispose();
   }
 
@@ -212,6 +220,8 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
             _initializeEditControllers();
             // 이미지 로드
             _loadDiaryImages();
+            // 같은 날짜의 다른 일기들 로드
+            _loadDailyDiaries();
           }
         });
       }
@@ -225,6 +235,81 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         setState(() {
           isLoading = false;
           errorMessage = '다이어리를 불러오는 중 오류가 발생했습니다.';
+        });
+      }
+    }
+  }
+
+  /// 같은 날짜의 모든 일기들 로드
+  Future<void> _loadDailyDiaries() async {
+    if (diary == null) return;
+
+    setState(() {
+      isLoadingDailyDiaries = true;
+    });
+
+    try {
+      final diaryDate = diary!.diaryDate;
+
+      // 월간 다이어리 목록을 가져와서 같은 날짜로 필터링
+      final monthlyDiaries = await DiaryApiService.instance.getMonthlyDiaries(
+        year: diaryDate.year,
+        month: diaryDate.month,
+      );
+
+      if (mounted && monthlyDiaries != null) {
+        // 같은 날짜의 일기들만 필터링
+        final sameDateDiaries = monthlyDiaries.where((d) {
+          final entryDate = d.diaryDate;
+          return entryDate.year == diaryDate.year &&
+              entryDate.month == diaryDate.month &&
+              entryDate.day == diaryDate.day;
+        }).toList();
+
+        setState(() {
+          dailyDiaries = sameDateDiaries.isNotEmpty
+              ? sameDateDiaries
+              : [diary!];
+
+          // 현재 일기의 인덱스 찾기
+          currentDiaryIndex = dailyDiaries.indexWhere((d) => d.id == diary!.id);
+          if (currentDiaryIndex == -1) {
+            // 현재 일기가 목록에 없으면 첫 번째로 설정
+            currentDiaryIndex = 0;
+          }
+
+          // PageController 초기화
+          if (dailyDiaries.length > 1) {
+            _pageController = PageController(initialPage: currentDiaryIndex);
+          }
+
+          isLoadingDailyDiaries = false;
+        });
+
+        AppLogger.info(
+          'Found ${dailyDiaries.length} diaries for date: ${diaryDate.toString().substring(0, 10)}',
+          'DiaryDetailPage',
+        );
+      } else {
+        // 응답이 없으면 현재 일기만 목록에 추가
+        setState(() {
+          dailyDiaries = [diary!];
+          currentDiaryIndex = 0;
+          isLoadingDailyDiaries = false;
+        });
+      }
+    } catch (e) {
+      AppLogger.error(
+        'Failed to load daily diaries for date: ${diary!.diaryDate}',
+        tag: 'DiaryDetailPage',
+        error: e,
+      );
+      if (mounted) {
+        setState(() {
+          // 에러 시 현재 일기만 목록에 추가
+          dailyDiaries = [diary!];
+          currentDiaryIndex = 0;
+          isLoadingDailyDiaries = false;
         });
       }
     }
@@ -259,6 +344,25 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         });
       }
     }
+  }
+
+  /// 페이지 변경 시 현재 일기 업데이트
+  void _onPageChanged(int index) {
+    if (index < 0 || index >= dailyDiaries.length) return;
+
+    setState(() {
+      currentDiaryIndex = index;
+      diary = dailyDiaries[index];
+      // 편집 모드가 켜져있다면 끄기
+      if (isEditMode) {
+        isEditMode = false;
+      }
+    });
+
+    // 새 일기의 컨트롤러 초기화
+    _initializeEditControllers();
+    // 새 일기의 이미지 로드
+    _loadDiaryImages();
   }
 
   /// 편집 컨트롤러 초기화
@@ -517,46 +621,136 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                         style: TextStyle(fontSize: 16),
                       ),
                     )
-                  : SingleChildScrollView(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // 제목과 날짜
-                          _buildTitleSection(),
+                  : Column(
+                      children: [
+                        // 페이지 인디케이터 (여러 일기가 있을 때만 표시)
+                        if (dailyDiaries.length > 1) _buildPageIndicator(),
 
-                          const SizedBox(height: 24),
-
-                          // 감정 분석 섹션
-                          _buildEmotionAnalysisSection(),
-
-                          const SizedBox(height: 20),
-
-                          // 키워드 섹션
-                          _buildKeywordSection(),
-
-                          const SizedBox(height: 24),
-
-                          // AI 생성 글 섹션
-                          _buildAiContentSection(),
-
-                          const SizedBox(height: 24),
-
-                          // 이미지 섹션
-                          _buildImageSection(),
-
-                          const SizedBox(height: 32),
-
-                          // 수정/삭제 버튼
-                          _buildActionButtons(context),
-
-                          const SizedBox(height: 20),
-                        ],
-                      ),
+                        // 일기 내용 (PageView 또는 단일 뷰)
+                        Expanded(
+                          child: dailyDiaries.length > 1
+                              ? PageView.builder(
+                                  controller: _pageController,
+                                  onPageChanged: _onPageChanged,
+                                  itemCount: dailyDiaries.length,
+                                  itemBuilder: (context, index) {
+                                    return _buildDiaryContent();
+                                  },
+                                )
+                              : _buildDiaryContent(),
+                        ),
+                      ],
                     ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // 페이지 인디케이터
+  Widget _buildPageIndicator() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // 이전 버튼
+          IconButton(
+            onPressed: currentDiaryIndex > 0
+                ? () => _pageController?.previousPage(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                  )
+                : null,
+            icon: Icon(
+              Icons.arrow_back_ios,
+              size: 20,
+              color: currentDiaryIndex > 0
+                  ? const Color(0xFF4A7C59)
+                  : Colors.grey[400],
+            ),
+          ),
+
+          // 페이지 인디케이터 점들
+          Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                dailyDiaries.length,
+                (index) => Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: index == currentDiaryIndex
+                        ? const Color(0xFF4A7C59)
+                        : Colors.grey[300],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // 다음 버튼
+          IconButton(
+            onPressed: currentDiaryIndex < dailyDiaries.length - 1
+                ? () => _pageController?.nextPage(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                  )
+                : null,
+            icon: Icon(
+              Icons.arrow_forward_ios,
+              size: 20,
+              color: currentDiaryIndex < dailyDiaries.length - 1
+                  ? const Color(0xFF4A7C59)
+                  : Colors.grey[400],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 일기 콘텐츠 위젯
+  Widget _buildDiaryContent() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 제목과 날짜
+          _buildTitleSection(),
+
+          const SizedBox(height: 24),
+
+          // 감정 분석 섹션
+          _buildEmotionAnalysisSection(),
+
+          const SizedBox(height: 20),
+
+          // 키워드 섹션
+          _buildKeywordSection(),
+
+          const SizedBox(height: 24),
+
+          // AI 생성 글 섹션
+          _buildAiContentSection(),
+
+          const SizedBox(height: 24),
+
+          // 이미지 섹션
+          _buildImageSection(),
+
+          const SizedBox(height: 32),
+
+          // 수정/삭제 버튼
+          _buildActionButtons(context),
+
+          const SizedBox(height: 20),
+        ],
       ),
     );
   }
@@ -588,6 +782,25 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
               fontWeight: FontWeight.w500,
             ),
           ),
+          // 같은 날짜 일기 개수 표시
+          if (dailyDiaries.length > 1) ...[
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE8F5E8),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '${currentDiaryIndex + 1}/${dailyDiaries.length}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF4A7C59),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -963,13 +1176,6 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                 fontSize: 16,
                 height: 1.6,
                 color: Color(0xFF1F2937),
-              ),
-            ),
-            const SizedBox(height: 40),
-            const Center(
-              child: Text(
-                '•',
-                style: TextStyle(fontSize: 24, color: Color(0xFFB2C5B8)),
               ),
             ),
           ],
