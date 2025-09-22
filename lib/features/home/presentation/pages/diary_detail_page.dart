@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:saegim/features/calendar/data/models/diary_model.dart';
 import 'package:saegim/features/calendar/data/models/diary_image_model.dart';
 import 'package:saegim/features/calendar/data/services/diary_api_service.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
+import 'dart:io';
 
 class DiaryDetailPage extends StatefulWidget {
   final String diaryId;
@@ -37,6 +39,10 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
   // 이미지 관련 변수들
   List<DiaryImage> diaryImages = [];
   bool isLoadingImages = false;
+
+  // 새로 추가된 이미지들 (편집 모드에서만 사용)
+  List<XFile> newImages = [];
+  final ImagePicker _imagePicker = ImagePicker();
 
   // 감정 옵션 (서버 호환을 위해 정확한 영어 값 사용)
   final List<Map<String, String>> _emotions = [
@@ -177,6 +183,124 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         );
       },
     );
+  }
+
+  /// 이미지 선택 기능
+  Future<void> _pickImages() async {
+    try {
+      final List<XFile> selectedImages = await _imagePicker.pickMultipleMedia(
+        imageQuality: 80,
+      );
+
+      if (selectedImages.isNotEmpty) {
+        setState(() {
+          newImages.addAll(selectedImages);
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${selectedImages.length}장의 사진이 추가되었습니다.\n저장 버튼을 눌러 업로드하세요.',
+            ),
+            backgroundColor: const Color(0xFF4A7C59),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      AppLogger.error(
+        'Failed to pick images',
+        tag: 'DiaryDetailPage',
+        error: e,
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('사진 선택 중 오류가 발생했습니다.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  /// 새로 추가된 이미지 삭제
+  void _removeNewImage(int index) {
+    setState(() {
+      newImages.removeAt(index);
+    });
+  }
+
+  /// 기존 이미지 삭제
+  Future<void> _removeExistingImage(int index) async {
+    if (index >= diaryImages.length) return;
+
+    final imageToDelete = diaryImages[index];
+    final imageId = imageToDelete.id;
+
+    if (imageId == null) {
+      AppLogger.error('❌ Image ID is null', tag: 'DiaryDetailPage');
+      return;
+    }
+
+    try {
+      AppLogger.info(
+        '🗑️ Attempting to delete image: $imageId',
+        'DiaryDetailPage',
+      );
+
+      final success = await DiaryApiService.instance.deleteDiaryImage(
+        widget.diaryId,
+        imageId,
+      );
+
+      if (mounted) {
+        if (success) {
+          // 삭제 성공 - UI에서 제거
+          setState(() {
+            diaryImages.removeAt(index);
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('이미지가 성공적으로 삭제되었습니다.'),
+              backgroundColor: Color(0xFF4A7C59),
+            ),
+          );
+
+          AppLogger.info(
+            '✅ Successfully deleted image: $imageId',
+            'DiaryDetailPage',
+          );
+        } else {
+          // 삭제 실패
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('이미지 삭제에 실패했습니다.\n네트워크 상태를 확인해주세요.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+
+          AppLogger.warning(
+            '❌ Failed to delete image: $imageId',
+            'DiaryDetailPage',
+          );
+        }
+      }
+    } catch (e) {
+      AppLogger.error(
+        '❌ Error deleting image: $imageId - $e',
+        tag: 'DiaryDetailPage',
+        error: e,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('이미지 삭제 중 오류가 발생했습니다.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -386,6 +510,8 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
   void _cancelEditMode() {
     setState(() {
       isEditMode = false;
+      // 새로 추가된 이미지들 초기화
+      newImages.clear();
     });
     // 원래 값으로 되돌리기
     _initializeEditControllers();
@@ -407,6 +533,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
           .where((keyword) => keyword.isNotEmpty)
           .toList();
 
+      // 1. 다이어리 정보 업데이트
       final success = await DiaryApiService.instance.updateDiary(
         diaryId: diary!.id,
         title: _titleController.text.trim().isEmpty
@@ -419,25 +546,97 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
             : _aiGeneratedTextController.text.trim(),
       );
 
+      // 2. 새로 추가된 이미지들 업로드 (여러 엔드포인트 시도)
+      bool imageUploadSuccess = true;
+      if (newImages.isNotEmpty) {
+        AppLogger.info(
+          'Attempting to upload ${newImages.length} images with multiple endpoints',
+          'DiaryDetailPage',
+        );
+
+        final imagePaths = newImages.map((image) => image.path).toList();
+        final uploadedImages = await DiaryApiService.instance.uploadDiaryImages(
+          diaryId: diary!.id,
+          imagePaths: imagePaths,
+        );
+
+        if (uploadedImages != null && uploadedImages.isNotEmpty) {
+          // 업로드 성공 - 서버에서 최신 이미지 목록 다시 가져오기
+          AppLogger.info(
+            'Image upload successful, refreshing image list from server',
+            'DiaryDetailPage',
+          );
+
+          // 서버에서 최신 이미지 목록 가져오기
+          final latestImages = await DiaryApiService.instance.getDiaryImages(
+            diary!.id,
+          );
+          if (latestImages != null) {
+            setState(() {
+              diaryImages = latestImages;
+              newImages.clear(); // 업로드 완료 후 새 이미지 목록 클리어
+            });
+            imageUploadSuccess = true;
+          } else {
+            // 이미지 목록 조회 실패 - 로컬에만 추가
+            setState(() {
+              diaryImages.addAll(uploadedImages);
+              newImages.clear();
+            });
+            imageUploadSuccess = true;
+          }
+        } else {
+          // 업로드 실패
+          imageUploadSuccess = false;
+          AppLogger.warning(
+            'Image upload failed for all attempted endpoints',
+            'DiaryDetailPage',
+          );
+        }
+      }
+
       if (mounted && context.mounted) {
         setState(() {
           isSaving = false;
-          if (success) {
+          if (success && imageUploadSuccess) {
             isEditMode = false; // 성공 시 즉시 편집 모드 종료
           }
         });
 
         if (success) {
-          // 데이터 다시 로드 후 성공 메시지 표시
-          await _loadDiary();
+          if (imageUploadSuccess) {
+            // 다이어리와 이미지 모두 성공
+            await _loadDiary();
 
-          if (mounted && context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('다이어리가 성공적으로 수정되었습니다.'),
-                backgroundColor: Color(0xFF4A7C59),
-              ),
-            );
+            if (mounted && context.mounted) {
+              final hadImages = newImages.isNotEmpty;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    hadImages
+                        ? '다이어리와 이미지가 성공적으로 저장되었습니다.'
+                        : '다이어리가 성공적으로 수정되었습니다.',
+                  ),
+                  backgroundColor: const Color(0xFF4A7C59),
+                  duration: const Duration(seconds: 3),
+                ),
+              );
+            }
+          } else {
+            // 다이어리는 성공했지만 이미지 업로드 실패
+            await _loadDiary();
+
+            if (mounted && context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    '다이어리는 저장되었지만 이미지 업로드에 실패했습니다.\n네트워크 상태를 확인해주세요.',
+                  ),
+                  backgroundColor: Colors.orange,
+                  duration: Duration(seconds: 4),
+                ),
+              );
+            }
           }
         } else {
           if (mounted && context.mounted) {
@@ -1117,38 +1316,6 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              if (isEditMode) ...[
-                const Spacer(),
-                Container(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 100,
-                        height: 32,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            // 사진 업로드 기능 (나중에 구현)
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('사진 업로드 기능은 준비 중입니다.'),
-                                backgroundColor: Color(0xFF4A7C59),
-                              ),
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.grey[300],
-                            foregroundColor: Colors.grey[700],
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            textStyle: const TextStyle(fontSize: 12),
-                          ),
-                          child: const Text('사진 올리기'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
             ],
           ),
           const SizedBox(height: 12),
@@ -1403,7 +1570,23 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                 ),
               ),
               const Spacer(),
-              if (isLoadingImages)
+              if (isEditMode) ...[
+                // 편집 모드에서 사진 추가 버튼
+                Container(
+                  height: 32,
+                  child: ElevatedButton.icon(
+                    onPressed: _pickImages,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4A7C59),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      textStyle: const TextStyle(fontSize: 12),
+                    ),
+                    icon: const Icon(Icons.add_photo_alternate, size: 16),
+                    label: const Text('사진 추가'),
+                  ),
+                ),
+              ] else if (isLoadingImages) ...[
                 const SizedBox(
                   width: 16,
                   height: 16,
@@ -1414,6 +1597,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                     ),
                   ),
                 ),
+              ],
             ],
           ),
           const SizedBox(height: 16),
@@ -1426,7 +1610,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                 ),
               ),
             )
-          else if (diaryImages.isEmpty)
+          else if (diaryImages.isEmpty && newImages.isEmpty)
             const Center(
               child: Padding(
                 padding: EdgeInsets.all(20),
@@ -1455,6 +1639,8 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
   // 이미지 그리드
   Widget _buildImageGrid() {
+    final totalImages = diaryImages.length + newImages.length;
+
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -1464,16 +1650,24 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         mainAxisSpacing: 12,
         childAspectRatio: 1,
       ),
-      itemCount: diaryImages.length,
+      itemCount: totalImages,
       itemBuilder: (context, index) {
-        final image = diaryImages[index];
-        return _buildImageCard(image, index);
+        if (index < diaryImages.length) {
+          // 기존 이미지
+          final image = diaryImages[index];
+          return _buildExistingImageCard(image, index);
+        } else {
+          // 새로 추가된 이미지
+          final newImageIndex = index - diaryImages.length;
+          final newImage = newImages[newImageIndex];
+          return _buildNewImageCard(newImage, newImageIndex);
+        }
       },
     );
   }
 
-  // 개별 이미지 카드
-  Widget _buildImageCard(DiaryImage image, int index) {
+  // 기존 이미지 카드 (서버에서 가져온 이미지)
+  Widget _buildExistingImageCard(DiaryImage image, int index) {
     final imageUrl = image.fullImageUrl;
 
     // 유효하지 않은 이미지 URL인 경우 에러 위젯 표시
@@ -1504,71 +1698,180 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       );
     }
 
-    return GestureDetector(
-      onTap: () => _showImageFullScreen(image, index),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFFE9ECEF)),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Image.network(
-            imageUrl,
-            fit: BoxFit.cover,
-            loadingBuilder: (context, child, loadingProgress) {
-              if (loadingProgress == null) return child;
+    return Stack(
+      children: [
+        GestureDetector(
+          onTap: () => _showImageFullScreen(image, index),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFE9ECEF)),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
 
-              return Container(
-                color: Colors.grey[100],
-                child: Center(
-                  child: CircularProgressIndicator(
-                    value: loadingProgress.expectedTotalBytes != null
-                        ? loadingProgress.cumulativeBytesLoaded /
-                              loadingProgress.expectedTotalBytes!
-                        : null,
-                    strokeWidth: 2,
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      Color(0xFF4A7C59),
-                    ),
-                  ),
-                ),
-              );
-            },
-            errorBuilder: (context, error, stackTrace) {
-              AppLogger.error(
-                'Failed to load image: ${image.fullImageUrl}',
-                tag: 'DiaryDetailPage',
-                error: error,
-              );
-
-              return Container(
-                color: Colors.grey[100],
-                child: const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.broken_image_outlined,
-                        size: 32,
-                        color: Color(0xFF9CA3AF),
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        '이미지 로드 실패',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF9CA3AF),
+                  return Container(
+                    color: Colors.grey[100],
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded /
+                                  loadingProgress.expectedTotalBytes!
+                            : null,
+                        strokeWidth: 2,
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          Color(0xFF4A7C59),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              );
-            },
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  AppLogger.error(
+                    'Failed to load image: ${image.fullImageUrl}',
+                    tag: 'DiaryDetailPage',
+                    error: error,
+                  );
+
+                  return Container(
+                    color: Colors.grey[100],
+                    child: const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.broken_image_outlined,
+                            size: 32,
+                            color: Color(0xFF9CA3AF),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            '이미지 로드 실패',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF9CA3AF),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
           ),
         ),
-      ),
+        // 편집 모드에서 삭제 버튼 표시
+        if (isEditMode)
+          Positioned(
+            top: 8,
+            right: 8,
+            child: GestureDetector(
+              onTap: () => _removeExistingImage(index),
+              child: Container(
+                width: 24,
+                height: 24,
+                decoration: const BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.close, color: Colors.white, size: 16),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  // 새로 추가된 이미지 카드 (로컬 파일)
+  Widget _buildNewImageCard(XFile image, int index) {
+    return Stack(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFF4A7C59), width: 2),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.file(
+              File(image.path),
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  color: Colors.grey[100],
+                  child: const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.broken_image_outlined,
+                          size: 32,
+                          color: Color(0xFF9CA3AF),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          '이미지 로드 실패',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF9CA3AF),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        // 새 이미지 표시 배지
+        Positioned(
+          top: 8,
+          left: 8,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: const Color(0xFF4A7C59),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Text(
+              'NEW',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+        // 삭제 버튼
+        Positioned(
+          top: 8,
+          right: 8,
+          child: GestureDetector(
+            onTap: () => _removeNewImage(index),
+            child: Container(
+              width: 24,
+              height: 24,
+              decoration: const BoxDecoration(
+                color: Colors.red,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.close, color: Colors.white, size: 16),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
