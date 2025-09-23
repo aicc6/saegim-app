@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:saegim/shared/utils/app_logger.dart';
 
 part 'notification_model.freezed.dart';
 part 'notification_model.g.dart';
@@ -31,17 +32,44 @@ sealed class NotificationItem with _$NotificationItem {
     Map<String, dynamic>? metadata, // 서버의 'fcm_response' → 'metadata'
   }) = _NotificationItem;
 
-  factory NotificationItem.fromJson(Map<String, dynamic> json) =>
-      NotificationItem(
-        id: json['id'] as String,
-        title: json['title'] as String,
-        message: json['body'] as String,
-        isRead: json['is_read'] as bool? ?? false,
-        type: json['notification_type'] as String,
-        createdAt: DateTime.parse(json['created_at'] as String),
-        readAt: json['read_at'] != null ? DateTime.parse(json['read_at'] as String) : null,
-        metadata: json['fcm_response'] as Map<String, dynamic>?,
-      );
+  factory NotificationItem.fromJson(Map<String, dynamic> json) {
+    // 디버깅을 위한 로깅 추가
+    AppLogger.debug('NotificationItem.fromJson - Raw JSON: $json', 'NotificationModel');
+    AppLogger.debug('NotificationItem.fromJson - is_read value: ${json['is_read']} (type: ${json['is_read'].runtimeType})', 'NotificationModel');
+
+    // status 필드를 사용하여 읽음 상태 판단
+    bool isReadValue = false;
+
+    // 우선 is_read 필드가 있는지 확인
+    if (json.containsKey('is_read')) {
+      final isReadRaw = json['is_read'];
+      if (isReadRaw is bool) {
+        isReadValue = isReadRaw;
+      } else if (isReadRaw is String) {
+        isReadValue = isReadRaw.toLowerCase() == 'true' || isReadRaw == '1';
+      } else if (isReadRaw is int) {
+        isReadValue = isReadRaw == 1;
+      }
+    } else if (json.containsKey('status')) {
+      // status 필드로 읽음 상태 판단
+      final status = json['status'] as String?;
+      isReadValue = status?.toLowerCase() == 'opened';
+      AppLogger.debug('NotificationItem.fromJson - Using status field: $status -> isRead: $isReadValue', 'NotificationModel');
+    }
+
+    AppLogger.debug('NotificationItem.fromJson - Final isRead value: $isReadValue', 'NotificationModel');
+
+    return NotificationItem(
+      id: json['id'] as String,
+      title: json['title'] as String,
+      message: json['body'] as String,
+      isRead: isReadValue,
+      type: json['notification_type'] as String,
+      createdAt: DateTime.parse(json['created_at'] as String),
+      readAt: json['read_at'] != null ? DateTime.parse(json['read_at'] as String) : null,
+      metadata: json['fcm_response'] as Map<String, dynamic>?,
+    );
+  }
 }
 
 /// 알림 히스토리 응답 모델

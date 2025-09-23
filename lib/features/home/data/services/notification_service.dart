@@ -306,7 +306,7 @@ class NotificationService {
       final deviceInfo = await _getDeviceInfo();
 
       final response = await _dio.post(
-        '/api/notifications/fcm/register',
+        '/api/notifications/tokens',
         data: {
           'token': token,
           'platform': Platform.isAndroid ? 'android' : 'ios',
@@ -372,11 +372,7 @@ class NotificationService {
       );
 
       final response = await _dio.delete(
-        '/api/notifications/fcm/unregister',
-        data: {
-          'token': token,
-          'platform': Platform.isAndroid ? 'android' : 'ios',
-        },
+        '/api/notifications/tokens/$token',
       );
 
       if (response.statusCode == 200 || response.statusCode == 204) {
@@ -434,22 +430,51 @@ class NotificationService {
       );
 
       final response = await _dio.get(
-        '/api/notifications/fcm/status',
-        queryParameters: {
-          'token': token,
-          'platform': Platform.isAndroid ? 'android' : 'ios',
-        },
+        '/api/notifications/tokens',
       );
 
       if (response.statusCode == 200) {
         final responseData = response.data as Map<String, dynamic>;
 
         if (responseData['success'] == true) {
-          AppLogger.info(
-            'Successfully retrieved FCM token status',
+          final data = responseData['data'];
+
+          // data가 List인 경우 (토큰 목록)
+          if (data is List) {
+            // 현재 토큰과 일치하는 토큰 찾기
+            for (final tokenData in data) {
+              if (tokenData is Map<String, dynamic> &&
+                  tokenData['token'] == token) {
+                AppLogger.info(
+                  'Found matching FCM token in registered tokens',
+                  'NotificationService',
+                );
+                return tokenData;
+              }
+            }
+
+            // 일치하는 토큰이 없는 경우
+            AppLogger.info(
+              'FCM token not found in registered tokens',
+              'NotificationService',
+            );
+            return null;
+          }
+
+          // data가 Map인 경우 (단일 토큰)
+          if (data is Map<String, dynamic>) {
+            AppLogger.info(
+              'Successfully retrieved FCM token status',
+              'NotificationService',
+            );
+            return data;
+          }
+
+          AppLogger.warning(
+            'Unexpected data format in FCM token status response',
             'NotificationService',
           );
-          return responseData['data'] as Map<String, dynamic>?;
+          return null;
         } else {
           AppLogger.warning(
             'FCM token status check failed: ${responseData['message']}',

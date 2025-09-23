@@ -8,6 +8,7 @@ import 'package:saegim/core/config/environment.dart';
 import 'package:saegim/core/network/dio_client.dart';
 import 'package:saegim/firebase_options.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
+import 'package:saegim/core/services/fcm_message_service.dart';
 
 bool _foregroundHandlersRegistered = false;
 
@@ -103,6 +104,11 @@ Future<void> _initializeFirebaseAndMessaging() async {
   } else {
     AppLogger.warning('FCM 등록 토큰을 가져오지 못했습니다.', 'FCM');
   }
+
+  // FCM 메시지 서비스 초기화
+  AppLogger.info('FCMMessageService.instance.initialize() 호출 직전', 'Bootstrap');
+  await FCMMessageService.instance.initialize();
+  AppLogger.info('FCMMessageService.instance.initialize() 호출 직후', 'Bootstrap');
 
   if (!_foregroundHandlersRegistered) {
     FirebaseMessaging.onMessage.listen((message) {
