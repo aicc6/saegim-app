@@ -22,6 +22,7 @@ import 'package:saegim/shared/widgets/error_page.dart';
 import 'package:saegim/shared/widgets/main_scaffold.dart';
 import 'package:saegim/shared/widgets/onboarding_page.dart';
 import 'package:saegim/shared/widgets/splash_page.dart';
+import 'package:saegim/debug/fcm_debug_page.dart';
 
 /// 앱의 라우터 설정 클래스
 class AppRouter {
@@ -154,6 +155,12 @@ class AppRouter {
         GoRoute(
           path: RoutePaths.support,
           builder: (context, state) => const SupportPage(),
+        ),
+
+        // FCM 디버깅 (개발용)
+        GoRoute(
+          path: '/debug/fcm',
+          builder: (context, state) => const FcmDebugPage(),
         ),
       ],
     );
