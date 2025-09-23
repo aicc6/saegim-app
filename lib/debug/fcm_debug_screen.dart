@@ -14,7 +14,7 @@ class FCMDebugScreen extends StatefulWidget {
 class _FCMDebugScreenState extends State<FCMDebugScreen> {
   String? _fcmToken;
   NotificationSettings? _notificationSettings;
-  String? _apnsToken;
+
   bool _isLoading = false;
   final List<String> _logs = [];
 
@@ -63,7 +63,7 @@ class _FCMDebugScreenState extends State<FCMDebugScreen> {
   Future<void> _checkAPNSToken() async {
     try {
       final apnsToken = await FirebaseMessaging.instance.getAPNSToken();
-      setState(() => _apnsToken = apnsToken);
+      // APNS token received
       if (apnsToken != null) {
         _addLog('APNS 토큰 확인 완료: ${apnsToken.substring(0, 20)}...');
       } else {
