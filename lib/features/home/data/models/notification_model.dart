@@ -1,8 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:saegim/shared/utils/app_logger.dart';
 
 part 'notification_model.freezed.dart';
-part 'notification_model.g.dart';
 
 /// 알림 API 응답 구조
 @freezed
@@ -14,14 +12,20 @@ sealed class NotificationApiResponse with _$NotificationApiResponse {
     String? error,
   }) = _NotificationApiResponse;
 
-  factory NotificationApiResponse.fromJson(Map<String, dynamic> json) =>
-      _$NotificationApiResponseFromJson(json);
+  factory NotificationApiResponse.fromJson(Map<String, dynamic> json) {
+    return NotificationApiResponse(
+      success: json['success'] as bool,
+      message: json['message'] as String,
+      data: json['data'] != null ? NotificationHistoryResponse.fromJson(json['data'] as Map<String, dynamic>) : null,
+      error: json['error'] as String?,
+    );
+  }
 }
 
 /// 알림 항목 모델
 @freezed
 sealed class NotificationItem with _$NotificationItem {
-  const factory NotificationItem({
+  factory NotificationItem({
     required String id, // 서버에서 UUID 문자열로 옴
     required String title,
     required String message, // 서버의 'body' → 'message'
@@ -33,10 +37,6 @@ sealed class NotificationItem with _$NotificationItem {
   }) = _NotificationItem;
 
   factory NotificationItem.fromJson(Map<String, dynamic> json) {
-    // 디버깅을 위한 로깅 추가
-    AppLogger.debug('NotificationItem.fromJson - Raw JSON: $json', 'NotificationModel');
-    AppLogger.debug('NotificationItem.fromJson - is_read value: ${json['is_read']} (type: ${json['is_read'].runtimeType})', 'NotificationModel');
-
     // status 필드를 사용하여 읽음 상태 판단
     bool isReadValue = false;
 
@@ -54,10 +54,7 @@ sealed class NotificationItem with _$NotificationItem {
       // status 필드로 읽음 상태 판단
       final status = json['status'] as String?;
       isReadValue = status?.toLowerCase() == 'opened';
-      AppLogger.debug('NotificationItem.fromJson - Using status field: $status -> isRead: $isReadValue', 'NotificationModel');
     }
-
-    AppLogger.debug('NotificationItem.fromJson - Final isRead value: $isReadValue', 'NotificationModel');
 
     return NotificationItem(
       id: json['id'] as String,
@@ -82,8 +79,16 @@ sealed class NotificationHistoryResponse with _$NotificationHistoryResponse {
     @Default(false) bool hasMore,
   }) = _NotificationHistoryResponse;
 
-  factory NotificationHistoryResponse.fromJson(Map<String, dynamic> json) =>
-      _$NotificationHistoryResponseFromJson(json);
+  factory NotificationHistoryResponse.fromJson(Map<String, dynamic> json) {
+    return NotificationHistoryResponse(
+      notifications: (json['notifications'] as List)
+          .map((item) => NotificationItem.fromJson(item as Map<String, dynamic>))
+          .toList(),
+      total: json['total'] as int,
+      unreadCount: json['unread_count'] as int,
+      hasMore: json['has_more'] as bool? ?? false,
+    );
+  }
 }
 
 /// 알림 요청 매개변수
@@ -94,8 +99,12 @@ sealed class NotificationParams with _$NotificationParams {
     @Default(0) int offset,
   }) = _NotificationParams;
 
-  factory NotificationParams.fromJson(Map<String, dynamic> json) =>
-      _$NotificationParamsFromJson(json);
+  factory NotificationParams.fromJson(Map<String, dynamic> json) {
+    return NotificationParams(
+      limit: json['limit'] as int? ?? 20,
+      offset: json['offset'] as int? ?? 0,
+    );
+  }
 }
 
 /// 알림 타입 열거형
