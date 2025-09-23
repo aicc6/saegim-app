@@ -187,6 +187,117 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
   /// 이미지 선택 기능
   Future<void> _pickImages() async {
+    // 이미지 선택 옵션 다이얼로그 표시
+    _showImagePickerDialog();
+  }
+
+  /// 이미지 선택 옵션 다이얼로그
+  void _showImagePickerDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text(
+            '사진 추가',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1F2937),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                '사진을 선택하는 방법을 선택해주세요.',
+                style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              // 갤러리에서 선택 버튼
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    _pickImagesFromGallery();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF4A7C59),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
+                  ),
+                  icon: const Icon(Icons.photo_library, size: 20),
+                  label: const Text(
+                    '갤러리에서 선택',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // 카메라로 촬영 버튼
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    _pickImageFromCamera();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6B7280),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
+                  ),
+                  icon: const Icon(Icons.camera_alt, size: 20),
+                  label: const Text(
+                    '카메라로 촬영',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            // 취소 버튼
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+              ),
+              child: const Text(
+                '취소',
+                style: TextStyle(
+                  color: Color(0xFF6B7280),
+                  fontWeight: FontWeight.w500,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// 갤러리에서 이미지 선택
+  Future<void> _pickImagesFromGallery() async {
     try {
       final List<XFile> selectedImages = await _imagePicker.pickMultipleMedia(
         imageQuality: 80,
@@ -209,13 +320,49 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       }
     } catch (e) {
       AppLogger.error(
-        'Failed to pick images',
+        'Failed to pick images from gallery',
         tag: 'DiaryDetailPage',
         error: e,
       );
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('사진 선택 중 오류가 발생했습니다.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  /// 카메라로 이미지 촬영
+  Future<void> _pickImageFromCamera() async {
+    try {
+      final XFile? selectedImage = await _imagePicker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 80,
+      );
+
+      if (selectedImage != null) {
+        setState(() {
+          newImages.add(selectedImage);
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('1장의 사진이 추가되었습니다.\n저장 버튼을 눌러 업로드하세요.'),
+            backgroundColor: Color(0xFF4A7C59),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      AppLogger.error(
+        'Failed to pick image from camera',
+        tag: 'DiaryDetailPage',
+        error: e,
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('카메라 사용 중 오류가 발생했습니다.'),
           backgroundColor: Colors.red,
         ),
       );
