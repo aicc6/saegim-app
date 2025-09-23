@@ -64,7 +64,7 @@
     <!-- FCM 기본 알림 채널 설정 -->
     <meta-data
         android:name="com.google.firebase.messaging.default_notification_channel_id"
-        android:value="saegim_default_channel" />
+        android:value="saegim_notifications" />
 
     <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

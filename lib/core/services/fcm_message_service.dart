@@ -1,5 +1,7 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
@@ -20,6 +22,10 @@ class FCMMessageService {
   // 알림 서비스 인스턴스
   final NotificationService _notificationService = NotificationService();
 
+  // 로컬 알림 플러그인
+  final FlutterLocalNotificationsPlugin _localNotifications =
+      FlutterLocalNotificationsPlugin();
+
   // 전역 Navigator Key
   static GlobalKey<NavigatorState>? _navigatorKey;
 
@@ -38,9 +44,19 @@ class FCMMessageService {
 
   /// FCM 메시지 서비스 초기화
   Future<void> initialize() async {
-    if (_isInitialized) return;
+    AppLogger.info('FCMMessageService.initialize() 메서드 진입', 'FCMMessageService');
+    
+    if (_isInitialized) {
+      AppLogger.info('이미 초기화됨, 초기화 건너뜀', 'FCMMessageService');
+      return;
+    }
+
+    AppLogger.info('FCMMessageService 초기화 시작', 'FCMMessageService');
 
     try {
+      // 로컬 알림 초기화
+      await _initializeLocalNotifications();
+
       // FCM 메시지 핸들러 등록
       _setupMessageHandlers();
 
@@ -125,18 +141,116 @@ class FCMMessageService {
 
   /// 포그라운드 알림 처리 (Flutter 기본 기능 활용)
   Future<void> _showLocalNotification(RemoteMessage message) async {
-    final notification = message.notification;
-    if (notification == null) return;
+    try {
+      AppLogger.info('로컬 알림 표시 시작', 'FCMMessageService');
 
-    // 포그라운드에서는 앱 내 UI로 알림 표시
-    // flutter_local_notifications 대신 앱 내 알림 UI 활용
-    AppLogger.info(
-      '포그라운드 알림 처리: ${notification.title} - ${notification.body}',
-      'FCMMessageService',
-    );
+      final title = message.notification?.title ?? '새김';
+      final body = message.notification?.body ?? '새로운 알림이 있습니다.';
+      // JSON 형태로 payload 생성 (딥링크 정보 포함)
+      final payloadData = {
+        'type': message.data['type'] ?? 'general',
+        'diaryId': message.data['diaryId'],
+        'url': message.data['url'],
+        'emotion': message.data['emotion'],
+        'messageId': message.messageId,
+      };
+      final payload = jsonEncode(payloadData);
 
-    // 앱 내 알림 상태 업데이트로 대체
-    _updateInAppNotifications(message);
+      AppLogger.info('알림 내용: title=$title, body=$body', 'FCMMessageService');
+
+      // 알림 타입에 따른 채널 ID 결정
+      final notificationType = message.data['type'] ?? 'general';
+      String channelId = 'saegim_notifications';
+
+      if (notificationType == 'diary_reminder' || notificationType == 'important') {
+        channelId = 'saegim_high_importance';
+      }
+
+      AppLogger.info('알림 채널: $channelId (type: $notificationType)', 'FCMMessageService');
+
+      // 알림 권한 상태 확인
+      final androidImplementation = _localNotifications
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+
+      if (androidImplementation != null) {
+        final areNotificationsEnabled = await androidImplementation.areNotificationsEnabled();
+        AppLogger.info('알림 권한 상태: $areNotificationsEnabled', 'FCMMessageService');
+
+        if (areNotificationsEnabled == false) {
+          AppLogger.warning('알림 권한이 없어 로컬 알림을 표시할 수 없음', 'FCMMessageService');
+          return;
+        }
+      }
+
+      // Android 알림 설정
+      final androidDetails = AndroidNotificationDetails(
+        channelId,
+        channelId == 'saegim_high_importance' ? '새김 중요 알림' : '새김 알림',
+        channelDescription: channelId == 'saegim_high_importance'
+            ? '새김 앱의 중요 알림 (다이어리 리마인더 등)'
+            : '새김 앱의 일반 알림',
+        importance: channelId == 'saegim_high_importance' ? Importance.max : Importance.high,
+        priority: channelId == 'saegim_high_importance' ? Priority.max : Priority.high,
+        showWhen: true,
+        icon: '@mipmap/ic_launcher',
+        enableVibration: true,
+        playSound: true,
+      );
+
+      // iOS 알림 설정
+      const darwinDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+
+      final notificationDetails = NotificationDetails(
+        android: androidDetails,
+        iOS: darwinDetails,
+        macOS: darwinDetails,
+      );
+
+      final notificationId = DateTime.now().millisecondsSinceEpoch.remainder(100000);
+      AppLogger.info('알림 ID: $notificationId로 로컬 알림 표시 시도', 'FCMMessageService');
+
+      // 로컬 알림 표시
+      await _localNotifications.show(
+        notificationId,
+        title,
+        body,
+        notificationDetails,
+        payload: payload,
+      );
+
+      AppLogger.info(
+        '포그라운드 로컬 알림 표시 완료: $title (ID: $notificationId)',
+        'FCMMessageService',
+      );
+
+      // 알림 표시 후 확인
+      final pendingNotifications = await _localNotifications.pendingNotificationRequests();
+      final activeNotifications = await _localNotifications.getActiveNotifications();
+      AppLogger.info(
+        '현재 대기 중인 알림: ${pendingNotifications.length}, 활성 알림: ${activeNotifications.length}',
+        'FCMMessageService',
+      );
+
+    } catch (e) {
+      AppLogger.error(
+        '포그라운드 로컬 알림 표시 실패',
+        error: e,
+        tag: 'FCMMessageService',
+      );
+
+      // 로컬 알림 실패 시에도 앱 내 알림은 표시
+      final notification = message.notification;
+      if (notification != null) {
+        AppLogger.info(
+          '로컬 알림 실패 - 앱 내 알림으로 대체: ${notification.title} - ${notification.body}',
+          'FCMMessageService',
+        );
+      }
+    }
   }
 
 
@@ -499,6 +613,138 @@ class FCMMessageService {
         tag: 'FCMMessageService',
       );
       return null;
+    }
+  }
+
+  /// 로컬 알림 플러그인 초기화
+  Future<void> _initializeLocalNotifications() async {
+    try {
+      AppLogger.info('로컬 알림 플러그인 초기화 시작', 'FCMMessageService');
+
+      // Android 권한 요청 (Android 13+)
+      await _requestNotificationPermissions();
+
+      // Android 초기화 설정
+      const androidInitializationSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+
+      // iOS 초기화 설정
+      const darwinInitializationSettings = DarwinInitializationSettings(
+        requestAlertPermission: true,
+        requestBadgePermission: true,
+        requestSoundPermission: true,
+      );
+
+      // 초기화 설정
+      const initializationSettings = InitializationSettings(
+        android: androidInitializationSettings,
+        iOS: darwinInitializationSettings,
+        macOS: darwinInitializationSettings,
+      );
+
+      // 로컬 알림 플러그인 초기화
+      final result = await _localNotifications.initialize(
+        initializationSettings,
+        onDidReceiveNotificationResponse: _onLocalNotificationTapped,
+      );
+
+      AppLogger.info('로컬 알림 플러그인 초기화 결과: $result', 'FCMMessageService');
+
+      // Android 알림 채널 생성
+      await _createNotificationChannels();
+
+      AppLogger.info('로컬 알림 플러그인 초기화 완료', 'FCMMessageService');
+    } catch (e) {
+      AppLogger.error(
+        '로컬 알림 플러그인 초기화 실패',
+        error: e,
+        tag: 'FCMMessageService',
+      );
+      rethrow;
+    }
+  }
+
+  /// Android 알림 권한 요청
+  Future<void> _requestNotificationPermissions() async {
+    try {
+      final androidImplementation = _localNotifications
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+
+      if (androidImplementation != null) {
+        final granted = await androidImplementation.requestNotificationsPermission();
+        AppLogger.info('Android 알림 권한 요청 결과: $granted', 'FCMMessageService');
+
+        // 정확한 알림 권한도 요청 (Android 14+)
+        final exactAlarmGranted = await androidImplementation.requestExactAlarmsPermission();
+        AppLogger.info('정확한 알림 권한 요청 결과: $exactAlarmGranted', 'FCMMessageService');
+      }
+    } catch (e) {
+      AppLogger.error(
+        'Android 알림 권한 요청 실패',
+        error: e,
+        tag: 'FCMMessageService',
+      );
+    }
+  }
+
+  /// Android 알림 채널 생성
+  Future<void> _createNotificationChannels() async {
+    const androidChannel = AndroidNotificationChannel(
+      'saegim_notifications', // 채널 ID
+      '새김 알림', // 채널 이름
+      description: '새김 앱의 일반 알림',
+      importance: Importance.high,
+      sound: RawResourceAndroidNotificationSound('notification'),
+    );
+
+    const highImportanceChannel = AndroidNotificationChannel(
+      'saegim_high_importance', // 채널 ID
+      '새김 중요 알림', // 채널 이름
+      description: '새김 앱의 중요 알림 (다이어리 리마인더 등)',
+      importance: Importance.max,
+      sound: RawResourceAndroidNotificationSound('notification'),
+    );
+
+    await _localNotifications
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(androidChannel);
+
+    await _localNotifications
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(highImportanceChannel);
+
+    AppLogger.info('Android 알림 채널 생성 완료', 'FCMMessageService');
+  }
+
+
+  /// 로컬 알림 탭 처리
+  void _onLocalNotificationTapped(NotificationResponse response) {
+    AppLogger.info(
+      '로컬 알림 탭됨: ${response.payload}',
+      'FCMMessageService',
+    );
+
+    // 알림 탭 시 해당 화면으로 이동
+    if (response.payload != null && _navigatorKey?.currentContext != null) {
+      final context = _navigatorKey!.currentContext!;
+
+      try {
+        // JSON 페이로드 파싱
+        final payloadData = jsonDecode(response.payload!) as Map<String, dynamic>;
+        AppLogger.info(
+          '페이로드 파싱 완료: $payloadData',
+          'FCMMessageService',
+        );
+
+        // 기존 딥링크 처리 로직 재사용
+        _navigateToTarget(context, payloadData);
+      } catch (e) {
+        AppLogger.error(
+          '페이로드 파싱 실패: $e, 기본 알림 페이지로 이동',
+          'FCMMessageService',
+        );
+        // 파싱 실패 시 기본 알림 페이지로 이동
+        context.go('/notifications');
+      }
     }
   }
 
