@@ -255,6 +255,44 @@ class _HomePageState extends ConsumerState<HomePage> {
                           ],
                         ),
                 ),
+                const SizedBox(height: 24),
+                if (createState.generatedText != null)
+                  Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.article_outlined,
+                                color: Color(0xFF3F764A),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '생성된 글',
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: const Color(0xFF3F764A),
+                                    ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            createState.generatedText!,
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),

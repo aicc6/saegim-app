@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:saegim/core/config/environment.dart';
+import 'package:saegim/core/services/auth_storage_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // 타입 정의
@@ -243,7 +244,7 @@ class AiApiService {
       throw const APIError('인증 토큰이 없습니다. 다시 로그인해주세요.');
     }
 
-    final uri = Uri.parse('$baseUrl/api/ai/generate');
+    final uri = Uri.parse('$baseUrl/api/ai/generate/stream');
 
     // 디버깅 로그
     print('API 요청 URL: $uri');
@@ -255,7 +256,7 @@ class AiApiService {
         headers: {
           'Authorization': 'Bearer $jwt',
           'Content-Type': 'application/json',
-          'Accept': 'application/json',
+          'Accept': 'text/event-stream',
         },
         body: jsonEncode({
           'prompt': prompt,
@@ -270,12 +271,54 @@ class AiApiService {
       print('응답 바디: ${response.body}');
 
       if (response.statusCode == 200) {
-        final Map<String, dynamic> responseBody = jsonDecode(response.body);
+        // SSE 응답 파싱
+        final lines = response.body.split('\n');
+        String accumulatedText = '';
+        String? sessionId;
 
-        if (responseBody['success'] == true && responseBody['data'] != null) {
-          return AIGenerationResult.fromJson(responseBody['data']);
+        for (final line in lines) {
+          final trimmedLine = line.trim();
+
+          // data: 접두사가 있는 줄만 처리
+          if (trimmedLine.startsWith('data:')) {
+            try {
+              // data: 제거하고 JSON 파싱
+              final jsonStr = trimmedLine.substring(5).trim();
+              if (jsonStr.isNotEmpty) {
+                final Map<String, dynamic> data = jsonDecode(jsonStr);
+
+                // type에 따른 처리
+                switch (data['type']) {
+                  case 'start':
+                    sessionId = data['session_id'];
+                    break;
+                  case 'content':
+                    accumulatedText = data['accumulated'] ?? accumulatedText;
+                    break;
+                  case 'connected':
+                    // 연결 확인, 아무것도 하지 않음
+                    break;
+                }
+              }
+            } catch (e) {
+              // JSON 파싱 실패 시 해당 줄은 무시
+              print('SSE 라인 파싱 실패: $trimmedLine, 오류: $e');
+            }
+          }
+        }
+
+        // 누적된 텍스트가 있으면 결과 반환
+        if (accumulatedText.isNotEmpty) {
+          return AIGenerationResult(
+            aiGeneratedText: accumulatedText,
+            aiEmotion: emotion ?? '',
+            aiEmotionConfidence: 0.8, // 기본값
+            keywords: [], // 기본값
+            tokensUsed: accumulatedText.length, // 추정값
+            sessionId: sessionId ?? '',
+          );
         } else {
-          throw APIError(responseBody['message'] ?? 'AI 텍스트 생성에 실패했습니다.');
+          throw const APIError('AI 텍스트 생성에 실패했습니다. 응답이 비어있습니다.');
         }
       } else {
         // 에러 응답 처리
@@ -406,8 +449,7 @@ class AiApiService {
   /// JWT 토큰 조회
   Future<String?> _getJwtToken() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('jwt');
+      final token = await AuthStorageService.instance.getAuthToken();
       print('저장된 JWT 토큰 존재: ${token != null && token.isNotEmpty}');
       return token;
     } catch (e) {
@@ -446,7 +488,7 @@ class CreateNotifier extends StateNotifier<CreateState> {
       final generatedKeywords = prefs.getStringList('generatedKeywords');
       final sessionId = prefs.getString('sessionId');
 
-      if (!ref.mounted) return;
+      if (!mounted) return;
       if (generatedText != null ||
           generatedKeywords != null ||
           sessionId != null) {
@@ -521,7 +563,7 @@ class CreateNotifier extends StateNotifier<CreateState> {
   Future<void> generateText({String? emotion}) async {
     if (state.prompt.trim().isEmpty) return;
 
-    if (!ref.mounted) return;
+    if (!mounted) return;
     state = state.copyWith(isGenerating: true, clearError: true);
 
     try {
@@ -535,7 +577,7 @@ class CreateNotifier extends StateNotifier<CreateState> {
         regenerationCount: 1,
       );
 
-      if (!ref.mounted) return;
+      if (!mounted) return;
       state = state.copyWith(
         generatedText: result.aiGeneratedText,
         generatedKeywords: result.keywords,
@@ -551,7 +593,7 @@ class CreateNotifier extends StateNotifier<CreateState> {
       print('생성된 텍스트 길이: ${result.aiGeneratedText.length}');
     } catch (e) {
       final errorMessage = e is APIError ? e.message : '텍스트 생성 중 오류가 발생했습니다.';
-      if (!ref.mounted) return;
+      if (!mounted) return;
       state = state.copyWith(error: errorMessage, isGenerating: false);
 
       print('AI 텍스트 생성 실패: $e');
@@ -561,12 +603,12 @@ class CreateNotifier extends StateNotifier<CreateState> {
   // 재생성
   Future<void> regenerateText() async {
     if (state.sessionId?.isEmpty ?? true) {
-      if (!ref.mounted) return;
+      if (!mounted) return;
       state = state.copyWith(error: '재생성할 세션이 없습니다.');
       return;
     }
 
-    if (!ref.mounted) return;
+    if (!mounted) return;
     state = state.copyWith(isGenerating: true, clearError: true);
 
     try {
@@ -574,7 +616,7 @@ class CreateNotifier extends StateNotifier<CreateState> {
 
       final result = await _aiApiService.regenerateText(state.sessionId!);
 
-      if (!ref.mounted) return;
+      if (!mounted) return;
       state = state.copyWith(
         generatedText: result.aiGeneratedText,
         generatedKeywords: result.keywords,
@@ -588,7 +630,7 @@ class CreateNotifier extends StateNotifier<CreateState> {
       print('AI 텍스트 재생성 성공 - 새 세션 ID: ${result.sessionId}');
     } catch (e) {
       final errorMessage = e is APIError ? e.message : '텍스트 재생성 중 오류가 발생했습니다.';
-      if (!ref.mounted) return;
+      if (!mounted) return;
       state = state.copyWith(error: errorMessage, isGenerating: false);
 
       print('AI 텍스트 재생성 실패: $e');
@@ -607,7 +649,7 @@ class CreateNotifier extends StateNotifier<CreateState> {
       final originalInput = await _aiApiService.getOriginalUserInput(
         state.sessionId!,
       );
-      if (!ref.mounted) return;
+      if (!mounted) return;
       if (originalInput != null) {
         state = state.copyWith(originalPrompt: originalInput);
       }
@@ -617,7 +659,7 @@ class CreateNotifier extends StateNotifier<CreateState> {
   }
 
   void resetToDefaults() {
-    if (!ref.mounted) return;
+    if (!mounted) return;
     state = const CreateState(
       config: defaultConfig,
       prompt: '',
