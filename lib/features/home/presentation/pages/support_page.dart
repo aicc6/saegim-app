@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:saegim/features/home/data/models/support_inquiry_model.dart';
 import 'package:saegim/features/home/presentation/riverpod/support_inquiry_notifier.dart';
+import 'package:saegim/shared/utils/app_logger.dart';
 import 'package:saegim/shared/widgets/common_app_bar.dart';
 
 class SupportPage extends ConsumerStatefulWidget {
@@ -31,7 +32,7 @@ class _SupportPageState extends ConsumerState<SupportPage> {
 
   Future<void> _selectImage() async {
     try {
-      print('이미지 선택 시작');
+      AppLogger.debug('이미지 선택 시작');
 
       // 사용자에게 갤러리 또는 카메라 선택하도록 함
       final ImageSource? source = await showModalBottomSheet<ImageSource>(
@@ -128,11 +129,11 @@ class _SupportPageState extends ConsumerState<SupportPage> {
       );
 
       if (source == null) {
-        print('이미지 소스 선택 취소됨');
+        AppLogger.debug('이미지 소스 선택 취소됨');
         return;
       }
 
-      print('선택된 소스: $source');
+      AppLogger.debug('선택된 소스: $source');
 
       // image_picker가 내장된 권한 처리를 사용
       final XFile? image = await _picker.pickImage(
@@ -142,7 +143,7 @@ class _SupportPageState extends ConsumerState<SupportPage> {
         imageQuality: 85,
       );
 
-      print('이미지 선택 결과: ${image?.path}');
+      AppLogger.debug('이미지 선택 결과: ${image?.path}');
 
       if (image != null) {
         // 파일 크기 확인 (10MB 제한)
@@ -150,7 +151,7 @@ class _SupportPageState extends ConsumerState<SupportPage> {
         final int fileSizeInBytes = await file.length();
         const int maxSizeInBytes = 10 * 1024 * 1024; // 10MB
 
-        print('파일 크기: ${fileSizeInBytes / 1024 / 1024}MB');
+        AppLogger.debug('파일 크기: ${fileSizeInBytes / 1024 / 1024}MB');
 
         if (fileSizeInBytes > maxSizeInBytes) {
           if (mounted) {
@@ -178,7 +179,7 @@ class _SupportPageState extends ConsumerState<SupportPage> {
         setState(() {
           _selectedImage = image;
         });
-        print('이미지 설정 완료');
+        AppLogger.debug('이미지 설정 완료');
 
         // 성공 메시지 표시
         if (mounted) {
@@ -201,11 +202,11 @@ class _SupportPageState extends ConsumerState<SupportPage> {
           );
         }
       } else {
-        print('이미지 선택 취소됨');
+        AppLogger.debug('이미지 선택 취소됨');
       }
     } catch (e, stackTrace) {
-      print('이미지 선택 에러: $e');
-      print('스택 트레이스: $stackTrace');
+      AppLogger.debug('이미지 선택 에러: $e');
+      AppLogger.debug('스택 트레이스: $stackTrace');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

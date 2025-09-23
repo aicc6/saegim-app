@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:saegim/shared/widgets/common_app_bar.dart';
 import 'package:saegim/features/calendar/presentation/riverpod/calendar_notifier.dart';
 import 'package:saegim/features/calendar/data/models/diary_model.dart';
+import 'package:saegim/features/calendar/data/models/diary_image_model.dart';
+import 'package:saegim/features/calendar/data/services/diary_api_service.dart';
 import 'package:saegim/features/calendar/presentation/widgets/test_login_widget.dart';
 import 'package:saegim/features/authentication/presentation/riverpod/auth_notifier.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
@@ -51,6 +53,10 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
   final GlobalKey _diaryDetailKey = GlobalKey();
   late PageController _pageController;
 
+  // 다이어리별 이미지 캐시
+  final Map<String, List<DiaryImage>> _diaryImagesCache = {};
+  final Set<String> _loadingImages = {};
+
   // 감정 색상 매핑 (5가지 기본 감정) - 채도 조정
   Color _getEmotionColor(String emotion) {
     switch (emotion.toLowerCase()) {
@@ -85,6 +91,40 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     _scrollController.dispose();
     _pageController.dispose();
     super.dispose();
+  }
+
+  /// 다이어리 이미지 로드
+  Future<void> _loadDiaryImages(String diaryId) async {
+    // 이미 로딩 중이거나 캐시에 있으면 스킵
+    if (_loadingImages.contains(diaryId) ||
+        _diaryImagesCache.containsKey(diaryId)) {
+      return;
+    }
+
+    _loadingImages.add(diaryId);
+
+    try {
+      final images = await DiaryApiService.instance.getDiaryImages(diaryId);
+
+      if (mounted) {
+        setState(() {
+          _diaryImagesCache[diaryId] = images;
+          _loadingImages.remove(diaryId);
+        });
+      }
+    } catch (e) {
+      AppLogger.error(
+        'Failed to load images for diary: $diaryId',
+        tag: 'CalendarPage',
+        error: e,
+      );
+      if (mounted) {
+        setState(() {
+          _diaryImagesCache[diaryId] = [];
+          _loadingImages.remove(diaryId);
+        });
+      }
+    }
   }
 
   // 해당 월의 첫 번째 날짜
@@ -202,28 +242,29 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     });
   }
 
-  // 특정 날짜의 다이어리 이모티콘 가져오기
-  String _getDiaryEmoji(DateTime date, List<DiaryEntry> diaries) {
-    final diary = diaries.cast<DiaryEntry?>().firstWhere((diary) {
-      if (diary == null) return false;
+  // 특정 날짜의 다이어리 목록 가져오기
+  List<DiaryEntry> _getDiariesForDate(DateTime date, List<DiaryEntry> diaries) {
+    return diaries.where((diary) {
       final diaryDate = diary.diaryDate;
       return diaryDate.year == date.year &&
           diaryDate.month == date.month &&
           diaryDate.day == date.day;
-    }, orElse: () => null);
-    return diary?.emotionEmoji ?? '😊';
+    }).toList();
   }
 
-  // 특정 날짜의 다이어리 키워드 가져오기
+  // 특정 날짜의 다이어리 이모티콘 가져오기 (첫 번째 다이어리 기준)
+  String _getDiaryEmoji(DateTime date, List<DiaryEntry> diaries) {
+    final dailyDiaries = _getDiariesForDate(date, diaries);
+    return dailyDiaries.isNotEmpty ? dailyDiaries.first.emotionEmoji : '😊';
+  }
+
+  // 특정 날짜의 다이어리 키워드 가져오기 (첫 번째 다이어리 기준)
   String _getDiaryKeyword(DateTime date, List<DiaryEntry> diaries) {
-    final diary = diaries.cast<DiaryEntry?>().firstWhere((diary) {
-      if (diary == null) return false;
-      final diaryDate = diary.diaryDate;
-      return diaryDate.year == date.year &&
-          diaryDate.month == date.month &&
-          diaryDate.day == date.day;
-    }, orElse: () => null);
-    return diary?.keywords.isNotEmpty == true ? diary!.keywords.first : '감정';
+    final dailyDiaries = _getDiariesForDate(date, diaries);
+    if (dailyDiaries.isNotEmpty && dailyDiaries.first.keywords.isNotEmpty) {
+      return dailyDiaries.first.keywords.first;
+    }
+    return '감정';
   }
 
   @override
@@ -373,7 +414,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.1),
+                                color: Colors.black.withOpacity(0.1),
                                 blurRadius: 4,
                                 offset: const Offset(0, 2),
                               ),
@@ -415,7 +456,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
+                          color: Colors.black.withOpacity(0.05),
                           blurRadius: 10,
                           offset: const Offset(0, 2),
                         ),
@@ -605,6 +646,41 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                                                 ],
                                               ),
                                             ),
+                                          // 다이어리 개수 배지 (여러 개일 때만)
+                                          if (_getDiariesForDate(
+                                                date,
+                                                calendarState.monthlyDiaries,
+                                              ).length >
+                                              1)
+                                            Positioned(
+                                              right: 2,
+                                              bottom: 2,
+                                              child: Container(
+                                                width: 16,
+                                                height: 16,
+                                                decoration: BoxDecoration(
+                                                  color: const Color(
+                                                    0xFF4A7C59,
+                                                  ),
+                                                  shape: BoxShape.circle,
+                                                  border: Border.all(
+                                                    color: Colors.white,
+                                                    width: 1,
+                                                  ),
+                                                ),
+                                                child: Center(
+                                                  child: Text(
+                                                    '${_getDiariesForDate(date, calendarState.monthlyDiaries).length}',
+                                                    style: const TextStyle(
+                                                      fontSize: 8,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: Colors.white,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
                                         ],
                                       ),
                                     ),
@@ -624,15 +700,10 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
 
                   // 선택된 날짜의 다이어리 상세 정보 (조건부 표시)
                   if (calendarState.selectedDate != null &&
-                      calendarState.monthlyDiaries.any(
-                        (diary) =>
-                            diary.diaryDate.year ==
-                                calendarState.selectedDate!.year &&
-                            diary.diaryDate.month ==
-                                calendarState.selectedDate!.month &&
-                            diary.diaryDate.day ==
-                                calendarState.selectedDate!.day,
-                      ))
+                      _getDiariesForDate(
+                        calendarState.selectedDate!,
+                        calendarState.monthlyDiaries,
+                      ).isNotEmpty)
                     Container(
                       key: _diaryDetailKey,
                       child: _buildSelectedDiaryDetail(calendarState),
@@ -649,7 +720,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
+                          color: Colors.black.withOpacity(0.05),
                           blurRadius: 10,
                           offset: const Offset(0, 2),
                         ),
@@ -779,7 +850,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
+                          color: Colors.black.withOpacity(0.05),
                           blurRadius: 10,
                           offset: const Offset(0, 2),
                         ),
@@ -937,17 +1008,13 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
   Widget _buildSelectedDiaryDetail(CalendarState calendarState) {
     final selectedDate = calendarState.selectedDate!;
 
-    // 선택된 날짜에 다이어리가 있는지 확인
-    final diary = calendarState.monthlyDiaries
-        .where(
-          (diary) =>
-              diary.diaryDate.year == selectedDate.year &&
-              diary.diaryDate.month == selectedDate.month &&
-              diary.diaryDate.day == selectedDate.day,
-        )
-        .firstOrNull;
+    // 선택된 날짜의 모든 다이어리 가져오기
+    final dailyDiaries = _getDiariesForDate(
+      selectedDate,
+      calendarState.monthlyDiaries,
+    );
 
-    if (diary == null) {
+    if (dailyDiaries.isEmpty) {
       return const SizedBox.shrink();
     }
 
@@ -993,81 +1060,127 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
 
           const SizedBox(height: 16),
 
-          // 제목과 감정 이모지
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      diary.title ??
-                          '${selectedDate.month}월 ${selectedDate.day}일의 일기',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF333333),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      diary.aiGeneratedText ?? diary.content,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[700],
-                        height: 1.4,
-                      ),
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
+          // 여러 다이어리 목록 표시
+          ...dailyDiaries.asMap().entries.map((entry) {
+            final index = entry.key;
+            final diary = entry.value;
+
+            return Column(
+              children: [
+                if (index > 0) ...[
+                  const SizedBox(height: 16),
+                  Divider(color: Colors.grey[300], thickness: 1, height: 1),
+                  const SizedBox(height: 16),
+                ],
+                _buildSingleDiaryCard(diary, selectedDate, index + 1),
+              ],
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  // 개별 다이어리 카드 빌드
+  Widget _buildSingleDiaryCard(
+    DiaryEntry diary,
+    DateTime selectedDate,
+    int diaryNumber,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 다이어리 번호 (여러 개일 때만 표시)
+        if (_getDiariesForDate(
+              selectedDate,
+              ref.read(calendarNotifierProvider).monthlyDiaries,
+            ).length >
+            1)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              '다이어리 $diaryNumber',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[600],
               ),
-              const SizedBox(width: 16),
-              Text(diary.emotionEmoji, style: const TextStyle(fontSize: 32)),
-            ],
+            ),
           ),
 
-          const SizedBox(height: 16),
+        // 제목과 감정 이모지
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    diary.title ??
+                        '${selectedDate.month}월 ${selectedDate.day}일의 일기',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF333333),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    diary.aiGeneratedText ?? diary.content,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[700],
+                      height: 1.4,
+                    ),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+            Text(diary.emotionEmoji, style: const TextStyle(fontSize: 32)),
+          ],
+        ),
 
-          // 감정
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
+        const SizedBox(height: 16),
+
+        // 감정
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: _getEmotionColor(
+                  diary.emotion ?? diary.aiEmotion ?? '평온',
+                ).withOpacity(0.15),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
                   color: _getEmotionColor(
                     diary.emotion ?? diary.aiEmotion ?? '평온',
-                  ).withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: _getEmotionColor(
-                      diary.emotion ?? diary.aiEmotion ?? '평온',
-                    ).withOpacity(0.3),
-                    width: 1,
-                  ),
+                  ).withOpacity(0.3),
+                  width: 1,
                 ),
-                child: Text(
-                  diary.emotion ?? diary.aiEmotion ?? '평온',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: _getEmotionColor(
-                      diary.emotion ?? diary.aiEmotion ?? '평온',
-                    ),
+              ),
+              child: Text(
+                diary.emotion ?? diary.aiEmotion ?? '평온',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: _getEmotionColor(
+                    diary.emotion ?? diary.aiEmotion ?? '평온',
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
+        ),
 
-          const SizedBox(height: 12),
+        const SizedBox(height: 12),
 
-          // 키워드들
+        // 키워드들
+        if (diary.keywords.isNotEmpty)
           Wrap(
             spacing: 8,
             runSpacing: 6,
@@ -1094,72 +1207,48 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
             }).toList(),
           ),
 
-          const SizedBox(height: 16),
+        const SizedBox(height: 12),
 
-          // 이미지 섹션 (플레이스홀더)
-          Container(
-            height: 120,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8F9FA),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE9ECEF), width: 1),
+        // 이미지 섹션
+        _buildDiaryImages(diary),
+
+        const SizedBox(height: 16),
+
+        // 상세보기 버튼
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: () {
+              // 다이어리 상세 페이지로 이동 (캘린더에서 왔다는 정보 전달)
+              AppLogger.info(
+                'Navigate to diary detail: ${diary.id}',
+                'CalendarPage',
+              );
+              context.go('/diary/${diary.id}?from=calendar');
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF4A7C59),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              elevation: 0,
             ),
-            child: Column(
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.camera_alt_outlined,
-                  size: 32,
-                  color: Colors.grey[400],
+                const Text(
+                  '상세 보기',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  '이미지 없음',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                ),
+                const SizedBox(width: 8),
+                const Icon(Icons.arrow_forward_ios, size: 14),
               ],
             ),
           ),
-
-          const SizedBox(height: 16),
-
-          // 상세보기 버튼
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () {
-                // 다이어리 상세 페이지로 이동
-                AppLogger.info(
-                  'Navigate to diary detail: ${diary.id}',
-                  'CalendarPage',
-                );
-                context.go('/diary/${diary.id}');
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4A7C59),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                elevation: 0,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text(
-                    '클릭하여 상세 보기',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(width: 8),
-                  const Icon(Icons.arrow_forward_ios, size: 14),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -1389,5 +1478,256 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
         ),
       );
     }).toList();
+  }
+
+  /// 다이어리 이미지 섹션 빌드
+  Widget _buildDiaryImages(DiaryEntry diary) {
+    // 이미지 로드 시작 (캐시에 없는 경우)
+    if (!_diaryImagesCache.containsKey(diary.id) &&
+        !_loadingImages.contains(diary.id)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _loadDiaryImages(diary.id);
+      });
+    }
+
+    final images = _diaryImagesCache[diary.id] ?? [];
+    final isLoading = _loadingImages.contains(diary.id);
+
+    // 이미지가 없고 로딩 중도 아니면 빈 위젯 반환
+    if (images.isEmpty && !isLoading) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (isLoading)
+          Container(
+            height: 80,
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4A7C59)),
+                ),
+              ),
+            ),
+          )
+        else if (images.isNotEmpty)
+          SizedBox(
+            height: 80,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: images.length,
+              separatorBuilder: (context, index) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final image = images[index];
+                return _buildImageThumbnail(image, index, images);
+              },
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// 이미지 썸네일 빌드
+  Widget _buildImageThumbnail(
+    DiaryImage image,
+    int index,
+    List<DiaryImage> allImages,
+  ) {
+    final imageUrl = image.fullImageUrl;
+
+    if (imageUrl.isEmpty) {
+      return Container(
+        width: 80,
+        height: 80,
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFE9ECEF)),
+        ),
+        child: const Icon(
+          Icons.broken_image_outlined,
+          color: Color(0xFF9CA3AF),
+          size: 24,
+        ),
+      );
+    }
+
+    return GestureDetector(
+      onTap: () => _showImageFullScreen(image, index, allImages),
+      child: Container(
+        width: 80,
+        height: 80,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFE9ECEF)),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.network(
+            imageUrl,
+            fit: BoxFit.cover,
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+
+              return Container(
+                color: Colors.grey[100],
+                child: const Center(
+                  child: SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Color(0xFF4A7C59),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                color: Colors.grey[100],
+                child: const Icon(
+                  Icons.broken_image_outlined,
+                  color: Color(0xFF9CA3AF),
+                  size: 24,
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 이미지 풀스크린 표시
+  void _showImageFullScreen(
+    DiaryImage image,
+    int initialIndex,
+    List<DiaryImage> allImages,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog.fullscreen(
+        backgroundColor: Colors.black,
+        child: Stack(
+          children: [
+            // 이미지 페이지뷰
+            PageView.builder(
+              controller: PageController(initialPage: initialIndex),
+              itemCount: allImages.length,
+              itemBuilder: (context, index) {
+                final currentImage = allImages[index];
+                final imageUrl = currentImage.fullImageUrl;
+
+                if (imageUrl.isEmpty) {
+                  return const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.broken_image_outlined,
+                          size: 64,
+                          color: Colors.white54,
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          '이미지 경로가 없습니다',
+                          style: TextStyle(color: Colors.white54, fontSize: 16),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return Center(
+                  child: InteractiveViewer(
+                    child: Image.network(
+                      imageUrl,
+                      fit: BoxFit.contain,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+
+                        return const Center(
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.broken_image_outlined,
+                                size: 64,
+                                color: Colors.white54,
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                '이미지를 불러올 수 없습니다',
+                                style: TextStyle(
+                                  color: Colors.white54,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                );
+              },
+            ),
+            // 닫기 버튼
+            Positioned(
+              top: 50,
+              right: 20,
+              child: IconButton(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.close, color: Colors.white, size: 32),
+              ),
+            ),
+            // 이미지 정보
+            if (allImages.length > 1)
+              Positioned(
+                bottom: 50,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${initialIndex + 1} / ${allImages.length}',
+                      style: const TextStyle(color: Colors.white, fontSize: 14),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }

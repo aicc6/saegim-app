@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:saegim/core/network/dio_client.dart';
 import 'package:saegim/features/home/data/models/notification_model.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
@@ -284,6 +286,247 @@ class NotificationService {
         tag: 'NotificationService',
       );
       throw Exception('알림 삭제 중 예상치 못한 오류가 발생했습니다.');
+    }
+  }
+
+  /// FCM 토큰을 서버에 등록
+  ///
+  /// [token] FCM 토큰
+  /// [userId] 사용자 ID (선택적)
+  Future<bool> registerFCMToken({
+    required String token,
+    String? userId,
+  }) async {
+    try {
+      AppLogger.info(
+        'Registering FCM token to server: ${token.substring(0, 50)}...',
+        'NotificationService',
+      );
+
+      final deviceInfo = await _getDeviceInfo();
+
+      final response = await _dio.post(
+        '/api/notifications/fcm/register',
+        data: {
+          'token': token,
+          'platform': Platform.isAndroid ? 'android' : 'ios',
+          'device_type': Platform.isAndroid ? 'android' : 'ios',
+          'device_info': deviceInfo,
+          'is_active': true,
+          if (userId != null) 'user_id': userId,
+        },
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        AppLogger.info(
+          'Successfully registered FCM token to server',
+          'NotificationService',
+        );
+        return true;
+      } else {
+        AppLogger.warning(
+          'Unexpected response code: ${response.statusCode}',
+          'NotificationService',
+        );
+        return false;
+      }
+    } on DioException catch (e) {
+      AppLogger.error(
+        'Failed to register FCM token to server',
+        error: e,
+        tag: 'NotificationService',
+      );
+
+      String errorMessage = 'FCM 토큰 등록에 실패했습니다.';
+
+      if (e.response?.statusCode == 401) {
+        errorMessage = '인증이 필요합니다. 다시 로그인해주세요.';
+      } else if (e.response?.statusCode == 400) {
+        errorMessage = '잘못된 요청입니다. 토큰 정보를 확인해주세요.';
+      } else if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout) {
+        errorMessage = '네트워크 연결이 불안정합니다. 다시 시도해주세요.';
+      } else if (e.type == DioExceptionType.connectionError) {
+        errorMessage = '인터넷 연결을 확인해주세요.';
+      }
+
+      throw Exception(errorMessage);
+    } catch (e) {
+      AppLogger.error(
+        'Unexpected error while registering FCM token',
+        error: e,
+        tag: 'NotificationService',
+      );
+      throw Exception('FCM 토큰 등록 중 예상치 못한 오류가 발생했습니다.');
+    }
+  }
+
+  /// FCM 토큰을 서버에서 해제/비활성화
+  ///
+  /// [token] FCM 토큰
+  Future<bool> unregisterFCMToken(String token) async {
+    try {
+      AppLogger.info(
+        'Unregistering FCM token from server: ${token.substring(0, 50)}...',
+        'NotificationService',
+      );
+
+      final response = await _dio.delete(
+        '/api/notifications/fcm/unregister',
+        data: {
+          'token': token,
+          'platform': Platform.isAndroid ? 'android' : 'ios',
+        },
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        AppLogger.info(
+          'Successfully unregistered FCM token from server',
+          'NotificationService',
+        );
+        return true;
+      } else {
+        AppLogger.warning(
+          'Unexpected response code: ${response.statusCode}',
+          'NotificationService',
+        );
+        return false;
+      }
+    } on DioException catch (e) {
+      AppLogger.error(
+        'Failed to unregister FCM token from server',
+        error: e,
+        tag: 'NotificationService',
+      );
+
+      String errorMessage = 'FCM 토큰 해제에 실패했습니다.';
+
+      if (e.response?.statusCode == 401) {
+        errorMessage = '인증이 필요합니다. 다시 로그인해주세요.';
+      } else if (e.response?.statusCode == 404) {
+        errorMessage = '등록된 토큰을 찾을 수 없습니다.';
+      } else if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout) {
+        errorMessage = '네트워크 연결이 불안정합니다. 다시 시도해주세요.';
+      } else if (e.type == DioExceptionType.connectionError) {
+        errorMessage = '인터넷 연결을 확인해주세요.';
+      }
+
+      throw Exception(errorMessage);
+    } catch (e) {
+      AppLogger.error(
+        'Unexpected error while unregistering FCM token',
+        error: e,
+        tag: 'NotificationService',
+      );
+      throw Exception('FCM 토큰 해제 중 예상치 못한 오류가 발생했습니다.');
+    }
+  }
+
+  /// FCM 토큰 등록 상태 확인
+  ///
+  /// [token] FCM 토큰
+  Future<Map<String, dynamic>?> checkFCMTokenStatus(String token) async {
+    try {
+      AppLogger.info(
+        'Checking FCM token status: ${token.substring(0, 50)}...',
+        'NotificationService',
+      );
+
+      final response = await _dio.get(
+        '/api/notifications/fcm/status',
+        queryParameters: {
+          'token': token,
+          'platform': Platform.isAndroid ? 'android' : 'ios',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = response.data as Map<String, dynamic>;
+
+        if (responseData['success'] == true) {
+          AppLogger.info(
+            'Successfully retrieved FCM token status',
+            'NotificationService',
+          );
+          return responseData['data'] as Map<String, dynamic>?;
+        } else {
+          AppLogger.warning(
+            'FCM token status check failed: ${responseData['message']}',
+            'NotificationService',
+          );
+          return null;
+        }
+      } else {
+        AppLogger.warning(
+          'Unexpected response code: ${response.statusCode}',
+          'NotificationService',
+        );
+        return null;
+      }
+    } on DioException catch (e) {
+      AppLogger.error(
+        'Failed to check FCM token status',
+        error: e,
+        tag: 'NotificationService',
+      );
+
+      if (e.response?.statusCode == 404) {
+        // 토큰이 등록되지 않은 경우
+        return null;
+      }
+
+      // 기타 오류는 null 반환 (비치명적)
+      return null;
+    } catch (e) {
+      AppLogger.error(
+        'Unexpected error while checking FCM token status',
+        error: e,
+        tag: 'NotificationService',
+      );
+      return null;
+    }
+  }
+
+  /// 디바이스 정보 수집
+  Future<Map<String, dynamic>> _getDeviceInfo() async {
+    final deviceInfo = DeviceInfoPlugin();
+
+    try {
+      if (Platform.isAndroid) {
+        final androidInfo = await deviceInfo.androidInfo;
+        return {
+          'device_id': androidInfo.id,
+          'model': androidInfo.model,
+          'manufacturer': androidInfo.manufacturer,
+          'os_version': androidInfo.version.release,
+          'sdk_version': androidInfo.version.sdkInt,
+          'brand': androidInfo.brand,
+        };
+      } else if (Platform.isIOS) {
+        final iosInfo = await deviceInfo.iosInfo;
+        return {
+          'device_id': iosInfo.identifierForVendor,
+          'model': iosInfo.model,
+          'name': iosInfo.name,
+          'os_version': iosInfo.systemVersion,
+          'system_name': iosInfo.systemName,
+        };
+      } else {
+        return {
+          'platform': Platform.operatingSystem,
+        };
+      }
+    } catch (e) {
+      AppLogger.error(
+        'Failed to get device info',
+        error: e,
+        tag: 'NotificationService',
+      );
+      return {
+        'platform': Platform.operatingSystem,
+        'error': 'Failed to get device info',
+      };
     }
   }
 }
