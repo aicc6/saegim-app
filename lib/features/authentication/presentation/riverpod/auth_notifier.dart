@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:saegim/core/network/dio_client.dart';
 import 'package:saegim/core/services/auth_storage_service.dart';
+import 'package:saegim/core/services/fcm_message_service.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
 
 part 'auth_notifier.g.dart';
@@ -216,6 +217,17 @@ class AuthNotifier extends _$AuthNotifier {
             isLoading: false,
           );
 
+          // FCM 토큰 서버 등록
+          try {
+            final fcmRegistered = await FCMMessageService.instance.registerTokenOnLogin(
+              userId: userId,
+            );
+            AppLogger.info('FCM 토큰 등록 결과: $fcmRegistered', 'AuthNotifier');
+          } catch (e) {
+            AppLogger.error('FCM 토큰 등록 실패', error: e, tag: 'AuthNotifier');
+            // FCM 등록 실패는 로그인 성공에 영향주지 않음
+          }
+
           AppLogger.info('Login successful for user: $email, token saved');
           return true;
         } else {
@@ -339,6 +351,14 @@ class AuthNotifier extends _$AuthNotifier {
 
   /// 로그아웃
   Future<void> logout() async {
+    // FCM 토큰 서버에서 해제
+    try {
+      await FCMMessageService.instance.deactivateTokenOnLogout();
+      AppLogger.info('FCM 토큰 해제 완료', 'AuthNotifier');
+    } catch (e) {
+      AppLogger.error('FCM 토큰 해제 실패', error: e, tag: 'AuthNotifier');
+    }
+
     // 저장된 인증 데이터 모두 삭제
     await AuthStorageService.instance.clearAllAuthData();
     state = state.copyWith(isLoading: true, errorMessage: null);
