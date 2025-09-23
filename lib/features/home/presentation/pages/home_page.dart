@@ -187,7 +187,49 @@ class _HomePageState extends ConsumerState<HomePage> {
                   style: TextStyle(fontSize: 13, color: Colors.grey),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
+
+                // 이미지 추가 버튼
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: selectedImages.length < 10
+                            ? _selectImages
+                            : null,
+                        icon: const Icon(Icons.add_photo_alternate),
+                        label: Text('이미지 추가 (${selectedImages.length}/10)'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF3F764A),
+                          side: const BorderSide(color: Color(0xFF3F764A)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (selectedImages.isNotEmpty) ...[
+                      const SizedBox(width: 12),
+                      IconButton(
+                        onPressed: () {
+                          setState(() {
+                            selectedImages.clear();
+                          });
+                        },
+                        icon: const Icon(Icons.clear_all),
+                        tooltip: '모든 이미지 제거',
+                        style: IconButton.styleFrom(
+                          foregroundColor: Colors.red,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+
+                // 이미지 미리보기
+                if (selectedImages.isNotEmpty) _buildImagePreview(),
+
+                const SizedBox(height: 16),
                 TextField(
                   controller: _promptController,
                   maxLines: 6,
@@ -300,10 +342,6 @@ class _HomePageState extends ConsumerState<HomePage> {
       ),
     );
   }
-
-  // 사용되지 않던 결과 화면 관련 메서드 제거
-
-  // 사용되지 않던 결과 카드/로딩/메타정보 관련 메서드 제거
 
   // 로딩 애니메이션
   Widget _buildLoadingAnimation() {
@@ -449,8 +487,6 @@ class _HomePageState extends ConsumerState<HomePage> {
       ),
     );
   }
-
-  // 사용되지 않던 입력 화면 관련 메서드 제거
 
   // 이미지 미리보기
   Widget _buildImagePreview() {
