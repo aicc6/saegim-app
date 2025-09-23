@@ -191,7 +191,15 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
 
   // 오늘로 이동
   void _goToToday() {
+    final today = DateTime.now();
+
+    // 먼저 오늘 날짜로 이동
     ref.read(calendarNotifierProvider.notifier).goToToday();
+
+    // 약간의 지연 후 오늘 날짜 선택 및 스크롤 (달력 새로고침 완료 대기)
+    Future.delayed(const Duration(milliseconds: 500), () {
+      _selectDate(today);
+    });
   }
 
   // 이전 달로 이동
