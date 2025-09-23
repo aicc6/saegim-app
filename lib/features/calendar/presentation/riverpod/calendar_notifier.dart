@@ -37,7 +37,7 @@ class CalendarState {
   }) {
     return CalendarState(
       currentDate: currentDate ?? this.currentDate,
-      selectedDate: selectedDate ?? this.selectedDate,
+      selectedDate: selectedDate,
       isLoading: isLoading ?? this.isLoading,
       monthlyDiaries: monthlyDiaries ?? this.monthlyDiaries,
       emotionStatistics: emotionStatistics ?? this.emotionStatistics,
