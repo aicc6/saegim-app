@@ -113,9 +113,15 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
 
     if (!mounted) return;
-    setState(() {
-      showResults = true;
-    });
+
+    // 생성 성공 확인 및 상태 업데이트
+    final currentState = ref.read(createProvider);
+    if (currentState.generatedText != null &&
+        currentState.generatedText!.isNotEmpty) {
+      setState(() {
+        showResults = true;
+      });
+    }
   }
 
   // 에러 스낵바 표시
@@ -168,177 +174,229 @@ class _HomePageState extends ConsumerState<HomePage> {
               ],
             ),
           ),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text(
-                  '어떤 글을 만들어 드릴까요?',
-                  style: TextStyle(
-                    fontSize: 25,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF3F764A),
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  '키워드나 짧은 글을 입력하면 ai가 글을 생성해 드립니다',
-                  style: TextStyle(fontSize: 13, color: Colors.grey),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
+          child:
+              (createState.generatedText != null &&
+                      createState.generatedText!.isNotEmpty) ||
+                  showResults
+              ? _buildResultView(createState)
+              : _buildInputView(createState, emotionState),
+        ),
+      ),
+    );
+  }
 
-                // 이미지 추가 버튼
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: selectedImages.length < 10
-                            ? _selectImages
-                            : null,
-                        icon: const Icon(Icons.add_photo_alternate),
-                        label: Text('이미지 추가 (${selectedImages.length}/10)'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF3F764A),
-                          side: const BorderSide(color: Color(0xFF3F764A)),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+  // 입력 화면
+  Widget _buildInputView(CreateState createState, EmotionState emotionState) {
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            '어떤 글을 만들어 드릴까요?',
+            style: TextStyle(
+              fontSize: 25,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF3F764A),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            '키워드나 짧은 글을 입력하면 ai가 글을 생성해 드립니다',
+            style: TextStyle(fontSize: 13, color: Colors.grey),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+
+          // 이미지 추가 버튼
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: selectedImages.length < 10 ? _selectImages : null,
+                  icon: const Icon(Icons.add_photo_alternate),
+                  label: Text('이미지 추가 (${selectedImages.length}/10)'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF3F764A),
+                    side: const BorderSide(color: Color(0xFF3F764A)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+              if (selectedImages.isNotEmpty) ...[
+                const SizedBox(width: 12),
+                IconButton(
+                  onPressed: () {
+                    setState(() {
+                      selectedImages.clear();
+                    });
+                  },
+                  icon: const Icon(Icons.clear_all),
+                  tooltip: '모든 이미지 제거',
+                  style: IconButton.styleFrom(foregroundColor: Colors.red),
+                ),
+              ],
+            ],
+          ),
+
+          // 이미지 미리보기
+          if (selectedImages.isNotEmpty) _buildImagePreview(),
+
+          const SizedBox(height: 16),
+          TextField(
+            controller: _promptController,
+            maxLines: 6,
+            decoration: InputDecoration(
+              hintText: '예 : 바람, 초록빛 오후, 천천히 걷는 길',
+              hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 20,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(18),
+                borderSide: BorderSide(color: Colors.grey),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(18),
+                borderSide: BorderSide(color: Colors.grey),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(18),
+                borderSide: BorderSide(color: Color(0xFF3F764A)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          _buildOptionsSection(createState, emotionState),
+          const SizedBox(height: 32),
+          ElevatedButton(
+            onPressed: createState.isGenerating ? null : _generateText,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF3F764A),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              elevation: 4,
+            ),
+            child: createState.isGenerating
+                ? const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
                           ),
                         ),
                       ),
-                    ),
-                    if (selectedImages.isNotEmpty) ...[
-                      const SizedBox(width: 12),
-                      IconButton(
-                        onPressed: () {
-                          setState(() {
-                            selectedImages.clear();
-                          });
-                        },
-                        icon: const Icon(Icons.clear_all),
-                        tooltip: '모든 이미지 제거',
-                        style: IconButton.styleFrom(
-                          foregroundColor: Colors.red,
-                        ),
+                      SizedBox(width: 12),
+                      Text('생성 중...', style: TextStyle(fontSize: 16)),
+                    ],
+                  )
+                : const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.auto_awesome),
+                      SizedBox(width: 8),
+                      Text('글 생성하기', style: TextStyle(fontSize: 16)),
+                    ],
+                  ),
+          ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  // 결과 화면
+  Widget _buildResultView(CreateState createState) {
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // 생성된 글 표시
+          Card(
+            elevation: 2,
+            color: Colors.white, // 배경색 지정
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.article_outlined,
+                        color: Color(0xFF3F764A),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '생성된 글',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF3F764A),
+                            ),
                       ),
                     ],
-                  ],
-                ),
-
-                // 이미지 미리보기
-                if (selectedImages.isNotEmpty) _buildImagePreview(),
-
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _promptController,
-                  maxLines: 6,
-                  decoration: InputDecoration(
-                    hintText: '예 : 바람, 초록빛 오후, 천천히 걷는 길',
-                    hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 20,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(18),
-                      borderSide: BorderSide(color: Colors.grey),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(18),
-                      borderSide: BorderSide(color: Colors.grey),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(18),
-                      borderSide: BorderSide(color: Color(0xFF3F764A)),
-                    ),
                   ),
-                ),
-                const SizedBox(height: 24),
-                _buildOptionsSection(createState, emotionState),
-                const SizedBox(height: 32),
-                ElevatedButton(
-                  onPressed: createState.isGenerating ? null : _generateText,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF3F764A),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 4,
+                  const SizedBox(height: 12),
+                  Text(
+                    createState.generatedText!,
+                    style: Theme.of(context).textTheme.bodyMedium,
                   ),
-                  child: createState.isGenerating
-                      ? const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white,
-                                ),
-                              ),
-                            ),
-                            SizedBox(width: 12),
-                            Text('생성 중...', style: TextStyle(fontSize: 16)),
-                          ],
-                        )
-                      : const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.auto_awesome),
-                            SizedBox(width: 8),
-                            Text('글 생성하기', style: TextStyle(fontSize: 16)),
-                          ],
-                        ),
-                ),
-                const SizedBox(height: 24),
-                if (createState.generatedText != null)
-                  Card(
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.article_outlined,
-                                color: Color(0xFF3F764A),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                '생성된 글',
-                                style: Theme.of(context).textTheme.titleMedium
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: const Color(0xFF3F764A),
-                                    ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            createState.generatedText!,
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // 생성 정보 표시
+          _buildMetaInfo(createState),
+          const SizedBox(height: 24),
+          // 새로 글 생성하기 버튼
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                _promptController.clear();
+                selectedImages.clear();
+                showResults = false;
+                ref.read(createProvider.notifier).clearGeneratedText();
+              });
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: const Color(0xFF3F764A),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: const BorderSide(color: Color(0xFF3F764A)),
+              ),
+              elevation: 2,
+            ),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.add),
+                SizedBox(width: 8),
+                Text('새로운 글 생성하기', style: TextStyle(fontSize: 16)),
               ],
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -362,18 +420,31 @@ class _HomePageState extends ConsumerState<HomePage> {
   // 메타 정보 표시
   Widget _buildMetaInfo(CreateState createState) {
     return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              '생성 정보',
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+            Row(
+              children: [
+                const Icon(
+                  Icons.info_outline,
+                  color: Color(0xFF3F764A),
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '생성 정보',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF3F764A),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 16),
             _buildInfoRow(
               '문체',
               createState.getStyleDisplayName(createState.style),
@@ -389,6 +460,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                 '키워드',
                 createState.generatedKeywords!.take(5).join(', '),
               ),
+            if (createState.sessionId != null &&
+                createState.sessionId!.isNotEmpty)
+              _buildInfoRow('세션 ID', createState.sessionId!),
           ],
         ),
       ),
@@ -397,22 +471,27 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   Widget _buildInfoRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 60,
+            width: 80,
             child: Text(
               '$label:',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Colors.grey[600],
-                fontWeight: FontWeight.w500,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: const Color(0xFF3F764A),
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
           Expanded(
-            child: Text(value, style: Theme.of(context).textTheme.bodySmall),
+            child: Text(
+              value,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: Colors.grey[700]),
+            ),
           ),
         ],
       ),
