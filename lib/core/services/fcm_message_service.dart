@@ -1,12 +1,13 @@
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'dart:convert';
+
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:saegim/shared/utils/app_logger.dart';
 import 'package:saegim/features/home/data/services/notification_service.dart';
 import 'package:saegim/features/home/presentation/providers/fcm_notification_provider.dart';
+import 'package:saegim/shared/utils/app_logger.dart';
 
 /// FCM 메시지 처리 서비스
 class FCMMessageService {
@@ -44,8 +45,11 @@ class FCMMessageService {
 
   /// FCM 메시지 서비스 초기화
   Future<void> initialize() async {
-    AppLogger.info('FCMMessageService.initialize() 메서드 진입', 'FCMMessageService');
-    
+    AppLogger.info(
+      'FCMMessageService.initialize() 메서드 진입',
+      'FCMMessageService',
+    );
+
     if (_isInitialized) {
       AppLogger.info('이미 초기화됨, 초기화 건너뜀', 'FCMMessageService');
       return;
@@ -63,11 +67,7 @@ class FCMMessageService {
       _isInitialized = true;
       AppLogger.info('FCM 메시지 서비스 초기화 완료', 'FCMMessageService');
     } catch (e) {
-      AppLogger.error(
-        'FCM 메시지 서비스 초기화 실패',
-        error: e,
-        tag: 'FCMMessageService',
-      );
+      AppLogger.error('FCM 메시지 서비스 초기화 실패', error: e, tag: 'FCMMessageService');
     }
   }
 
@@ -87,10 +87,7 @@ class FCMMessageService {
 
   /// 포그라운드 메시지 처리
   Future<void> _handleForegroundMessage(RemoteMessage message) async {
-    AppLogger.info(
-      '포그라운드 메시지 수신: ${message.messageId}',
-      'FCMMessageService',
-    );
+    AppLogger.info('포그라운드 메시지 수신: ${message.messageId}', 'FCMMessageService');
 
     // 새김 앱 특화: 감정별 알림 처리
     final emotionType = message.data['emotion'];
@@ -110,10 +107,7 @@ class FCMMessageService {
 
   /// 백그라운드에서 알림 탭으로 앱 열기
   Future<void> _handleNotificationOpenedApp(RemoteMessage message) async {
-    AppLogger.info(
-      '알림 탭으로 앱 열기: ${message.messageId}',
-      'FCMMessageService',
-    );
+    AppLogger.info('알림 탭으로 앱 열기: ${message.messageId}', 'FCMMessageService');
 
     // 딥링크 처리
     await _handleDeepLink(message);
@@ -162,19 +156,29 @@ class FCMMessageService {
       final notificationType = message.data['type'] ?? 'general';
       String channelId = 'saegim_notifications';
 
-      if (notificationType == 'diary_reminder' || notificationType == 'important') {
+      if (notificationType == 'diary_reminder' ||
+          notificationType == 'important') {
         channelId = 'saegim_high_importance';
       }
 
-      AppLogger.info('알림 채널: $channelId (type: $notificationType)', 'FCMMessageService');
+      AppLogger.info(
+        '알림 채널: $channelId (type: $notificationType)',
+        'FCMMessageService',
+      );
 
       // 알림 권한 상태 확인
       final androidImplementation = _localNotifications
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
 
       if (androidImplementation != null) {
-        final areNotificationsEnabled = await androidImplementation.areNotificationsEnabled();
-        AppLogger.info('알림 권한 상태: $areNotificationsEnabled', 'FCMMessageService');
+        final areNotificationsEnabled = await androidImplementation
+            .areNotificationsEnabled();
+        AppLogger.info(
+          '알림 권한 상태: $areNotificationsEnabled',
+          'FCMMessageService',
+        );
 
         if (areNotificationsEnabled == false) {
           AppLogger.warning('알림 권한이 없어 로컬 알림을 표시할 수 없음', 'FCMMessageService');
@@ -189,8 +193,12 @@ class FCMMessageService {
         channelDescription: channelId == 'saegim_high_importance'
             ? '새김 앱의 중요 알림 (다이어리 리마인더 등)'
             : '새김 앱의 일반 알림',
-        importance: channelId == 'saegim_high_importance' ? Importance.max : Importance.high,
-        priority: channelId == 'saegim_high_importance' ? Priority.max : Priority.high,
+        importance: channelId == 'saegim_high_importance'
+            ? Importance.max
+            : Importance.high,
+        priority: channelId == 'saegim_high_importance'
+            ? Priority.max
+            : Priority.high,
         showWhen: true,
         icon: '@mipmap/ic_launcher',
         enableVibration: true,
@@ -210,8 +218,13 @@ class FCMMessageService {
         macOS: darwinDetails,
       );
 
-      final notificationId = DateTime.now().millisecondsSinceEpoch.remainder(100000);
-      AppLogger.info('알림 ID: $notificationId로 로컬 알림 표시 시도', 'FCMMessageService');
+      final notificationId = DateTime.now().millisecondsSinceEpoch.remainder(
+        100000,
+      );
+      AppLogger.info(
+        '알림 ID: $notificationId로 로컬 알림 표시 시도',
+        'FCMMessageService',
+      );
 
       // 로컬 알림 표시
       await _localNotifications.show(
@@ -228,19 +241,16 @@ class FCMMessageService {
       );
 
       // 알림 표시 후 확인
-      final pendingNotifications = await _localNotifications.pendingNotificationRequests();
-      final activeNotifications = await _localNotifications.getActiveNotifications();
+      final pendingNotifications = await _localNotifications
+          .pendingNotificationRequests();
+      final activeNotifications = await _localNotifications
+          .getActiveNotifications();
       AppLogger.info(
         '현재 대기 중인 알림: ${pendingNotifications.length}, 활성 알림: ${activeNotifications.length}',
         'FCMMessageService',
       );
-
     } catch (e) {
-      AppLogger.error(
-        '포그라운드 로컬 알림 표시 실패',
-        error: e,
-        tag: 'FCMMessageService',
-      );
+      AppLogger.error('포그라운드 로컬 알림 표시 실패', error: e, tag: 'FCMMessageService');
 
       // 로컬 알림 실패 시에도 앱 내 알림은 표시
       final notification = message.notification;
@@ -252,7 +262,6 @@ class FCMMessageService {
       }
     }
   }
-
 
   /// 딥링크 처리
   Future<void> _handleDeepLink(RemoteMessage message) async {
@@ -323,18 +332,14 @@ class FCMMessageService {
 
     try {
       // NotificationService를 통한 서버 읽음 처리
-      final success = await _notificationService.markNotificationAsRead(messageId);
+      final success = await _notificationService.markNotificationAsRead(
+        messageId,
+      );
 
       if (success) {
-        AppLogger.info(
-          '알림 읽음 처리 완료: $messageId',
-          'FCMMessageService',
-        );
+        AppLogger.info('알림 읽음 처리 완료: $messageId', 'FCMMessageService');
       } else {
-        AppLogger.warning(
-          '알림 읽음 처리 실패: $messageId',
-          'FCMMessageService',
-        );
+        AppLogger.warning('알림 읽음 처리 실패: $messageId', 'FCMMessageService');
       }
     } catch (e) {
       AppLogger.error(
@@ -347,10 +352,7 @@ class FCMMessageService {
 
   /// 앱 내 알림 상태 업데이트
   void _updateInAppNotifications(RemoteMessage message) {
-    AppLogger.info(
-      '앱 내 알림 상태 업데이트: ${message.messageId}',
-      'FCMMessageService',
-    );
+    AppLogger.info('앱 내 알림 상태 업데이트: ${message.messageId}', 'FCMMessageService');
 
     // Riverpod Provider를 통한 상태 업데이트
     if (_container != null) {
@@ -399,11 +401,7 @@ class FCMMessageService {
       SnackBar(
         content: Row(
           children: [
-            Icon(
-              _getEmotionIcon(emotion),
-              color: Colors.white,
-              size: 20,
-            ),
+            Icon(_getEmotionIcon(emotion), color: Colors.white, size: 20),
             const SizedBox(width: 8),
             Expanded(
               child: Column(
@@ -497,11 +495,7 @@ class FCMMessageService {
         return token;
       }
     } catch (e) {
-      AppLogger.error(
-        'FCM 토큰 생성 실패',
-        error: e,
-        tag: 'FCMMessageService',
-      );
+      AppLogger.error('FCM 토큰 생성 실패', error: e, tag: 'FCMMessageService');
     }
 
     return null;
@@ -537,11 +531,7 @@ class FCMMessageService {
 
       return success;
     } catch (e) {
-      AppLogger.error(
-        'FCM 토큰 서버 등록 실패',
-        error: e,
-        tag: 'FCMMessageService',
-      );
+      AppLogger.error('FCM 토큰 서버 등록 실패', error: e, tag: 'FCMMessageService');
       return false;
     }
   }
@@ -572,11 +562,7 @@ class FCMMessageService {
 
       return success;
     } catch (e) {
-      AppLogger.error(
-        'FCM 토큰 비활성화 실패',
-        error: e,
-        tag: 'FCMMessageService',
-      );
+      AppLogger.error('FCM 토큰 비활성화 실패', error: e, tag: 'FCMMessageService');
       return false;
     }
   }
@@ -607,11 +593,7 @@ class FCMMessageService {
 
       return status;
     } catch (e) {
-      AppLogger.error(
-        'FCM 토큰 상태 확인 실패',
-        error: e,
-        tag: 'FCMMessageService',
-      );
+      AppLogger.error('FCM 토큰 상태 확인 실패', error: e, tag: 'FCMMessageService');
       return null;
     }
   }
@@ -625,7 +607,9 @@ class FCMMessageService {
       await _requestNotificationPermissions();
 
       // Android 초기화 설정
-      const androidInitializationSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const androidInitializationSettings = AndroidInitializationSettings(
+        '@mipmap/ic_launcher',
+      );
 
       // iOS 초기화 설정
       const darwinInitializationSettings = DarwinInitializationSettings(
@@ -654,11 +638,7 @@ class FCMMessageService {
 
       AppLogger.info('로컬 알림 플러그인 초기화 완료', 'FCMMessageService');
     } catch (e) {
-      AppLogger.error(
-        '로컬 알림 플러그인 초기화 실패',
-        error: e,
-        tag: 'FCMMessageService',
-      );
+      AppLogger.error('로컬 알림 플러그인 초기화 실패', error: e, tag: 'FCMMessageService');
       rethrow;
     }
   }
@@ -667,15 +647,22 @@ class FCMMessageService {
   Future<void> _requestNotificationPermissions() async {
     try {
       final androidImplementation = _localNotifications
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
 
       if (androidImplementation != null) {
-        final granted = await androidImplementation.requestNotificationsPermission();
+        final granted = await androidImplementation
+            .requestNotificationsPermission();
         AppLogger.info('Android 알림 권한 요청 결과: $granted', 'FCMMessageService');
 
         // 정확한 알림 권한도 요청 (Android 14+)
-        final exactAlarmGranted = await androidImplementation.requestExactAlarmsPermission();
-        AppLogger.info('정확한 알림 권한 요청 결과: $exactAlarmGranted', 'FCMMessageService');
+        final exactAlarmGranted = await androidImplementation
+            .requestExactAlarmsPermission();
+        AppLogger.info(
+          '정확한 알림 권한 요청 결과: $exactAlarmGranted',
+          'FCMMessageService',
+        );
       }
     } catch (e) {
       AppLogger.error(
@@ -705,23 +692,23 @@ class FCMMessageService {
     );
 
     await _localNotifications
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(androidChannel);
 
     await _localNotifications
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(highImportanceChannel);
 
     AppLogger.info('Android 알림 채널 생성 완료', 'FCMMessageService');
   }
 
-
   /// 로컬 알림 탭 처리
   void _onLocalNotificationTapped(NotificationResponse response) {
-    AppLogger.info(
-      '로컬 알림 탭됨: ${response.payload}',
-      'FCMMessageService',
-    );
+    AppLogger.info('로컬 알림 탭됨: ${response.payload}', 'FCMMessageService');
 
     // 알림 탭 시 해당 화면으로 이동
     if (response.payload != null && _navigatorKey?.currentContext != null) {
@@ -729,18 +716,17 @@ class FCMMessageService {
 
       try {
         // JSON 페이로드 파싱
-        final payloadData = jsonDecode(response.payload!) as Map<String, dynamic>;
-        AppLogger.info(
-          '페이로드 파싱 완료: $payloadData',
-          'FCMMessageService',
-        );
+        final payloadData =
+            jsonDecode(response.payload!) as Map<String, dynamic>;
+        AppLogger.info('페이로드 파싱 완료: $payloadData', 'FCMMessageService');
 
         // 기존 딥링크 처리 로직 재사용
-        _navigateToTarget(context, payloadData);
+        _navigateToTarget(payloadData.cast<String, String?>());
       } catch (e) {
         AppLogger.error(
           '페이로드 파싱 실패: $e, 기본 알림 페이지로 이동',
-          'FCMMessageService',
+          error: e,
+          tag: 'FCMMessageService',
         );
         // 파싱 실패 시 기본 알림 페이지로 이동
         context.go('/notifications');
