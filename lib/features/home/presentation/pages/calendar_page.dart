@@ -747,103 +747,63 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                             color: Color(0xFF333333),
                           ),
                         ),
-                        const SizedBox(height: 20),
-                        // 원형 차트 (중앙 정렬)
-                        Center(
-                          child: SizedBox(
-                            width: 180,
-                            height: 180,
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                PieChart(
-                                  PieChartData(
-                                    sections: _getPieChartSections(
-                                      calendarState.emotionStatistics,
-                                    ),
-                                    centerSpaceRadius: 40,
-                                    sectionsSpace: 2,
-                                    startDegreeOffset: -90,
-                                    borderData: FlBorderData(show: false),
-                                  ),
-                                ),
-                                // 중앙 텍스트
-                                Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      '${calendarState.emotionStatistics.fold(0, (sum, emotion) => sum + emotion.count)}',
-                                      style: const TextStyle(
-                                        fontSize: 22,
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFF333333),
-                                      ),
-                                    ),
-                                    const Text(
-                                      '총 기록',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: Color(0xFF666666),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
                         const SizedBox(height: 16),
-                        // 범례 (차트 아래)
-                        Column(
-                          children: calendarState.emotionStatistics.map((
-                            emotion,
-                          ) {
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 6),
-                              child: Row(
+                        // 원형 차트와 범례를 가로로 배치
+                        Row(
+                          children: [
+                            // 왼쪽 여백
+                            Expanded(child: Container()),
+                            // 원형 차트 (중앙)
+                            SizedBox(
+                              width: 140,
+                              height: 140,
+                              child: Stack(
+                                alignment: Alignment.center,
                                 children: [
-                                  Container(
-                                    width: 14,
-                                    height: 14,
-                                    decoration: BoxDecoration(
-                                      color: _getEmotionColor(emotion.emotion),
-                                      shape: BoxShape.circle,
+                                  PieChart(
+                                    PieChartData(
+                                      sections: _getPieChartSections(
+                                        calendarState.emotionStatistics,
+                                      ),
+                                      centerSpaceRadius: 25,
+                                      sectionsSpace: 1.5,
+                                      startDegreeOffset: -90,
+                                      borderData: FlBorderData(show: false),
                                     ),
                                   ),
-                                  const SizedBox(width: 12),
-                                  Text(
-                                    emotion.emoji,
-                                    style: const TextStyle(fontSize: 22),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          '${_getKoreanEmotion(emotion.emotion)} ${emotion.count}개',
-                                          style: const TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w600,
-                                            color: Color(0xFF333333),
-                                          ),
+                                  // 중앙 텍스트
+                                  Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        '${calendarState.emotionStatistics.fold(0, (sum, emotion) => sum + emotion.count)}',
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF333333),
                                         ),
-                                        Text(
-                                          '${emotion.percentage.toStringAsFixed(1)}%',
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w500,
-                                            color: Colors.grey[600],
-                                          ),
+                                      ),
+                                      const Text(
+                                        '총 기록',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Color(0xFF666666),
                                         ),
-                                      ],
-                                    ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
-                            );
-                          }).toList(),
+                            ),
+                            // 중간 여백 (차트와 범례 사이) - 조금 더 넓게
+                            Expanded(flex: 2, child: Container()),
+                            // 범례 (오른쪽)
+                            _buildEmotionLegend(
+                              calendarState.emotionStatistics,
+                            ),
+                            // 오른쪽 여백
+                            Expanded(child: Container()),
+                          ],
                         ),
                       ],
                     ),
@@ -1738,6 +1698,58 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
           ],
         ),
       ),
+    );
+  }
+
+  /// 감정 범례 위젯 빌드
+  Widget _buildEmotionLegend(List<EmotionStatistics> emotions) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: emotions.map((emotion) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              // 색상 점 (왼쪽부터)
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: _getEmotionColor(emotion.emotion),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
+              // 이모티콘
+              Text(emotion.emoji, style: const TextStyle(fontSize: 18)),
+              const SizedBox(width: 6),
+              // 감정 이름과 갯수, 퍼센트를 세로로 배치
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${_getKoreanEmotion(emotion.emotion)} ${emotion.count}개',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF333333),
+                    ),
+                  ),
+                  Text(
+                    '${emotion.percentage.toStringAsFixed(1)}%',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 }
