@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "551396267062",
+    "project_id": "saegim-6c2d2",
+    "storage_bucket": "saegim-6c2d2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:551396267062:android:d682a2fb6a5924c9807497",
+        "android_client_info": {
+          "package_name": "com.aicc_project.saegim"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "551396267062-1qg7mn4dlia6umlc6bj9pnqoa7l1smba.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA7OWD2O0y6nTlCiIccWP6Z-m9fTWzy7jw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "551396267062-1qg7mn4dlia6umlc6bj9pnqoa7l1smba.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
