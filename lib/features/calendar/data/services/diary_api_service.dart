@@ -3,6 +3,7 @@ import 'package:saegim/core/network/dio_client.dart';
 import 'package:saegim/features/calendar/data/models/diary_model.dart';
 import 'package:saegim/features/calendar/data/models/diary_image_model.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
+import 'dart:io';
 
 /// 다이어리 API 서비스
 class DiaryApiService {
@@ -834,6 +835,335 @@ class DiaryApiService {
         error: e,
       );
       return null;
+    }
+  }
+
+  /// 다이어리에 이미지 업로드 (여러 엔드포인트 시도)
+  ///
+  /// [diaryId]: 다이어리 ID
+  /// [imagePaths]: 업로드할 이미지 파일 경로들
+  Future<List<DiaryImage>?> uploadDiaryImages({
+    required String diaryId,
+    required List<String> imagePaths,
+  }) async {
+    // 사용자가 제안한 엔드포인트를 최우선으로 시도
+    final endpointsToTry = [
+      '/api/diary/$diaryId/upload-image', // 🎯 API 문서에서 확인한 정확한 엔드포인트 (유일)
+    ];
+
+    for (final endpoint in endpointsToTry) {
+      try {
+        AppLogger.info(
+          '📤 Trying to upload ${imagePaths.length} images to: $endpoint',
+          'DiaryApiService',
+        );
+
+        final result = await _attemptImageUpload(endpoint, diaryId, imagePaths);
+        if (result != null) {
+          AppLogger.info(
+            '✅ Successfully uploaded images using endpoint: $endpoint',
+            'DiaryApiService',
+          );
+          return result;
+        }
+      } catch (e) {
+        AppLogger.warning(
+          'Failed with endpoint $endpoint, trying next...',
+          'DiaryApiService',
+        );
+        continue;
+      }
+    }
+
+    // 모든 엔드포인트 실패 시
+    AppLogger.error(
+      'All upload endpoints failed for diary: $diaryId',
+      tag: 'DiaryApiService',
+    );
+    return null;
+  }
+
+  /// 특정 엔드포인트로 이미지 업로드 시도 (API 문서에 따른 정확한 방법)
+  Future<List<DiaryImage>?> _attemptImageUpload(
+    String endpoint,
+    String diaryId,
+    List<String> imagePaths,
+  ) async {
+    // API 문서에 따른 정확한 방법: 'image' 필드명으로 단일 파일 전송
+    try {
+      final formData = FormData();
+
+      // diary_id는 URL에 이미 포함되어 있으므로 FormData에 추가하지 않음
+      AppLogger.info(
+        '📝 diary_id already in URL, skipping FormData field',
+        'DiaryApiService',
+      );
+
+      // API 문서에 따르면 단일 파일만 지원하므로 첫 번째 이미지만 업로드
+      if (imagePaths.isNotEmpty) {
+        final file = File(imagePaths.first);
+        if (await file.exists()) {
+          final fileName = file.path.split('/').last;
+          formData.files.add(
+            MapEntry(
+              'image', // API 문서에 명시된 정확한 필드명
+              await MultipartFile.fromFile(file.path, filename: fileName),
+            ),
+          );
+
+          final response = await dio.post(
+            endpoint,
+            data: formData,
+            options: Options(headers: {'Content-Type': 'multipart/form-data'}),
+          );
+
+          if (response.statusCode == 200 || response.statusCode == 201) {
+            AppLogger.info(
+              '✅ Successfully uploaded image using correct API format: $endpoint',
+              'DiaryApiService',
+            );
+            return _parseImageUploadResponse(response.data);
+          } else {
+            AppLogger.warning(
+              'Upload failed with status: ${response.statusCode}',
+              'DiaryApiService',
+            );
+          }
+        }
+      }
+    } catch (e) {
+      // 방법 1-B: 'files' 필드명으로 시도
+      try {
+        final formData = FormData();
+
+        // diary ID가 URL에 없는 경우에만 FormData에 추가
+        if (!endpoint.contains(diaryId)) {
+          formData.fields.add(MapEntry('diary_id', diaryId));
+          AppLogger.info(
+            '📝 Added diary_id to FormData: $diaryId',
+            'DiaryApiService',
+          );
+        } else {
+          AppLogger.info(
+            '📝 diary_id already in URL, skipping FormData field',
+            'DiaryApiService',
+          );
+        }
+
+        for (final imagePath in imagePaths) {
+          final file = File(imagePath);
+          if (await file.exists()) {
+            final fileName = file.path.split('/').last;
+            formData.files.add(
+              MapEntry(
+                'files',
+                await MultipartFile.fromFile(file.path, filename: fileName),
+              ),
+            );
+          }
+        }
+
+        final response = await dio.post(
+          endpoint,
+          data: formData,
+          options: Options(headers: {'Content-Type': 'multipart/form-data'}),
+        );
+
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          return _parseImageUploadResponse(response.data);
+        }
+      } catch (e2) {
+        // 방법 1-B도 실패, 다음 방법으로
+        AppLogger.warning(
+          'Method 1-B failed for endpoint: $endpoint',
+          'DiaryApiService',
+        );
+      }
+    }
+
+    // 방법 2: 단일 파일을 'file' 필드로 전송 (첫 번째 이미지만)
+    if (imagePaths.isNotEmpty) {
+      try {
+        final formData = FormData();
+
+        // diary ID가 URL에 없는 경우에만 FormData에 추가
+        if (!endpoint.contains(diaryId)) {
+          formData.fields.add(MapEntry('diary_id', diaryId));
+          AppLogger.info(
+            '📝 Added diary_id to FormData: $diaryId',
+            'DiaryApiService',
+          );
+        } else {
+          AppLogger.info(
+            '📝 diary_id already in URL, skipping FormData field',
+            'DiaryApiService',
+          );
+        }
+
+        final file = File(imagePaths.first);
+
+        if (await file.exists()) {
+          final fileName = file.path.split('/').last;
+          formData.files.add(
+            MapEntry(
+              'file',
+              await MultipartFile.fromFile(file.path, filename: fileName),
+            ),
+          );
+
+          final response = await dio.post(
+            endpoint,
+            data: formData,
+            options: Options(headers: {'Content-Type': 'multipart/form-data'}),
+          );
+
+          if (response.statusCode == 200 || response.statusCode == 201) {
+            return _parseImageUploadResponse(response.data);
+          }
+        }
+      } catch (e2) {
+        // 방법 3: PUT 메서드 시도
+        try {
+          final formData = FormData();
+
+          // 항상 diary_id를 FormData에 추가
+          formData.fields.add(MapEntry('diary_id', diaryId));
+          AppLogger.info(
+            '📝 Added diary_id to FormData (single file): $diaryId',
+            'DiaryApiService',
+          );
+
+          final file = File(imagePaths.first);
+
+          if (await file.exists()) {
+            final fileName = file.path.split('/').last;
+            formData.files.add(
+              MapEntry(
+                'image',
+                await MultipartFile.fromFile(file.path, filename: fileName),
+              ),
+            );
+
+            final response = await dio.put(
+              endpoint,
+              data: formData,
+              options: Options(
+                headers: {'Content-Type': 'multipart/form-data'},
+              ),
+            );
+
+            if (response.statusCode == 200 || response.statusCode == 201) {
+              return _parseImageUploadResponse(response.data);
+            }
+          }
+        } catch (e3) {
+          // 모든 방법 실패
+          AppLogger.warning(
+            'All upload methods failed for endpoint: $endpoint',
+            'DiaryApiService',
+          );
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /// 이미지 업로드 응답 파싱
+  List<DiaryImage>? _parseImageUploadResponse(dynamic responseData) {
+    try {
+      AppLogger.info(
+        '🔍 Parsing image upload response: $responseData',
+        'DiaryApiService',
+      );
+
+      List<dynamic> imagesData = [];
+
+      if (responseData is Map<String, dynamic>) {
+        if (responseData.containsKey('success') &&
+            responseData['success'] == true) {
+          final data = responseData['data'];
+          if (data is List) {
+            imagesData = data;
+          } else if (data is Map<String, dynamic>) {
+            // 단일 이미지 응답인 경우
+            imagesData = [data];
+          }
+        } else if (responseData.containsKey('data')) {
+          final data = responseData['data'];
+          if (data is List) {
+            imagesData = data;
+          } else if (data is Map<String, dynamic>) {
+            imagesData = [data];
+          }
+        } else if (responseData.containsKey('images')) {
+          imagesData = responseData['images'] ?? [];
+        } else {
+          // 단일 이미지 응답인 경우
+          imagesData = [responseData];
+        }
+      } else if (responseData is List) {
+        imagesData = responseData;
+      }
+
+      if (imagesData.isNotEmpty) {
+        return imagesData
+            .map((item) => DiaryImage.fromJson(item as Map<String, dynamic>))
+            .toList();
+      }
+    } catch (e) {
+      AppLogger.error(
+        'Failed to parse image upload response',
+        tag: 'DiaryApiService',
+        error: e,
+      );
+    }
+    return null;
+  }
+
+  /// 다이어리 이미지 삭제
+  ///
+  /// [imageId]: 삭제할 이미지 ID
+  Future<bool> deleteDiaryImage(String diaryId, String imageId) async {
+    try {
+      AppLogger.info(
+        '🗑️ Deleting image: $imageId from diary: $diaryId',
+        'DiaryApiService',
+      );
+
+      final response = await this.dio.delete(
+        '/api/diary/$diaryId/images/$imageId',
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        AppLogger.info(
+          '✅ Successfully deleted image: $imageId',
+          'DiaryApiService',
+        );
+        return true;
+      } else {
+        AppLogger.warning(
+          'Failed to delete image: ${response.statusCode}',
+          'DiaryApiService',
+        );
+        return false;
+      }
+    } on DioException catch (dioError) {
+      final statusCode = dioError.response?.statusCode;
+
+      AppLogger.error(
+        '❌ DioException deleting image: $imageId - Status: $statusCode',
+        tag: 'DiaryApiService',
+        error: dioError,
+      );
+      return false;
+    } catch (e) {
+      AppLogger.error(
+        'Unexpected error deleting image: $imageId',
+        tag: 'DiaryApiService',
+        error: e,
+      );
+      return false;
     }
   }
 }
