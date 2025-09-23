@@ -80,6 +80,27 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     }
   }
 
+  /// 감정을 한글로 변환
+  String _getKoreanEmotion(String? emotion) {
+    if (emotion == null || emotion.isEmpty) return '평온';
+
+    switch (emotion.toLowerCase()) {
+      case 'happy':
+        return '행복';
+      case 'peaceful':
+        return '평온';
+      case 'unrest':
+      case 'anxious':
+        return '불안';
+      case 'angry':
+        return '분노';
+      case 'sad':
+        return '슬픔';
+      default:
+        return emotion; // 이미 한글이거나 알 수 없는 감정인 경우 그대로 반환
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -812,7 +833,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                                           MainAxisAlignment.spaceBetween,
                                       children: [
                                         Text(
-                                          '${emotion.emotion} ${emotion.count}개',
+                                          '${_getKoreanEmotion(emotion.emotion)} ${emotion.count}개',
                                           style: const TextStyle(
                                             fontSize: 15,
                                             fontWeight: FontWeight.w600,
@@ -1153,23 +1174,23 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 color: _getEmotionColor(
-                  diary.emotion ?? diary.aiEmotion ?? '평온',
+                  diary.aiEmotion ?? diary.emotion ?? '평온',
                 ).withOpacity(0.15),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: _getEmotionColor(
-                    diary.emotion ?? diary.aiEmotion ?? '평온',
+                    diary.aiEmotion ?? diary.emotion ?? '평온',
                   ).withOpacity(0.3),
                   width: 1,
                 ),
               ),
               child: Text(
-                diary.emotion ?? diary.aiEmotion ?? '평온',
+                _getKoreanEmotion(diary.aiEmotion ?? diary.emotion),
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: _getEmotionColor(
-                    diary.emotion ?? diary.aiEmotion ?? '평온',
+                    diary.aiEmotion ?? diary.emotion ?? '평온',
                   ),
                 ),
               ),
@@ -1373,7 +1394,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                           textBaseline: TextBaseline.alphabetic,
                           children: [
                             Text(
-                              topEmotion.emotion,
+                              _getKoreanEmotion(topEmotion.emotion),
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,

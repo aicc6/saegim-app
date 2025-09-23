@@ -48,9 +48,9 @@ class DiaryEntry {
     this.isPublic,
   });
 
-  // 감정 이모티콘 매핑 (5가지 기본 감정)
+  // 감정 이모티콘 매핑 (5가지 기본 감정) - AI 분석 감정 우선
   String get emotionEmoji {
-    final emotionValue = emotion ?? aiEmotion ?? '평온';
+    final emotionValue = aiEmotion ?? emotion ?? '평온';
     switch (emotionValue.toLowerCase()) {
       case '행복':
       case 'happy':

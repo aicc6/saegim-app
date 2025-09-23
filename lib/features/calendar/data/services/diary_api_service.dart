@@ -345,7 +345,7 @@ class DiaryApiService {
     final emotionEmojis = <String, String>{};
 
     for (final diary in diaries) {
-      final emotion = diary.emotion ?? diary.aiEmotion ?? '평온';
+      final emotion = diary.aiEmotion ?? diary.emotion ?? '평온';
       emotionCounts[emotion] = (emotionCounts[emotion] ?? 0) + 1;
       emotionEmojis[emotion] = diary.emotionEmoji;
     }

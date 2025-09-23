@@ -1291,32 +1291,42 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    const Text(
-                      'AI 분석 감정 : ',
-                      style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
-                    ),
-                    Text(
-                      _getEmotionEmoji(diary!.aiEmotion),
-                      style: const TextStyle(fontSize: 20),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      aiEmotion,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF1F2937),
+                if (diary!.aiEmotion != null &&
+                    diary!.aiEmotion!.isNotEmpty) ...[
+                  // AI 분석 감정이 있는 경우에만 표시
+                  Row(
+                    children: [
+                      const Text(
+                        'AI 분석 감정 : ',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF6B7280),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 4),
-                    const Text(
-                      '(AI 분석)',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
-                    ),
-                  ],
-                ),
+                      Text(
+                        _getEmotionEmoji(diary!.aiEmotion),
+                        style: const TextStyle(fontSize: 20),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        aiEmotion,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1F2937),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Text(
+                        '(AI 분석)',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF6B7280),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
