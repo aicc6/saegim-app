@@ -552,9 +552,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                                   minWidth: 48,
                                   minHeight: 48,
                                 ),
-                                padding: const EdgeInsets.all(
-                                  0.5,
-                                ), // border 공간 확보
+                                padding: const EdgeInsets.all(1), // 셀 간 간격
                                 child: Container(
                                   decoration: BoxDecoration(
                                     color: isToday
@@ -568,20 +566,11 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                                         ? const Color(
                                             0xFFB2C5B8,
                                           ) // 선택된 날짜는 연한 초록
-                                        : Colors.transparent,
-                                    // 모든 셀에 완전한 border 적용 (겹침 방지를 위해 내부 Container 사용)
-                                    border: Border.all(
-                                      color: (isToday && isSelected)
-                                          ? const Color(0xFF2D4A35)
-                                          : isToday
-                                          ? const Color(0xFF4A7C59)
-                                          : isSelected
-                                          ? const Color(0xFF4A7C59)
-                                          : isCurrentMonth
-                                          ? const Color(0xFFB2C5B8)
-                                          : const Color(0xFFE0E8E3),
-                                      width: 0.5,
-                                    ),
+                                        : isCurrentMonth
+                                        ? const Color(
+                                            0xFFF8F9FA,
+                                          ) // 현재 달 날짜는 연한 세이지
+                                        : Colors.transparent, // 다른 달 날짜는 투명
                                   ),
                                   child: Material(
                                     color: Colors.transparent,
