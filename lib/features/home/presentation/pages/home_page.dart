@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../riverpod/create_notifier.dart';
 import '../riverpod/emotions_notifier.dart';
+import 'result_card.dart' as result_card;
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -185,6 +186,72 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
+  // CreateState를 GeneratedMessage로 변환
+  result_card.GeneratedMessage _convertToGeneratedMessage(
+    CreateState createState,
+  ) {
+    // 히스토리가 비어있으면 현재 텍스트로 단일 버전 생성
+    if (createState.generationHistory.isEmpty) {
+      return result_card.GeneratedMessage(
+        id:
+            createState.sessionId ??
+            DateTime.now().millisecondsSinceEpoch.toString(),
+        versions: [
+          result_card.MessageVersion(
+            text: createState.generatedText ?? '',
+            emotion: createState.emotion.isNotEmpty
+                ? createState.emotion
+                : null,
+            length: createState.length.value,
+            style: createState.style.value,
+            images: selectedImages.isNotEmpty ? selectedImages : null,
+            keywords: createState.generatedKeywords,
+          ),
+        ],
+        currentVersionIndex: 0,
+      );
+    }
+
+    // 히스토리에서 모든 버전 생성
+    final versions = createState.generationHistory
+        .map(
+          (text) => result_card.MessageVersion(
+            text: text,
+            emotion: createState.emotion.isNotEmpty
+                ? createState.emotion
+                : null,
+            length: createState.length.value,
+            style: createState.style.value,
+            images: selectedImages.isNotEmpty ? selectedImages : null,
+            keywords: createState.generatedKeywords,
+          ),
+        )
+        .toList();
+
+    return result_card.GeneratedMessage(
+      id:
+          createState.sessionId ??
+          DateTime.now().millisecondsSinceEpoch.toString(),
+      versions: versions,
+      currentVersionIndex: createState.currentHistoryIndex,
+    );
+  }
+
+  // 감정 설정 가져오기
+  result_card.EmotionConfig? _getEmotionConfig(String emotion) {
+    // emotionConfigs에서 해당 감정 찾기
+    final config = emotionConfigs.firstWhere(
+      (config) => config.value == emotion,
+      orElse: () => emotionConfigs.first,
+    );
+    return result_card.EmotionConfig(
+      emoji: config.emoji,
+      label: config.label,
+      backgroundColor: const Color(0xFFE8F5E8),
+      textColor: const Color(0xFF22543D),
+    );
+  }
+
   // 입력 화면
   Widget _buildInputView(CreateState createState, EmotionState emotionState) {
     return SingleChildScrollView(
@@ -320,52 +387,51 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   // 결과 화면
   Widget _buildResultView(CreateState createState) {
+    final generatedMessage = _convertToGeneratedMessage(createState);
+
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 생성된 글 표시
-          Card(
-            elevation: 2,
-            color: Colors.white, // 배경색 지정
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+          // MessageCard 사용
+          result_card.MessageCard(
+            message: generatedMessage,
+            isRegenerating: createState.isGenerating,
+            getEmotionConfig: _getEmotionConfig,
+            getStyleDisplayName: (style) => createState.getStyleDisplayName(
+              style == 'poem' ? WritingStyle.poem : WritingStyle.shortStory,
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.article_outlined,
-                        color: Color(0xFF3F764A),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '생성된 글',
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: const Color(0xFF3F764A),
-                            ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    createState.generatedText!,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ],
-              ),
+            getLengthDisplayName: (length) => createState.getLengthDisplayName(
+              length == 'short'
+                  ? LengthOption.short
+                  : length == 'medium'
+                  ? LengthOption.medium
+                  : LengthOption.long,
             ),
+            onCopy: (content) {
+              // 클립보드 복사 로직
+              _showSuccessSnackBar('텍스트가 복사되었습니다!');
+            },
+            onMoveToDiary: (content, emotion, keywords) {
+              // 다이어리로 이동 로직
+              _showSuccessSnackBar('다이어리로 이동합니다!');
+            },
+            onRegenerate: (message) {
+              // 재생성 로직 (5번 제한 확인)
+              final createState = ref.read(createProvider);
+              if (createState.generationHistory.length < 5) {
+                ref.read(createProvider.notifier).regenerateText();
+              }
+            },
+            onPreviousVersion: (messageId) {
+              // 이전 버전 로직
+              ref.read(createProvider.notifier).goToPreviousHistory();
+            },
+            onNextVersion: (messageId) {
+              // 다음 버전 로직
+              ref.read(createProvider.notifier).goToNextHistory();
+            },
           ),
-          const SizedBox(height: 16),
-          // 생성 정보 표시
-          _buildMetaInfo(createState),
           const SizedBox(height: 24),
           // 새로 글 생성하기 버튼
           ElevatedButton(
