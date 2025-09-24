@@ -712,7 +712,6 @@ class FCMMessageService {
 
     // 알림 탭 시 해당 화면으로 이동
     if (response.payload != null && _navigatorKey?.currentContext != null) {
-      final context = _navigatorKey!.currentContext!;
 
       try {
         // JSON 페이로드 파싱
@@ -729,7 +728,7 @@ class FCMMessageService {
           tag: 'FCMMessageService',
         );
         // 파싱 실패 시 기본 알림 페이지로 이동
-        context.go('/notifications');
+        _navigateToTarget({'type': 'notification'});
       }
     }
   }

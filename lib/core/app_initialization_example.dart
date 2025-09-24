@@ -62,7 +62,7 @@ class _AppInitializationExampleState extends State<AppInitializationExample> {
   @override
   Widget build(BuildContext context) {
     return ProviderScope(
-      parent: _container,
+      // parent: _container, // Deprecated - will be removed in 3.0.0
       child: MaterialApp.router(
         title: '새김 - FCM 연동 예제',
         routerConfig: _createRouter(),
