@@ -2,6 +2,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -410,7 +411,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             ),
             onCopy: (content) {
               // 클립보드 복사 로직
-              _showSuccessSnackBar('텍스트가 복사되었습니다!');
+              _copyToClipboard(content);
             },
             onMoveToDiary: (content, emotion, keywords) {
               // 다이어리로 이동 로직
@@ -905,12 +906,12 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   // 클립보드 복사
-  void _copyToClipboard() async {
-    final createState = ref.read(createProvider);
-    if (createState.generatedText != null) {
-      // Clipboard.setData 사용 (flutter/services.dart import 필요)
-      // await Clipboard.setData(ClipboardData(text: createState.generatedText!));
+  void _copyToClipboard(String text) async {
+    try {
+      await Clipboard.setData(ClipboardData(text: text));
       _showSuccessSnackBar('텍스트가 복사되었습니다!');
+    } catch (e) {
+      _showErrorSnackBar('복사 중 오류가 발생했습니다.');
     }
   }
 
