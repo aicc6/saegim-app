@@ -3,6 +3,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:saegim/core/network/dio_client.dart';
 import 'package:saegim/core/services/auth_storage_service.dart';
 import 'package:saegim/core/services/fcm_message_service.dart';
+import 'package:saegim/features/authentication/data/services/google_sign_in_service.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
 
 part 'auth_notifier.g.dart';
@@ -359,6 +360,14 @@ class AuthNotifier extends _$AuthNotifier {
       AppLogger.error('FCM 토큰 해제 실패', error: e, tag: 'AuthNotifier');
     }
 
+    // Google 로그아웃
+    try {
+      await GoogleSignInService.instance.signOut();
+      AppLogger.info('Google 로그아웃 완료', 'AuthNotifier');
+    } catch (e) {
+      AppLogger.error('Google 로그아웃 실패', error: e, tag: 'AuthNotifier');
+    }
+
     // 저장된 인증 데이터 모두 삭제
     await AuthStorageService.instance.clearAllAuthData();
     state = state.copyWith(isLoading: true, errorMessage: null);
@@ -411,6 +420,46 @@ class AuthNotifier extends _$AuthNotifier {
       return true;
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      return false;
+    }
+  }
+
+  /// Google 로그인
+  Future<bool> loginWithGoogle() async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+
+    try {
+      final result = await GoogleSignInService.instance.signInWithGoogle();
+
+      if (result.success) {
+        state = state.copyWith(
+          isAuthenticated: true,
+          userId: result.userId,
+          userEmail: result.userEmail,
+          isLoading: false,
+        );
+
+        AppLogger.info('Google login successful for user: ${result.userEmail}');
+        return true;
+      } else {
+        state = state.copyWith(
+          isAuthenticated: false,
+          isLoading: false,
+          errorMessage: result.message,
+        );
+
+        AppLogger.warning('Google login failed: ${result.message}');
+        return false;
+      }
+    } catch (e) {
+      AppLogger.error('Google login error', error: e, tag: 'AuthNotifier');
+
+      state = state.copyWith(
+        isAuthenticated: false,
+        isLoading: false,
+        errorMessage: '구글 로그인 중 오류가 발생했습니다.',
+      );
+
       return false;
     }
   }

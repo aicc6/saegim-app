@@ -30,6 +30,7 @@ dependencies:
   package_info_plus: ^8.0.2
   device_info_plus: ^11.1.0
   flutter_local_notifications: ^17.2.2
+  google_sign_in: ^6.2.0
 
 dev_dependencies:
   flutter_test:

@@ -200,6 +200,61 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
                 const SizedBox(height: 24),
 
+                // 구글 로그인 버튼
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: authState.isLoading ? null : _handleGoogleLogin,
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      side: const BorderSide(color: Color(0xFFD1D5DB)),
+                    ),
+                    icon: Container(
+                      width: 20,
+                      height: 20,
+                      decoration: const BoxDecoration(
+                        image: DecorationImage(
+                          image: NetworkImage('https://developers.google.com/identity/images/g-logo.png'),
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                    ),
+                    label: const Text(
+                      'Google로 로그인',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF374151),
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // 또는 구분선
+                Row(
+                  children: const [
+                    Expanded(child: Divider(color: Color(0xFFD1D5DB))),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        '또는',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF6B7280),
+                        ),
+                      ),
+                    ),
+                    Expanded(child: Divider(color: Color(0xFFD1D5DB))),
+                  ],
+                ),
+
+                const SizedBox(height: 24),
+
                 // 비밀번호 찾기
                 Center(
                   child: TextButton(
@@ -271,6 +326,27 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('로그인에 실패했습니다. 다시 시도해주세요.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _handleGoogleLogin() async {
+    final success = await ref
+        .read(authNotifierProvider.notifier)
+        .loginWithGoogle();
+
+    if (!mounted) return;
+
+    if (success) {
+      // 로그인 후 홈페이지로 이동
+      context.go(RoutePaths.home);
+    } else {
+      final authState = ref.read(authNotifierProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(authState.errorMessage ?? '구글 로그인에 실패했습니다.'),
           backgroundColor: Colors.red,
         ),
       );
