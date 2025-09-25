@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:saegim/shared/widgets/common_app_bar.dart';
+import 'package:saegim/features/calendar/data/services/diary_api_service.dart';
+import 'package:saegim/features/calendar/data/models/diary_model.dart';
+import 'package:saegim/features/calendar/data/models/diary_image_model.dart';
+import 'package:saegim/shared/utils/app_logger.dart';
+import 'package:go_router/go_router.dart';
 
 class DiaryListPage extends StatefulWidget {
   const DiaryListPage({super.key});
@@ -20,125 +25,19 @@ class _DiaryListPageState extends State<DiaryListPage> {
 
   bool _isLoading = false;
   bool _hasMore = true;
-  List<Map<String, dynamic>> _filteredDiaries = [];
-  List<Map<String, dynamic>> _displayedDiaries = [];
-  int _currentPage = 0;
-  final int _itemsPerPage = 5;
+  List<DiaryEntry> _filteredDiaries = [];
+  List<DiaryEntry> _displayedDiaries = [];
+  int _currentPage = 1;
+  final int _itemsPerPage = 20;
 
-  // 더미 데이터 (10개)
-  final List<Map<String, dynamic>> _allDiaries = [
-    {
-      'id': 1,
-      'title': '햇살 좋은 하루',
-      'content': '오늘은 정말 좋은 하루였다. 따뜻한 햇살이 마음까지 따뜻하게 만들어주었고, 친구들과의 만남도 즐거웠다.',
-      'ai_generated_text':
-          '따스한 햇살처럼 당신의 마음도 밝게 빛나고 있군요. 이런 순간들이 모여 아름다운 추억이 됩니다.',
-      'emotion': 'happy',
-      'date': DateTime(2024, 1, 20),
-      'keywords': ['햇살', '친구', '즐거움', '따뜻함'],
-      'thumbnail': 'https://picsum.photos/400/250?random=1',
-    },
-    {
-      'id': 2,
-      'title': '비 오는 날의 감성',
-      'content': '창밖에 내리는 비를 보며 깊은 생각에 잠겼다. 때로는 이런 고요한 시간이 필요한 것 같다.',
-      'ai_generated_text':
-          '비 내리는 소리가 마음의 소음을 씻어내 주는군요. 고요 속에서 진정한 나를 만날 수 있습니다.',
-      'emotion': 'peaceful',
-      'date': DateTime(2024, 1, 19),
-      'keywords': ['비', '고요', '사색', '평온'],
-      'thumbnail': 'https://picsum.photos/400/250?random=2',
-    },
-    {
-      'id': 3,
-      'title': '힘든 하루의 끝',
-      'content': '오늘은 많은 일들이 겹쳐서 힘든 하루였다. 하지만 이런 날들도 지나간다는 것을 안다.',
-      'ai_generated_text': '어둠이 짙을수록 새벽은 더욱 밝게 다가옵니다. 지금의 어려움도 성장의 밑거름이 될 거예요.',
-      'emotion': 'sad',
-      'date': DateTime(2024, 1, 18),
-      'keywords': ['힘듦', '인내', '희망', '성장'],
-      'thumbnail': 'https://picsum.photos/400/250?random=3',
-    },
-    {
-      'id': 4,
-      'title': '화가 났던 순간',
-      'content': '오늘은 정말 화가 났다. 불공평한 일들이 계속 일어나는 것 같아서 속상했다.',
-      'ai_generated_text':
-          '분노도 당신의 소중한 감정입니다. 이 감정을 통해 진정 원하는 것이 무엇인지 알 수 있어요.',
-      'emotion': 'angry',
-      'date': DateTime(2024, 1, 17),
-      'keywords': ['분노', '불공평', '감정', '성찰'],
-      'thumbnail': 'https://picsum.photos/400/250?random=4',
-    },
-    {
-      'id': 5,
-      'title': '불안한 마음',
-      'content': '내일 중요한 발표가 있어서 밤새 잠이 오지 않았다. 걱정이 너무 많다.',
-      'ai_generated_text':
-          '불안은 당신이 그만큼 소중히 여기는 것이 있다는 증거입니다. 당신은 충분히 잘 해낼 거예요.',
-      'emotion': 'anxious',
-      'date': DateTime(2024, 1, 16),
-      'keywords': ['불안', '발표', '걱정', '도전'],
-      'thumbnail': 'https://picsum.photos/400/250?random=5',
-    },
-    {
-      'id': 6,
-      'title': '가족과의 시간',
-      'content': '오랜만에 가족들과 함께 시간을 보냈다. 역시 가족만큼 소중한 것은 없는 것 같다.',
-      'ai_generated_text': '가족의 사랑은 세상에서 가장 따뜻한 품입니다. 이런 순간들을 소중히 간직하세요.',
-      'emotion': 'happy',
-      'date': DateTime(2024, 1, 15),
-      'keywords': ['가족', '사랑', '소중함', '행복'],
-      'thumbnail': 'https://picsum.photos/400/250?random=6',
-    },
-    {
-      'id': 7,
-      'title': '새로운 도전',
-      'content': '새로운 프로젝트를 시작했다. 두렵기도 하지만 설레는 마음이 더 크다.',
-      'ai_generated_text': '새로운 시작은 언제나 용기가 필요합니다. 당신의 도전 정신이 빛을 발할 때입니다.',
-      'emotion': 'peaceful',
-      'date': DateTime(2024, 1, 14),
-      'keywords': ['도전', '시작', '용기', '설렘'],
-      'thumbnail': 'https://picsum.photos/400/250?random=7',
-    },
-    {
-      'id': 8,
-      'title': '외로운 밤',
-      'content': '혼자 있는 시간이 길어질수록 외로움이 밀려온다. 누군가와 대화하고 싶다.',
-      'ai_generated_text':
-          '외로움을 느끼는 것은 인간다운 감정입니다. 이 시간도 자신과 깊이 만나는 소중한 순간이에요.',
-      'emotion': 'sad',
-      'date': DateTime(2024, 1, 13),
-      'keywords': ['외로움', '고독', '성찰', '인간미'],
-      'thumbnail': 'https://picsum.photos/400/250?random=8',
-    },
-    {
-      'id': 9,
-      'title': '운동 후 상쾌함',
-      'content': '오랜만에 운동을 했더니 몸도 마음도 개운하다. 역시 건강이 최고다.',
-      'ai_generated_text': '건강한 몸에 건강한 마음이 깃듭니다. 자신을 돌보는 당신의 모습이 아름다워요.',
-      'emotion': 'happy',
-      'date': DateTime(2024, 1, 12),
-      'keywords': ['운동', '건강', '상쾌함', '자기관리'],
-      'thumbnail': 'https://picsum.photos/400/250?random=9',
-    },
-    {
-      'id': 10,
-      'title': '미래에 대한 걱정',
-      'content': '앞으로 어떻게 살아야 할지 모르겠다. 계획은 있지만 불확실한 미래가 무섭다.',
-      'ai_generated_text': '미래는 불확실하지만 당신에게는 지금 이 순간이 있습니다. 한 걸음씩 나아가면 됩니다.',
-      'emotion': 'anxious',
-      'date': DateTime(2024, 1, 11),
-      'keywords': ['미래', '불안', '계획', '걱정'],
-      'thumbnail': 'https://picsum.photos/400/250?random=10',
-    },
-  ];
+  // 다이어리별 이미지 캐시
+  final Map<String, List<DiaryImage>> _diaryImagesCache = {};
+  final Set<String> _loadingImages = {};
 
   @override
   void initState() {
     super.initState();
-    _filteredDiaries = List.from(_allDiaries);
-    _loadMoreItems();
+    _loadInitialData();
     _scrollController.addListener(_scrollListener);
   }
 
@@ -156,113 +55,165 @@ class _DiaryListPageState extends State<DiaryListPage> {
     }
   }
 
+  /// 초기 데이터 로드
+  Future<void> _loadInitialData() async {
+    setState(() {
+      _isLoading = true;
+      _currentPage = 1;
+      _hasMore = true;
+      _displayedDiaries.clear();
+    });
+
+    await _loadDiariesFromAPI();
+  }
+
+  /// API에서 다이어리 데이터 로드
+  Future<void> _loadDiariesFromAPI() async {
+    try {
+      AppLogger.info('Loading diaries - Page: $_currentPage', 'DiaryListPage');
+
+      // 검색어와 필터 조건 준비
+      String? searchTerm = _searchController.text.trim().isEmpty
+          ? null
+          : _searchController.text.trim();
+
+      String? emotion = _selectedEmotion == 'all' ? null : _selectedEmotion;
+
+      DateTime? startDate;
+      DateTime? endDate;
+
+      // 날짜 필터 처리
+      if (_dateFilter != 'all') {
+        final now = DateTime.now();
+        switch (_dateFilter) {
+          case 'today':
+            startDate = DateTime(now.year, now.month, now.day);
+            endDate = startDate;
+            break;
+          case 'week':
+            startDate = now.subtract(const Duration(days: 7));
+            endDate = now;
+            break;
+          case 'month':
+            startDate = DateTime(now.year, now.month - 1, now.day);
+            endDate = now;
+            break;
+          case 'custom':
+            startDate = _startDate;
+            endDate = _endDate;
+            break;
+        }
+      }
+
+      // 백엔드 API 호출 (페이지네이션 포함)
+      final diaries = await DiaryApiService.instance.getDiariesWithFilters(
+        page: _currentPage,
+        pageSize: _itemsPerPage,
+        searchTerm: searchTerm,
+        emotion: emotion,
+        startDate: startDate,
+        endDate: endDate,
+        sortOrder: _sortOrder,
+      );
+
+      if (mounted) {
+        setState(() {
+          if (_currentPage == 1) {
+            // 첫 페이지인 경우 기존 데이터 클리어
+            _displayedDiaries.clear();
+            _filteredDiaries.clear();
+          }
+
+          if (diaries != null && diaries.isNotEmpty) {
+            _displayedDiaries.addAll(diaries);
+            _filteredDiaries.addAll(diaries);
+
+            // 백엔드에서 반환된 데이터가 요청한 페이지 크기보다 적으면 더 이상 데이터가 없음
+            _hasMore = diaries.length >= _itemsPerPage;
+
+            AppLogger.info(
+              'Loaded ${diaries.length} diaries for page $_currentPage',
+              'DiaryListPage',
+            );
+          } else {
+            _hasMore = false;
+            AppLogger.info('No more diaries to load', 'DiaryListPage');
+          }
+
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      AppLogger.error(
+        'Failed to load diaries from API',
+        tag: 'DiaryListPage',
+        error: e,
+      );
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _hasMore = false;
+        });
+      }
+    }
+  }
+
+  /// 더 많은 아이템 로드 (무한스크롤)
   void _loadMoreItems() {
     if (_isLoading || !_hasMore) return;
 
     setState(() {
-      _isLoading = true;
+      _currentPage++;
     });
 
-    // 무한스크롤 시뮬레이션
-    Future.delayed(const Duration(milliseconds: 500), () {
-      final startIndex = _currentPage * _itemsPerPage;
-      final endIndex = (startIndex + _itemsPerPage).clamp(
-        0,
-        _filteredDiaries.length,
-      );
-
-      if (startIndex < _filteredDiaries.length) {
-        final newItems = _filteredDiaries.sublist(startIndex, endIndex);
-        setState(() {
-          _displayedDiaries.addAll(newItems);
-          _currentPage++;
-          _hasMore = endIndex < _filteredDiaries.length;
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _hasMore = false;
-          _isLoading = false;
-        });
-      }
-    });
+    _loadDiariesFromAPI();
   }
 
+  /// 필터 적용 (새로운 검색)
   void _applyFilters() {
-    List<Map<String, dynamic>> filtered = List.from(_allDiaries);
+    setState(() {
+      _currentPage = 1;
+      _hasMore = true;
+      _displayedDiaries.clear();
+      _filteredDiaries.clear();
+    });
 
-    // 검색어 필터
-    if (_searchController.text.isNotEmpty) {
-      final searchTerm = _searchController.text.toLowerCase();
-      filtered = filtered.where((diary) {
-        return diary['title'].toString().toLowerCase().contains(searchTerm) ||
-            diary['content'].toString().toLowerCase().contains(searchTerm);
-      }).toList();
+    _loadDiariesFromAPI();
+  }
+
+  /// 다이어리 이미지 로드
+  Future<void> _loadDiaryImages(String diaryId) async {
+    // 이미 로딩 중이거나 캐시에 있으면 스킵
+    if (_loadingImages.contains(diaryId) ||
+        _diaryImagesCache.containsKey(diaryId)) {
+      return;
     }
 
-    // 감정 필터
-    if (_selectedEmotion != 'all') {
-      filtered = filtered
-          .where((diary) => diary['emotion'] == _selectedEmotion)
-          .toList();
-    }
+    _loadingImages.add(diaryId);
 
-    // 날짜 필터
-    if (_dateFilter != 'all') {
-      final now = DateTime.now();
-      DateTime? filterDate;
+    try {
+      final images = await DiaryApiService.instance.getDiaryImages(diaryId);
 
-      switch (_dateFilter) {
-        case 'today':
-          filterDate = DateTime(now.year, now.month, now.day);
-          filtered = filtered.where((diary) {
-            final diaryDate = diary['date'] as DateTime;
-            return diaryDate.isAfter(filterDate!) ||
-                diaryDate.isAtSameMomentAs(filterDate);
-          }).toList();
-          break;
-        case 'week':
-          filterDate = now.subtract(const Duration(days: 7));
-          filtered = filtered.where((diary) {
-            final diaryDate = diary['date'] as DateTime;
-            return diaryDate.isAfter(filterDate!);
-          }).toList();
-          break;
-        case 'month':
-          filterDate = DateTime(now.year, now.month - 1, now.day);
-          filtered = filtered.where((diary) {
-            final diaryDate = diary['date'] as DateTime;
-            return diaryDate.isAfter(filterDate!);
-          }).toList();
-          break;
-        case 'custom':
-          if (_startDate != null && _endDate != null) {
-            filtered = filtered.where((diary) {
-              final diaryDate = diary['date'] as DateTime;
-              return diaryDate.isAfter(_startDate!) &&
-                  diaryDate.isBefore(_endDate!.add(const Duration(days: 1)));
-            }).toList();
-          }
-          break;
+      if (mounted) {
+        setState(() {
+          _diaryImagesCache[diaryId] = images;
+          _loadingImages.remove(diaryId);
+        });
+      }
+    } catch (e) {
+      AppLogger.error(
+        'Failed to load images for diary: $diaryId',
+        tag: 'DiaryListPage',
+        error: e,
+      );
+      if (mounted) {
+        setState(() {
+          _diaryImagesCache[diaryId] = [];
+          _loadingImages.remove(diaryId);
+        });
       }
     }
-
-    // 정렬
-    filtered.sort((a, b) {
-      final dateA = a['date'] as DateTime;
-      final dateB = b['date'] as DateTime;
-      return _sortOrder == 'desc'
-          ? dateB.compareTo(dateA)
-          : dateA.compareTo(dateB);
-    });
-
-    setState(() {
-      _filteredDiaries = filtered;
-      _displayedDiaries.clear();
-      _currentPage = 0;
-      _hasMore = true;
-      _loadMoreItems();
-    });
   }
 
   @override
@@ -343,7 +294,7 @@ class _DiaryListPageState extends State<DiaryListPage> {
                         {'value': 'sad', 'label': '😢 슬픔'},
                         {'value': 'angry', 'label': '😡 화남'},
                         {'value': 'peaceful', 'label': '😌 평온'},
-                        {'value': 'anxious', 'label': '😨 불안'},
+                        {'value': 'unrest', 'label': '😨 불안'},
                       ],
                       onChanged: (value) {
                         setState(() {
@@ -570,7 +521,7 @@ class _DiaryListPageState extends State<DiaryListPage> {
         'sad': '😢 슬픔',
         'angry': '😡 화남',
         'peaceful': '😌 평온',
-        'anxious': '😨 불안',
+        'unrest': '😨 불안',
       };
       filterChips.add(
         _buildFilterChip('감정: ${emotionLabels[_selectedEmotion]}', () {
@@ -690,8 +641,8 @@ class _DiaryListPageState extends State<DiaryListPage> {
     );
   }
 
-  Widget _buildDiaryCard(Map<String, dynamic> diary) {
-    final date = diary['date'] as DateTime;
+  Widget _buildDiaryCard(DiaryEntry diary) {
+    final date = diary.diaryDate;
     final dateString =
         '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
@@ -709,136 +660,214 @@ class _DiaryListPageState extends State<DiaryListPage> {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 썸네일 이미지
-          Container(
-            height: 200,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () {
+          // 다이어리 상세 페이지로 이동
+          context.go('/diary/${diary.id}');
+        },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 썸네일 이미지
+            Container(
+              height: 200,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(16),
+                ),
+                color: Colors.grey[200],
               ),
-              color: Colors.grey[200],
-            ),
-            child: Stack(
-              children: [
-                Container(
-                  width: double.infinity,
-                  height: double.infinity,
-                  decoration: BoxDecoration(
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(16),
-                    ),
-                    color: Colors.grey[300],
-                  ),
-                  child: const Icon(Icons.image, size: 60, color: Colors.grey),
-                ),
-                // 감정 이모지
-                Positioned(
-                  top: 12,
-                  left: 12,
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.9),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      _getEmotionEmoji(diary['emotion']),
-                      style: const TextStyle(fontSize: 20),
+              child: Stack(
+                children: [
+                  _buildDiaryImage(diary),
+                  // 감정 이모지
+                  Positioned(
+                    top: 12,
+                    left: 12,
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.9),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        diary.emotionEmoji,
+                        style: const TextStyle(fontSize: 20),
+                      ),
                     ),
                   ),
-                ),
-                // 날짜
-                Positioned(
-                  bottom: 12,
-                  right: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      dateString,
-                      style: const TextStyle(color: Colors.white, fontSize: 12),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // 카드 내용
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 제목
-                Text(
-                  diary['title'],
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 8),
-
-                // 내용
-                Text(
-                  diary['content'],
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                    height: 1.4,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 12),
-
-                // 키워드
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  children: (diary['keywords'] as List<String>).map((keyword) {
-                    return Container(
+                  // 날짜
+                  Positioned(
+                    bottom: 12,
+                    right: 12,
+                    child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFB2C5B8).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: const Color(0xFFB2C5B8).withOpacity(0.3),
-                        ),
+                        color: Colors.black.withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        '#$keyword',
+                        dateString,
                         style: const TextStyle(
+                          color: Colors.white,
                           fontSize: 12,
-                          color: Color(0xFFB2C5B8),
-                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                    );
-                  }).toList(),
-                ),
-              ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // 카드 내용
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 제목
+                  Text(
+                    diary.title ?? '제목 없음',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+
+                  // 내용 또는 AI 생성 텍스트
+                  Text(
+                    diary.aiGeneratedText ?? diary.content,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                      height: 1.4,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 키워드
+                  if (diary.keywords.isNotEmpty)
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: diary.keywords.take(3).map((keyword) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0F4F1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: const Color(0xFFB2C5B8),
+                              width: 1,
+                            ),
+                          ),
+                          child: Text(
+                            '#$keyword',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFF4A7C59),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 다이어리 이미지 빌드 (첫 번째 이미지 표시)
+  Widget _buildDiaryImage(DiaryEntry diary) {
+    // 이미지 로드 (캐시되지 않은 경우)
+    if (!_diaryImagesCache.containsKey(diary.id) &&
+        !_loadingImages.contains(diary.id)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _loadDiaryImages(diary.id);
+      });
+    }
+
+    final images = _diaryImagesCache[diary.id];
+    final isLoading = _loadingImages.contains(diary.id);
+
+    if (isLoading) {
+      return Container(
+        width: double.infinity,
+        height: double.infinity,
+        color: Colors.grey[300],
+        child: const Center(
+          child: SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB2C5B8)),
             ),
           ),
-        ],
-      ),
+        ),
+      );
+    }
+
+    if (images != null && images.isNotEmpty) {
+      final firstImage = images.first;
+      final imageUrl = firstImage.fullImageUrl;
+
+      if (imageUrl.isNotEmpty) {
+        return ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+          child: Image.network(
+            imageUrl,
+            width: double.infinity,
+            height: double.infinity,
+            fit: BoxFit.cover,
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return Container(
+                color: Colors.grey[300],
+                child: const Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Color(0xFFB2C5B8),
+                    ),
+                  ),
+                ),
+              );
+            },
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                color: Colors.grey[300],
+                child: const Icon(Icons.image, size: 60, color: Colors.grey),
+              );
+            },
+          ),
+        );
+      }
+    }
+
+    // 기본 이미지 (이미지가 없는 경우)
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      color: Colors.grey[300],
+      child: const Icon(Icons.image, size: 60, color: Colors.grey),
     );
   }
 
@@ -852,6 +881,7 @@ class _DiaryListPageState extends State<DiaryListPage> {
         return '😡';
       case 'peaceful':
         return '😌';
+      case 'unrest':
       case 'anxious':
         return '😨';
       default:

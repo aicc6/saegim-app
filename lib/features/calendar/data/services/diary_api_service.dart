@@ -15,6 +15,155 @@ class DiaryApiService {
   /// 중앙화된 Dio 인스턴스 사용 (CookieManager가 자동으로 쿠키 기반 인증 처리)
   Dio get dio => DioClient.instance.dio;
 
+  /// 필터링 조건으로 다이어리 목록 조회 (페이지네이션 지원)
+  ///
+  /// [page]: 페이지 번호 (1부터 시작)
+  /// [pageSize]: 페이지 크기 (최대 100)
+  /// [searchTerm]: 제목/내용 통합 검색어
+  /// [emotion]: 감정 필터 (happy, sad, angry, peaceful, unrest)
+  /// [startDate]: 시작 날짜
+  /// [endDate]: 종료 날짜
+  /// [sortOrder]: 정렬 순서 (asc, desc)
+  Future<List<DiaryEntry>?> getDiariesWithFilters({
+    int page = 1,
+    int pageSize = 20,
+    String? searchTerm,
+    String? emotion,
+    DateTime? startDate,
+    DateTime? endDate,
+    String sortOrder = 'desc',
+  }) async {
+    try {
+      AppLogger.info(
+        'Fetching diaries with filters - Page: $page, PageSize: $pageSize',
+        'DiaryApiService',
+      );
+
+      // 쿼리 파라미터 구성
+      final queryParameters = <String, dynamic>{
+        'page': page.toString(),
+        'page_size': pageSize.toString(),
+        'sort_order': sortOrder,
+      };
+
+      // 선택적 파라미터 추가
+      if (searchTerm != null && searchTerm.isNotEmpty) {
+        queryParameters['searchTerm'] = searchTerm;
+      }
+
+      if (emotion != null && emotion.isNotEmpty) {
+        queryParameters['emotion'] = emotion;
+      }
+
+      if (startDate != null) {
+        final startDateString =
+            '${startDate.year}-${startDate.month.toString().padLeft(2, '0')}-${startDate.day.toString().padLeft(2, '0')}';
+        queryParameters['start_date'] = startDateString;
+      }
+
+      if (endDate != null) {
+        final endDateString =
+            '${endDate.year}-${endDate.month.toString().padLeft(2, '0')}-${endDate.day.toString().padLeft(2, '0')}';
+        queryParameters['end_date'] = endDateString;
+      }
+
+      AppLogger.info('Query parameters: $queryParameters', 'DiaryApiService');
+
+      // API 호출
+      final response = await dio.get(
+        '/api/diary',
+        queryParameters: queryParameters,
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = response.data;
+
+        // 응답 데이터 구조 파싱
+        List<dynamic> diariesData = [];
+
+        if (responseData is Map<String, dynamic>) {
+          // BaseResponse 구조인 경우
+          if (responseData.containsKey('data')) {
+            final data = responseData['data'];
+            if (data is List) {
+              diariesData = data;
+            }
+          }
+        } else if (responseData is List) {
+          // 직접 리스트로 반환되는 경우
+          diariesData = responseData;
+        }
+
+        AppLogger.info(
+          'Raw response structure: ${responseData.runtimeType}',
+          'DiaryApiService',
+        );
+
+        if (diariesData.isNotEmpty) {
+          try {
+            final diaries = diariesData
+                .map(
+                  (item) => DiaryEntry.fromJson(item as Map<String, dynamic>),
+                )
+                .toList();
+
+            AppLogger.info(
+              'Successfully loaded ${diaries.length} diaries for page $page',
+              'DiaryApiService',
+            );
+
+            return diaries;
+          } catch (parseError) {
+            AppLogger.error(
+              'Failed to parse diary data',
+              tag: 'DiaryApiService',
+              error: parseError,
+            );
+            return [];
+          }
+        } else {
+          AppLogger.info(
+            'No diaries found for the given filters',
+            'DiaryApiService',
+          );
+          return [];
+        }
+      } else {
+        AppLogger.warning(
+          'Failed to load diaries: ${response.statusCode}',
+          'DiaryApiService',
+        );
+        return [];
+      }
+    } on DioException catch (dioError) {
+      final statusCode = dioError.response?.statusCode;
+
+      if (statusCode == 401) {
+        AppLogger.warning(
+          'Authentication required for diary access',
+          'DiaryApiService',
+        );
+      } else if (statusCode == 404) {
+        AppLogger.info('No diaries found', 'DiaryApiService');
+        return [];
+      } else {
+        AppLogger.error(
+          'Failed to load diaries with filters',
+          tag: 'DiaryApiService',
+          error: dioError,
+        );
+      }
+      return [];
+    } catch (e) {
+      AppLogger.error(
+        'Unexpected error loading diaries with filters',
+        tag: 'DiaryApiService',
+        error: e,
+      );
+      return [];
+    }
+  }
+
   /// 월간 통계 데이터 조회
   ///
   /// [year]: 연도 (예: 2024)
