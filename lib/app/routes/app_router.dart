@@ -11,8 +11,8 @@ import 'package:saegim/features/home/presentation/pages/diary_detail_page.dart';
 import 'package:saegim/features/home/presentation/pages/diary_list_page.dart';
 import 'package:saegim/features/home/presentation/pages/home_page.dart';
 import 'package:saegim/features/home/presentation/pages/notifications_page.dart';
-import 'package:saegim/features/home/presentation/pages/profile_page.dart';
 import 'package:saegim/features/home/presentation/pages/settings_page.dart';
+import 'package:saegim/features/profile/presentation/pages/profile_page.dart';
 import 'package:saegim/features/home/presentation/pages/support_page.dart';
 import 'package:saegim/features/settings/presentation/pages/app_preferences_page.dart';
 import 'package:saegim/features/settings/presentation/pages/change_password_page.dart';
@@ -68,7 +68,10 @@ class AppRouter {
             ),
             GoRoute(
               path: '/restore-account',
-              builder: (context, state) => const RestoreAccountPage(),
+              builder: (context, state) {
+                final email = state.uri.queryParameters['email'] ?? '';
+                return RestoreAccountPage(email: email);
+              },
             ),
           ],
         ),

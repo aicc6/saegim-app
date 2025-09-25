@@ -215,13 +215,13 @@ class AuthNotifier extends _$AuthNotifier {
             userId: userId,
             userEmail: userEmail,
             isLoading: false,
+            errorMessage: null,
           );
 
           // FCM 토큰 서버 등록
           try {
-            final fcmRegistered = await FCMMessageService.instance.registerTokenOnLogin(
-              userId: userId,
-            );
+            final fcmRegistered = await FCMMessageService.instance
+                .registerTokenOnLogin(userId: userId);
             AppLogger.info('FCM 토큰 등록 결과: $fcmRegistered', 'AuthNotifier');
           } catch (e) {
             AppLogger.error('FCM 토큰 등록 실패', error: e, tag: 'AuthNotifier');
@@ -229,6 +229,16 @@ class AuthNotifier extends _$AuthNotifier {
           }
 
           AppLogger.info('Login successful for user: $email, token saved');
+
+          // 로그인 성공 시 상태 업데이트 (에러 메시지 클리어 포함)
+          state = state.copyWith(
+            isAuthenticated: true,
+            userId: userId,
+            userEmail: userEmail,
+            isLoading: false,
+            errorMessage: null, // 중요: 이전 에러 메시지 클리어
+          );
+
           return true;
         } else {
           AppLogger.error(
@@ -255,6 +265,50 @@ class AuthNotifier extends _$AuthNotifier {
       AppLogger.error('Login failed for user: $email', error: e);
 
       String errorMessage = '로그인에 실패했습니다.';
+
+      // DioException에서 응답 데이터 추출
+      try {
+        print('🔍 [AuthNotifier] Exception type: ${e.runtimeType}');
+        print('🔍 [AuthNotifier] Exception details: $e');
+
+        // DioException인 경우 response 데이터 확인
+        final dynamic exception = e;
+        if (exception.runtimeType.toString().contains('DioException')) {
+          final response = (exception as dynamic).response;
+          print('🔍 [AuthNotifier] Response status: ${response?.statusCode}');
+          print('🔍 [AuthNotifier] Response data: ${response?.data}');
+
+          if (response?.data != null) {
+            final responseData = response.data;
+            final detail = responseData['detail'];
+            print('🔍 [AuthNotifier] Detail from response: $detail');
+
+            if (detail != null && detail['error'] == 'ACCOUNT_DELETED') {
+              // 탈퇴된 계정인 경우 - 계정 복구 페이지로 리다이렉트 필요
+              AppLogger.info('탈퇴된 계정 로그인 시도: $email', 'AuthNotifier');
+              print(
+                '🔍 [AuthNotifier] ACCOUNT_DELETED detected for email: $email',
+              );
+              final redirectMessage = 'ACCOUNT_DELETED_REDIRECT:$email';
+              print('🔍 [AuthNotifier] Setting errorMessage: $redirectMessage');
+              state = state.copyWith(
+                isLoading: false,
+                errorMessage: redirectMessage,
+              );
+              print(
+                '🔍 [AuthNotifier] State updated with errorMessage: ${state.errorMessage}',
+              );
+              return false;
+            }
+          }
+        }
+      } catch (parseError) {
+        AppLogger.warning(
+          'Error response parsing failed: $parseError',
+          'AuthNotifier',
+        );
+      }
+
       if (e.toString().contains('401') || e.toString().contains('invalid')) {
         errorMessage = '이메일 또는 비밀번호가 올바르지 않습니다.';
       } else if (e.toString().contains('network')) {
@@ -400,18 +454,52 @@ class AuthNotifier extends _$AuthNotifier {
     }
   }
 
-  /// 계정 복구
-  Future<bool> restoreAccount(String email) async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
-
+  /// 계정 복구 인증 메일 발송
+  Future<bool> sendRestoreEmail(String email) async {
     try {
-      // TODO: 실제 계정 복구 API 호출
-      await Future.delayed(const Duration(seconds: 2));
-      state = state.copyWith(isLoading: false);
-      return true;
+      final dio = DioClient.instance.dio;
+      final response = await dio.post(
+        '/api/auth/restore/send-restore-email',
+        data: {'email': email},
+      );
+
+      if (response.statusCode == 200) {
+        AppLogger.info('계정 복구 인증 메일 발송 성공: $email', 'AuthNotifier');
+        return true;
+      } else {
+        throw Exception('인증 메일 발송에 실패했습니다.');
+      }
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
-      return false;
+      AppLogger.error(
+        '계정 복구 인증 메일 발송 실패: $email',
+        error: e,
+        tag: 'AuthNotifier',
+      );
+      throw Exception('인증 메일 발송에 실패했습니다: ${e.toString()}');
+    }
+  }
+
+  /// 계정 복구 (인증 코드 검증 및 복구)
+  Future<bool> restoreAccount({
+    required String email,
+    required String code,
+  }) async {
+    try {
+      final dio = DioClient.instance.dio;
+      final response = await dio.post(
+        '/api/auth/restore',
+        data: {'email': email, 'verification_code': code},
+      );
+
+      if (response.statusCode == 200) {
+        AppLogger.info('계정 복구 성공: $email', 'AuthNotifier');
+        return true;
+      } else {
+        throw Exception('계정 복구에 실패했습니다.');
+      }
+    } catch (e) {
+      AppLogger.error('계정 복구 실패: $email', error: e, tag: 'AuthNotifier');
+      throw Exception('계정 복구에 실패했습니다: ${e.toString()}');
     }
   }
 
