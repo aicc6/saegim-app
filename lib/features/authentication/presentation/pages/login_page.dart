@@ -320,8 +320,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     if (!mounted) return;
 
     if (success) {
-      // 로그인 후 글쓰기 페이지(홈페이지)로 이동
-      context.go(RoutePaths.home);
+      final authState = ref.read(authNotifierProvider);
+
+      // 계정 복구 알림 표시
+      if (authState.isRecovered) {
+        _showRecoveryDialog(authState.recoveryMessage);
+      } else {
+        // 로그인 후 글쓰기 페이지(홈페이지)로 이동
+        context.go(RoutePaths.home);
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -330,6 +337,56 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         ),
       );
     }
+  }
+
+  void _showRecoveryDialog(String? message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.restore, color: Color(0xFFB2C5B8), size: 24),
+            SizedBox(width: 8),
+            Text(
+              '계정이 복구되었습니다',
+              style: TextStyle(
+                color: Color(0xFF2D3748),
+                fontWeight: FontWeight.w600,
+                fontSize: 18,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          message ?? '30일 이내에 로그인하여 계정이 자동으로 복구되었습니다.\n새김과 함께 다시 시작해보세요!',
+          style: const TextStyle(
+            color: Color(0xFF4A5C54),
+            height: 1.5,
+            fontSize: 15,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              context.go(RoutePaths.home);
+            },
+            style: TextButton.styleFrom(
+              backgroundColor: const Color(0xFFB2C5B8),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+            child: const Text(
+              '시작하기',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _handleGoogleLogin() async {

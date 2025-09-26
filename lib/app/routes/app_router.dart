@@ -1,6 +1,9 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:saegim/app/routes/route_guard.dart';
 import 'package:saegim/app/routes/route_paths.dart';
+import 'package:saegim/debug/fcm_debug_page.dart';
+import 'package:saegim/features/authentication/presentation/pages/delete_account_page.dart';
 import 'package:saegim/features/authentication/presentation/pages/forgot_password_page.dart';
 import 'package:saegim/features/authentication/presentation/pages/login_page.dart';
 import 'package:saegim/features/authentication/presentation/pages/reset_password_page.dart';
@@ -22,10 +25,11 @@ import 'package:saegim/shared/widgets/error_page.dart';
 import 'package:saegim/shared/widgets/main_scaffold.dart';
 import 'package:saegim/shared/widgets/onboarding_page.dart';
 import 'package:saegim/shared/widgets/splash_page.dart';
-import 'package:saegim/debug/fcm_debug_page.dart';
 
 /// 앱의 라우터 설정 클래스
 class AppRouter {
+  static final GlobalKey<NavigatorState> _shellNavigatorKey =
+      GlobalKey<NavigatorState>();
   static GoRouter createRouter() {
     return GoRouter(
       initialLocation: RoutePaths.splash,
@@ -36,45 +40,58 @@ class AppRouter {
         // 스플래시 화면
         GoRoute(
           path: RoutePaths.splash,
+          name: 'splash',
           builder: (context, state) => const SplashPage(),
         ),
 
         // 온보딩
         GoRoute(
           path: RoutePaths.onboarding,
+          name: 'onboarding',
           builder: (context, state) => const OnboardingPage(),
         ),
 
         // 인증 관련 라우트 (하단 네비게이션 없음)
         GoRoute(
           path: '/auth',
-          redirect: (context, state) => null,
+          name: 'auth',
           routes: [
             GoRoute(
-              path: '/login',
+              path: 'login',
+              name: 'auth-login',
               builder: (context, state) => const LoginPage(),
             ),
             GoRoute(
-              path: '/signup',
+              path: 'signup',
+              name: 'auth-signup',
               builder: (context, state) => const SignupPage(),
             ),
             GoRoute(
-              path: '/forgot-password',
+              path: 'forgot-password',
+              name: 'auth-forgot-password',
               builder: (context, state) => const ForgotPasswordPage(),
             ),
             GoRoute(
-              path: '/reset-password',
+              path: 'reset-password',
+              name: 'auth-reset-password',
               builder: (context, state) => const ResetPasswordPage(),
             ),
             GoRoute(
-              path: '/restore-account',
+              path: 'restore-account',
+              name: 'restore-account',
               builder: (context, state) => const RestoreAccountPage(),
+            ),
+            GoRoute(
+              path: 'delete-account',
+              name: 'delete-account',
+              builder: (context, state) => const DeleteAccountPage(),
             ),
           ],
         ),
 
-        // 메인 앱 - 하단 네비게이션이 있는 섹션
+        // 메인 앱 - 하단 네비게이션이 있는 섹션 (모든 인증된 페이지)
         ShellRoute(
+          parentNavigatorKey: _shellNavigatorKey,
           builder: (context, state, child) {
             return MainScaffold(
               currentLocation: state.matchedLocation,
@@ -85,20 +102,19 @@ class AppRouter {
             // 글쓰기 (홈)
             GoRoute(
               path: RoutePaths.home,
+              name: 'home',
               builder: (context, state) => const HomePage(),
             ),
 
             // 글목록 (다이어리)
             GoRoute(
               path: '/diary',
+              name: 'diary-list',
               builder: (context, state) => const DiaryListPage(),
               routes: [
                 GoRoute(
-                  path: '/list',
-                  builder: (context, state) => const DiaryListPage(),
-                ),
-                GoRoute(
-                  path: '/:id',
+                  path: ':id',
+                  name: 'diary-detail',
                   builder: (context, state) {
                     final id = state.pathParameters['id']!;
                     return DiaryDetailPage(diaryId: id);
@@ -110,56 +126,66 @@ class AppRouter {
             // 캘린더
             GoRoute(
               path: RoutePaths.calendar,
+              name: 'calendar',
               builder: (context, state) => const CalendarPage(),
             ),
+
+            // 프로필 (ShellRoute 내부로 이동)
+            GoRoute(
+              path: RoutePaths.profile,
+              name: 'profile',
+              builder: (context, state) => const ProfilePage(),
+            ),
+
+            // 설정 (ShellRoute 내부로 이동)
+            GoRoute(
+              path: '/settings',
+              name: 'settings',
+              builder: (context, state) => const SettingsPage(),
+              routes: [
+                GoRoute(
+                  path: 'change-password',
+                  name: 'settings-change-password',
+                  builder: (context, state) => const ChangePasswordPage(),
+                ),
+                GoRoute(
+                  path: 'app-preferences',
+                  name: 'settings-app-preferences',
+                  builder: (context, state) => const AppPreferencesPage(),
+                ),
+                GoRoute(
+                  path: 'notifications',
+                  name: 'settings-notifications',
+                  builder: (context, state) => const NotificationSettingsPage(),
+                ),
+                GoRoute(
+                  path: 'privacy',
+                  name: 'settings-privacy',
+                  builder: (context, state) => const PrivacySettingsPage(),
+                ),
+              ],
+            ),
+
+            // 알림 (ShellRoute 내부로 이동)
+            GoRoute(
+              path: RoutePaths.notifications,
+              name: 'notifications',
+              builder: (context, state) => const NotificationsPage(),
+            ),
+
+            // 고객지원 (ShellRoute 내부로 이동)
+            GoRoute(
+              path: RoutePaths.support,
+              name: 'support',
+              builder: (context, state) => const SupportPage(),
+            ),
           ],
-        ),
-
-        // 프로필
-        GoRoute(
-          path: RoutePaths.profile,
-          builder: (context, state) => const ProfilePage(),
-        ),
-
-        // 설정
-        GoRoute(
-          path: '/settings',
-          builder: (context, state) => const SettingsPage(),
-          routes: [
-            GoRoute(
-              path: '/change-password',
-              builder: (context, state) => const ChangePasswordPage(),
-            ),
-            GoRoute(
-              path: '/app-preferences',
-              builder: (context, state) => const AppPreferencesPage(),
-            ),
-            GoRoute(
-              path: '/notifications',
-              builder: (context, state) => const NotificationSettingsPage(),
-            ),
-            GoRoute(
-              path: '/privacy',
-              builder: (context, state) => const PrivacySettingsPage(),
-            ),
-          ],
-        ),
-
-        // 알림
-        GoRoute(
-          path: RoutePaths.notifications,
-          builder: (context, state) => const NotificationsPage(),
-        ),
-
-        // 고객지원
-        GoRoute(
-          path: RoutePaths.support,
-          builder: (context, state) => const SupportPage(),
         ),
 
         // FCM 디버깅 (개발용)
         GoRoute(
           path: '/debug/fcm',
+          name: 'debug-fcm',
           builder: (context, state) => const FcmDebugPage(),
         ),
       ],

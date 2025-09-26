@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "551396267062-s5l8t16qnm9ctrnli26g77p4lp05i5v5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.aicc_project.saegim",
+            "certificate_hash": "acb1ddeeec0446e5234c8b507c16aad3c63a5952"
+          }
+        },
+        {
           "client_id": "551396267062-1qg7mn4dlia6umlc6bj9pnqoa7l1smba.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -29,6 +37,13 @@
             {
               "client_id": "551396267062-1qg7mn4dlia6umlc6bj9pnqoa7l1smba.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "551396267062-m3mvddut907imcfcetlntsomb1vp8j0k.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.aicc_project.saegim"
+              }
             }
           ]
         }

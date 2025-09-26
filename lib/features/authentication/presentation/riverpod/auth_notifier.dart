@@ -16,6 +16,8 @@ class AuthState {
   final String? userEmail;
   final bool isInitialized;
   final String? errorMessage;
+  final bool isRecovered;
+  final String? recoveryMessage;
 
   const AuthState({
     this.isAuthenticated = false,
@@ -24,6 +26,8 @@ class AuthState {
     this.userEmail,
     this.isInitialized = false,
     this.errorMessage,
+    this.isRecovered = false,
+    this.recoveryMessage,
   });
 
   /// 상태 복사 메서드
@@ -34,6 +38,8 @@ class AuthState {
     String? userEmail,
     bool? isInitialized,
     String? errorMessage,
+    bool? isRecovered,
+    String? recoveryMessage,
   }) {
     return AuthState(
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
@@ -42,6 +48,8 @@ class AuthState {
       userEmail: userEmail ?? this.userEmail,
       isInitialized: isInitialized ?? this.isInitialized,
       errorMessage: errorMessage ?? this.errorMessage,
+      isRecovered: isRecovered ?? this.isRecovered,
+      recoveryMessage: recoveryMessage ?? this.recoveryMessage,
     );
   }
 
@@ -137,6 +145,10 @@ class AuthNotifier extends _$AuthNotifier {
         final userId = responseData['user_id']?.toString();
         final userEmail = responseData['email']?.toString();
 
+        // 계정 복구 상태 확인
+        final isRecovered = responseData['is_recovered'] == true;
+        final recoveryMessage = responseData['recovery_message']?.toString();
+
         // Set-Cookie 헤더에서 access_token 추출
         String? accessToken;
         String? refreshToken;
@@ -211,11 +223,16 @@ class AuthNotifier extends _$AuthNotifier {
             await AuthStorageService.instance.saveUserEmail(userEmail);
           }
 
+          // 로그인 타입 저장 (이메일 로그인)
+          await AuthStorageService.instance.saveLoginType('email');
+
           state = state.copyWith(
             isAuthenticated: true,
             userId: userId,
             userEmail: userEmail,
             isLoading: false,
+            isRecovered: isRecovered,
+            recoveryMessage: recoveryMessage,
           );
 
           // FCM 토큰 서버 등록
@@ -230,6 +247,15 @@ class AuthNotifier extends _$AuthNotifier {
           }
 
           AppLogger.info('Login successful for user: $email, token saved');
+
+          // 계정 복구 상태 로깅
+          if (isRecovered) {
+            AppLogger.info('Account recovered for user: $email');
+            if (recoveryMessage != null) {
+              AppLogger.info('Recovery message: $recoveryMessage');
+            }
+          }
+
           return true;
         } else {
           AppLogger.error(

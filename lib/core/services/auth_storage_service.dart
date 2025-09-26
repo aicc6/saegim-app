@@ -20,6 +20,7 @@ class AuthStorageService {
   static const String _refreshTokenKey = 'refresh_token';
   static const String _userIdKey = 'user_id';
   static const String _userEmailKey = 'user_email';
+  static const String _loginTypeKey = 'login_type';
 
   /// 인증 토큰 저장
   Future<void> saveAuthToken(String token) async {
@@ -172,6 +173,7 @@ class AuthStorageService {
         _storage.delete(key: _refreshTokenKey),
         _storage.delete(key: _userIdKey),
         _storage.delete(key: _userEmailKey),
+        _storage.delete(key: _loginTypeKey),
       ]);
       AppLogger.info(
         'All auth data cleared successfully',
@@ -183,6 +185,49 @@ class AuthStorageService {
         tag: 'AuthStorageService',
         error: e,
       );
+    }
+  }
+
+  /// 로그인 타입 저장 (email 또는 google)
+  Future<void> saveLoginType(String loginType) async {
+    try {
+      await _storage.write(key: _loginTypeKey, value: loginType);
+      AppLogger.info('Login type saved successfully: $loginType', 'AuthStorageService');
+    } catch (e) {
+      AppLogger.error(
+        'Failed to save login type',
+        tag: 'AuthStorageService',
+        error: e,
+      );
+    }
+  }
+
+  /// 로그인 타입 가져오기
+  Future<String?> getLoginType() async {
+    try {
+      return await _storage.read(key: _loginTypeKey);
+    } catch (e) {
+      AppLogger.error(
+        'Failed to retrieve login type',
+        tag: 'AuthStorageService',
+        error: e,
+      );
+      return null;
+    }
+  }
+
+  /// 구글 로그인 사용자인지 확인
+  Future<bool> isGoogleUser() async {
+    try {
+      final loginType = await getLoginType();
+      return loginType == 'google';
+    } catch (e) {
+      AppLogger.error(
+        'Failed to check if Google user',
+        tag: 'AuthStorageService',
+        error: e,
+      );
+      return false;
     }
   }
 

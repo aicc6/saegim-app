@@ -180,6 +180,9 @@ class GoogleSignInService {
             await AuthStorageService.instance.saveUserEmail(userEmail);
           }
 
+          // 로그인 타입 저장 (구글 로그인)
+          await AuthStorageService.instance.saveLoginType('google');
+
           // FCM 토큰 서버 등록
           try {
             final fcmRegistered = await FCMMessageService.instance.registerTokenOnLogin(
