@@ -219,7 +219,7 @@ class NotificationPreviewItem extends ConsumerWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: notification.isRead ? null : Colors.blue.withOpacity(0.05),
+          color: notification.isRead ? null : Colors.blue.withValues(alpha: 0.05),
           border: const Border(
             bottom: BorderSide(color: Colors.grey, width: 0.2),
           ),
@@ -232,7 +232,7 @@ class NotificationPreviewItem extends ConsumerWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: _getEmotionColor(notification.emotion).withOpacity(0.1),
+                color: _getEmotionColor(notification.emotion).withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(

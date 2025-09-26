@@ -25,9 +25,65 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     super.dispose();
   }
 
+  /// 인증 상태 변화 처리
+  void _handleAuthStateChange(
+    BuildContext context,
+    AuthState? previous,
+    AuthState next,
+  ) {
+    final wasAuthenticated = previous?.isAuthenticated ?? false;
+    final hasNewAuthSuccess = next.isAuthenticated && !wasAuthenticated;
+
+    if (hasNewAuthSuccess) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.go(RoutePaths.home);
+      });
+      return;
+    }
+
+    final nextError = next.errorMessage;
+    final previousError = previous?.errorMessage;
+
+    // 탈퇴 계정: 복구 페이지로 이동
+    if (nextError != null &&
+        nextError.startsWith('ACCOUNT_DELETED_REDIRECT:') &&
+        nextError != previousError) {
+      final parts = nextError.split(':');
+      final email = parts.length > 1 ? parts[1] : '';
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.push(
+          '${RoutePaths.authRestoreAccount}?email=${Uri.encodeComponent(email)}',
+        );
+        ref.read(authNotifierProvider.notifier).clearError();
+      });
+      return;
+    }
+
+    // 일반 에러 알림
+    if (nextError != null &&
+        !nextError.startsWith('ACCOUNT_DELETED_REDIRECT:') &&
+        nextError != previousError) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(nextError),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
+
+    // 인증 상태 변화 감지 및 네비게이션 처리
+    ref.listen(authNotifierProvider, (previous, next) {
+      _handleAuthStateChange(context, previous, next);
+    });
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -256,24 +312,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   Future<void> _handleLogin() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
-    final success = await ref
+    await ref
         .read(authNotifierProvider.notifier)
         .login(_emailController.text.trim(), _passwordController.text);
-
-    if (!mounted) return;
-
-    if (success) {
-      // 로그인 후 글쓰기 페이지(홈페이지)로 이동
-      context.go(RoutePaths.home);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('로그인에 실패했습니다. 다시 시도해주세요.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
   }
 }

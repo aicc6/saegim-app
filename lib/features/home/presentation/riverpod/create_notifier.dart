@@ -158,6 +158,8 @@ class CreateState {
   final List<String>? generatedKeywords;
   final String? sessionId;
   final bool wasJustGenerated;
+  final List<String> generationHistory; // 재생성 히스토리
+  final int currentHistoryIndex; // 현재 히스토리 인덱스
 
   const CreateState({
     required this.config,
@@ -172,6 +174,8 @@ class CreateState {
     this.generatedKeywords,
     this.sessionId,
     required this.wasJustGenerated,
+    this.generationHistory = const [],
+    this.currentHistoryIndex = 0,
   });
 
   CreateState copyWith({
@@ -187,6 +191,8 @@ class CreateState {
     List<String>? generatedKeywords,
     String? sessionId,
     bool? wasJustGenerated,
+    List<String>? generationHistory,
+    int? currentHistoryIndex,
     bool clearError = false,
     bool clearGeneratedText = false,
   }) {
@@ -207,6 +213,8 @@ class CreateState {
           : (generatedKeywords ?? this.generatedKeywords),
       sessionId: clearGeneratedText ? null : (sessionId ?? this.sessionId),
       wasJustGenerated: wasJustGenerated ?? this.wasJustGenerated,
+      generationHistory: generationHistory ?? this.generationHistory,
+      currentHistoryIndex: currentHistoryIndex ?? this.currentHistoryIndex,
     );
   }
 
@@ -385,14 +393,14 @@ class AiApiService {
     }
   }
 
-  /// 재생성 (일반 POST 요청)
+  /// 재생성 (스트리밍 엔드포인트 사용)
   Future<AIGenerationResult> regenerateText(String sessionId) async {
     final jwt = await _getJwtToken();
     if (jwt == null || jwt.isEmpty) {
       throw const APIError('인증 토큰이 없습니다. 다시 로그인해주세요.');
     }
 
-    final uri = Uri.parse('$baseUrl/api/ai/regenerate/$sessionId');
+    final uri = Uri.parse('$baseUrl/api/ai/regenerate/$sessionId/stream');
 
     print('재생성 API 요청 URL: $uri');
 
@@ -402,7 +410,7 @@ class AiApiService {
         headers: {
           'Authorization': 'Bearer $jwt',
           'Content-Type': 'application/json',
-          'Accept': 'application/json',
+          'Accept': 'text/event-stream',
         },
       );
 
@@ -410,6 +418,7 @@ class AiApiService {
       print('재생성 응답 바디: ${response.body}');
 
       if (response.statusCode == 200) {
+<<<<<<< HEAD
 <<<<<<< Updated upstream
         final Map<String, dynamic> responseBody = jsonDecode(response.body);
 
@@ -424,6 +433,13 @@ class AiApiService {
         double aiEmotionConfidence = 0.0;
         List<String> keywords = [];
 
+=======
+        // SSE 응답 파싱 (generateText와 동일한 방식)
+        final lines = response.body.split('\n');
+        String accumulatedText = '';
+        String? newSessionId;
+
+>>>>>>> 8e18861252f43c11b0fa277a76679c5886d690dd
         for (final line in lines) {
           final trimmedLine = line.trim();
           if (trimmedLine.startsWith('data:')) {
@@ -437,6 +453,7 @@ class AiApiService {
                     break;
                   case 'content':
                     accumulatedText = data['accumulated'] ?? accumulatedText;
+<<<<<<< HEAD
                     // ✅ AI가 분석한 emotion 정보 추출
                     if (data['emotion'] != null) {
                       aiEmotion = data['emotion'];
@@ -449,6 +466,8 @@ class AiApiService {
                     if (data['keywords'] != null) {
                       keywords = List<String>.from(data['keywords']);
                     }
+=======
+>>>>>>> 8e18861252f43c11b0fa277a76679c5886d690dd
                     break;
                   case 'connected':
                     break;
@@ -463,6 +482,7 @@ class AiApiService {
         if (accumulatedText.isNotEmpty) {
           return AIGenerationResult(
             aiGeneratedText: accumulatedText,
+<<<<<<< HEAD
             aiEmotion: aiEmotion ?? '',
             aiEmotionConfidence: aiEmotionConfidence,
             keywords: keywords,
@@ -470,8 +490,16 @@ class AiApiService {
             sessionId: newSessionId ?? sessionId,
           );
 >>>>>>> Stashed changes
+=======
+            aiEmotion: '', // 재생성 시에는 감정 정보가 없을 수 있음
+            aiEmotionConfidence: 0.8,
+            keywords: [], // 재생성 시에는 키워드 정보가 없을 수 있음
+            tokensUsed: accumulatedText.length,
+            sessionId: newSessionId ?? sessionId,
+          );
+>>>>>>> 8e18861252f43c11b0fa277a76679c5886d690dd
         } else {
-          throw APIError(responseBody['message'] ?? '재생성에 실패했습니다.');
+          throw const APIError('재생성된 텍스트가 비어있습니다.');
         }
       } else {
         String errorMessage = '서버 오류: ${response.statusCode}';
@@ -491,8 +519,11 @@ class AiApiService {
     }
   }
 
+<<<<<<< HEAD
 <<<<<<< Updated upstream
 =======
+=======
+>>>>>>> 8e18861252f43c11b0fa277a76679c5886d690dd
   /// 스트리밍 재생성 (백엔드 API 스펙에 맞춤)
   Future<AIGenerationResult> regenerateStream(String sessionId) async {
     final jwt = await _getJwtToken();
@@ -522,9 +553,12 @@ class AiApiService {
         final lines = response.body.split('\n');
         String accumulatedText = '';
         String? newSessionId;
+<<<<<<< HEAD
         String? aiEmotion;
         double aiEmotionConfidence = 0.0;
         List<String> keywords = [];
+=======
+>>>>>>> 8e18861252f43c11b0fa277a76679c5886d690dd
 
         for (final line in lines) {
           final trimmedLine = line.trim();
@@ -539,6 +573,7 @@ class AiApiService {
                     break;
                   case 'content':
                     accumulatedText = data['accumulated'] ?? accumulatedText;
+<<<<<<< HEAD
                     // ✅ AI가 분석한 emotion 정보 추출
                     if (data['emotion'] != null) {
                       aiEmotion = data['emotion'];
@@ -551,6 +586,8 @@ class AiApiService {
                     if (data['keywords'] != null) {
                       keywords = List<String>.from(data['keywords']);
                     }
+=======
+>>>>>>> 8e18861252f43c11b0fa277a76679c5886d690dd
                     break;
                   case 'connected':
                     break;
@@ -565,9 +602,15 @@ class AiApiService {
         if (accumulatedText.isNotEmpty) {
           return AIGenerationResult(
             aiGeneratedText: accumulatedText,
+<<<<<<< HEAD
             aiEmotion: aiEmotion ?? '',
             aiEmotionConfidence: aiEmotionConfidence,
             keywords: keywords,
+=======
+            aiEmotion: '', // 재생성 시에는 감정 정보가 없을 수 있음
+            aiEmotionConfidence: 0.8,
+            keywords: [], // 재생성 시에는 키워드 정보가 없을 수 있음
+>>>>>>> 8e18861252f43c11b0fa277a76679c5886d690dd
             tokensUsed: accumulatedText.length,
             sessionId: newSessionId ?? sessionId,
           );
@@ -592,7 +635,10 @@ class AiApiService {
     }
   }
 
+<<<<<<< HEAD
 >>>>>>> Stashed changes
+=======
+>>>>>>> 8e18861252f43c11b0fa277a76679c5886d690dd
   /// 사용 로그 전송
   Future<void> sendUsageLog(Map<String, dynamic> body) async {
     try {
@@ -728,7 +774,11 @@ class CreateNotifier extends StateNotifier<CreateState> {
   }
 
   void clearGeneratedText() {
-    state = state.copyWith(clearGeneratedText: true);
+    state = state.copyWith(
+      clearGeneratedText: true,
+      generationHistory: const [],
+      currentHistoryIndex: 0,
+    );
     _saveState();
   }
 
@@ -751,6 +801,12 @@ class CreateNotifier extends StateNotifier<CreateState> {
       );
 
       if (!mounted) return;
+
+      // 첫 번째 생성이면 히스토리에 추가
+      final newHistory = state.generationHistory.isEmpty
+          ? [result.aiGeneratedText]
+          : [...state.generationHistory, result.aiGeneratedText];
+
       state = state.copyWith(
         generatedText: result.aiGeneratedText,
         generatedKeywords: result.keywords,
@@ -761,6 +817,8 @@ class CreateNotifier extends StateNotifier<CreateState> {
         // print('🎭 백엔드 emotion: ${result.aiEmotion}, 사용자 선택: ${state.emotion}');
         isGenerating: false,
         wasJustGenerated: true,
+        generationHistory: newHistory,
+        currentHistoryIndex: newHistory.length - 1,
       );
 
       await _saveState();
@@ -790,9 +848,16 @@ class CreateNotifier extends StateNotifier<CreateState> {
     try {
       print('텍스트 재생성 시작 - 세션 ID: ${state.sessionId}');
 
-      final result = await _aiApiService.regenerateText(state.sessionId!);
+      final result = await _aiApiService.regenerateStream(state.sessionId!);
 
       if (!mounted) return;
+
+      // 재생성 시 히스토리에 추가 (최대 5개)
+      final newHistory = [...state.generationHistory, result.aiGeneratedText];
+      final limitedHistory = newHistory.length > 5
+          ? newHistory.sublist(newHistory.length - 5)
+          : newHistory;
+
       state = state.copyWith(
         generatedText: result.aiGeneratedText,
         generatedKeywords: result.keywords,
@@ -802,6 +867,8 @@ class CreateNotifier extends StateNotifier<CreateState> {
         // print('🎭 백엔드 emotion: ${result.aiEmotion}, 사용자 선택: ${state.emotion}');
         isGenerating: false,
         wasJustGenerated: true,
+        generationHistory: limitedHistory,
+        currentHistoryIndex: limitedHistory.length - 1,
       );
 
       await _saveState();
@@ -837,6 +904,35 @@ class CreateNotifier extends StateNotifier<CreateState> {
     }
   }
 
+  // 히스토리 네비게이션
+  void goToPreviousHistory() {
+    if (!mounted) return;
+    if (state.generationHistory.isNotEmpty && state.currentHistoryIndex > 0) {
+      final newIndex = state.currentHistoryIndex - 1;
+      final historyText = state.generationHistory[newIndex];
+      state = state.copyWith(
+        generatedText: historyText,
+        currentHistoryIndex: newIndex,
+      );
+    }
+  }
+
+  void goToNextHistory() {
+    if (!mounted) return;
+    if (state.generationHistory.isNotEmpty &&
+        state.currentHistoryIndex < state.generationHistory.length - 1) {
+      final newIndex = state.currentHistoryIndex + 1;
+      final historyText = state.generationHistory[newIndex];
+      state = state.copyWith(
+        generatedText: historyText,
+        currentHistoryIndex: newIndex,
+      );
+    }
+  }
+
+  // 재생성 가능 여부 확인
+  bool get canRegenerate => state.generationHistory.length < 5;
+
   void resetToDefaults() {
     if (!mounted) return;
     state = const CreateState(
@@ -848,6 +944,8 @@ class CreateNotifier extends StateNotifier<CreateState> {
       emotion: '',
       isGenerating: false,
       wasJustGenerated: false,
+      generationHistory: [],
+      currentHistoryIndex: 0,
     );
     _saveState();
   }

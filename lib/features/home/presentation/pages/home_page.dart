@@ -2,17 +2,22 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../core/models/diary_model.dart';
 import '../riverpod/create_notifier.dart';
 import '../riverpod/emotions_notifier.dart';
+<<<<<<< HEAD
 <<<<<<< Updated upstream
 =======
 import 'result_card.dart' as result_card;
 import 'viewpage.dart';
 >>>>>>> Stashed changes
+=======
+import 'result_card.dart' as result_card;
+>>>>>>> 8e18861252f43c11b0fa277a76679c5886d690dd
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -120,9 +125,15 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
 
     if (!mounted) return;
-    setState(() {
-      showResults = true;
-    });
+
+    // 생성 성공 확인 및 상태 업데이트
+    final currentState = ref.read(createProvider);
+    if (currentState.generatedText != null &&
+        currentState.generatedText!.isNotEmpty) {
+      setState(() {
+        showResults = true;
+      });
+    }
   }
 
   // 에러 스낵바 표시
@@ -175,6 +186,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               ],
             ),
           ),
+<<<<<<< HEAD
 <<<<<<< Updated upstream
           child: SingleChildScrollView(
             child: Column(
@@ -187,6 +199,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF3F764A),
 =======
+=======
+>>>>>>> 8e18861252f43c11b0fa277a76679c5886d690dd
           child:
               (createState.generatedText != null &&
                       createState.generatedText!.isNotEmpty) ||
@@ -197,6 +211,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       ),
     );
   }
+<<<<<<< HEAD
 
   // CreateState를 GeneratedMessage로 변환
   result_card.GeneratedMessage _convertToGeneratedMessage(
@@ -347,47 +362,213 @@ class _HomePageState extends ConsumerState<HomePage> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),
+=======
+>>>>>>> 8e18861252f43c11b0fa277a76679c5886d690dd
 
-                // 이미지 추가 버튼
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: selectedImages.length < 10
-                            ? _selectImages
-                            : null,
-                        icon: const Icon(Icons.add_photo_alternate),
-                        label: Text('이미지 추가 (${selectedImages.length}/10)'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF3F764A),
-                          side: const BorderSide(color: Color(0xFF3F764A)),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+  // CreateState를 GeneratedMessage로 변환
+  result_card.GeneratedMessage _convertToGeneratedMessage(
+    CreateState createState,
+  ) {
+    // 히스토리가 비어있으면 현재 텍스트로 단일 버전 생성
+    if (createState.generationHistory.isEmpty) {
+      return result_card.GeneratedMessage(
+        id:
+            createState.sessionId ??
+            DateTime.now().millisecondsSinceEpoch.toString(),
+        versions: [
+          result_card.MessageVersion(
+            text: createState.generatedText ?? '',
+            emotion: createState.emotion.isNotEmpty
+                ? createState.emotion
+                : null,
+            length: createState.length.value,
+            style: createState.style.value,
+            images: selectedImages.isNotEmpty ? selectedImages : null,
+            keywords: createState.generatedKeywords,
+          ),
+        ],
+        currentVersionIndex: 0,
+      );
+    }
+
+    // 히스토리에서 모든 버전 생성
+    final versions = createState.generationHistory
+        .map(
+          (text) => result_card.MessageVersion(
+            text: text,
+            emotion: createState.emotion.isNotEmpty
+                ? createState.emotion
+                : null,
+            length: createState.length.value,
+            style: createState.style.value,
+            images: selectedImages.isNotEmpty ? selectedImages : null,
+            keywords: createState.generatedKeywords,
+          ),
+        )
+        .toList();
+
+    return result_card.GeneratedMessage(
+      id:
+          createState.sessionId ??
+          DateTime.now().millisecondsSinceEpoch.toString(),
+      versions: versions,
+      currentVersionIndex: createState.currentHistoryIndex,
+    );
+  }
+
+  // 감정 설정 가져오기
+  result_card.EmotionConfig? _getEmotionConfig(String emotion) {
+    // emotionConfigs에서 해당 감정 찾기
+    final config = emotionConfigs.firstWhere(
+      (config) => config.value == emotion,
+      orElse: () => emotionConfigs.first,
+    );
+    return result_card.EmotionConfig(
+      emoji: config.emoji,
+      label: config.label,
+      backgroundColor: const Color(0xFFE8F5E8),
+      textColor: const Color(0xFF22543D),
+    );
+  }
+
+  // 입력 화면
+  Widget _buildInputView(CreateState createState, EmotionState emotionState) {
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            '어떤 글을 만들어 드릴까요?',
+            style: TextStyle(
+              fontSize: 25,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF3F764A),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            '키워드나 짧은 글을 입력하면 ai가 글을 생성해 드립니다',
+            style: TextStyle(fontSize: 13, color: Colors.grey),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+
+          // 이미지 추가 버튼
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: selectedImages.length < 10 ? _selectImages : null,
+                  icon: const Icon(Icons.add_photo_alternate),
+                  label: Text('이미지 추가 (${selectedImages.length}/10)'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF3F764A),
+                    side: const BorderSide(color: Color(0xFF3F764A)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+              if (selectedImages.isNotEmpty) ...[
+                const SizedBox(width: 12),
+                IconButton(
+                  onPressed: () {
+                    setState(() {
+                      selectedImages.clear();
+                    });
+                  },
+                  icon: const Icon(Icons.clear_all),
+                  tooltip: '모든 이미지 제거',
+                  style: IconButton.styleFrom(foregroundColor: Colors.red),
+                ),
+              ],
+            ],
+          ),
+
+          // 이미지 미리보기
+          if (selectedImages.isNotEmpty) _buildImagePreview(),
+
+          const SizedBox(height: 16),
+          TextField(
+            controller: _promptController,
+            maxLines: 6,
+            decoration: InputDecoration(
+              hintText: '예 : 바람, 초록빛 오후, 천천히 걷는 길',
+              hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 20,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(18),
+                borderSide: BorderSide(color: Colors.grey),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(18),
+                borderSide: BorderSide(color: Colors.grey),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(18),
+                borderSide: BorderSide(color: Color(0xFF3F764A)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          _buildOptionsSection(createState, emotionState),
+          const SizedBox(height: 32),
+          ElevatedButton(
+            onPressed: createState.isGenerating ? null : _generateText,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF3F764A),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              elevation: 4,
+            ),
+            child: createState.isGenerating
+                ? const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
                           ),
                         ),
                       ),
-                    ),
-                    if (selectedImages.isNotEmpty) ...[
-                      const SizedBox(width: 12),
-                      IconButton(
-                        onPressed: () {
-                          setState(() {
-                            selectedImages.clear();
-                          });
-                        },
-                        icon: const Icon(Icons.clear_all),
-                        tooltip: '모든 이미지 제거',
-                        style: IconButton.styleFrom(
-                          foregroundColor: Colors.red,
-                        ),
-                      ),
+                      SizedBox(width: 12),
+                      Text('생성 중...', style: TextStyle(fontSize: 16)),
                     ],
-                  ],
-                ),
+                  )
+                : const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.auto_awesome),
+                      SizedBox(width: 8),
+                      Text('글 생성하기', style: TextStyle(fontSize: 16)),
+                    ],
+                  ),
+          ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
 
-                // 이미지 미리보기
-                if (selectedImages.isNotEmpty) _buildImagePreview(),
+  // 결과 화면
+  Widget _buildResultView(CreateState createState) {
+    final generatedMessage = _convertToGeneratedMessage(createState);
 
+<<<<<<< HEAD
                 const SizedBox(height: 16),
                 TextField(
                   controller: _promptController,
@@ -507,6 +688,8 @@ class _HomePageState extends ConsumerState<HomePage> {
   Widget _buildResultView(CreateState createState) {
     final generatedMessage = _convertToGeneratedMessage(createState);
 
+=======
+>>>>>>> 8e18861252f43c11b0fa277a76679c5886d690dd
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -530,6 +713,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               // 클립보드 복사 로직
               _copyToClipboard(content);
             },
+<<<<<<< HEAD
             onMoveToDiary: (content, emotion, keywords) async {
               final now = DateTime.now();
               final diary = DiaryEntry(
@@ -567,6 +751,11 @@ class _HomePageState extends ConsumerState<HomePage> {
                   ),
                 );
               }
+=======
+            onMoveToDiary: (content, emotion, keywords) {
+              // 다이어리로 이동 로직
+              _showSuccessSnackBar('다이어리로 이동합니다!');
+>>>>>>> 8e18861252f43c11b0fa277a76679c5886d690dd
             },
             onRegenerate: (message) {
               // 재생성 로직 (5번 제한 확인)
@@ -611,11 +800,14 @@ class _HomePageState extends ConsumerState<HomePage> {
                 Icon(Icons.add),
                 SizedBox(width: 8),
                 Text('새로운 글 생성하기', style: TextStyle(fontSize: 16)),
+<<<<<<< HEAD
 >>>>>>> Stashed changes
+=======
+>>>>>>> 8e18861252f43c11b0fa277a76679c5886d690dd
               ],
             ),
           ),
-        ),
+        ],
       ),
     )
   }
@@ -639,18 +831,31 @@ class _HomePageState extends ConsumerState<HomePage> {
   // 메타 정보 표시
   Widget _buildMetaInfo(CreateState createState) {
     return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              '생성 정보',
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+            Row(
+              children: [
+                const Icon(
+                  Icons.info_outline,
+                  color: Color(0xFF3F764A),
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '생성 정보',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF3F764A),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 16),
             _buildInfoRow(
               '문체',
               createState.getStyleDisplayName(createState.style),
@@ -666,6 +871,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                 '키워드',
                 createState.generatedKeywords!.take(5).join(', '),
               ),
+            if (createState.sessionId != null &&
+                createState.sessionId!.isNotEmpty)
+              _buildInfoRow('세션 ID', createState.sessionId!),
           ],
         ),
       ),
@@ -674,22 +882,27 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   Widget _buildInfoRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 60,
+            width: 80,
             child: Text(
               '$label:',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Colors.grey[600],
-                fontWeight: FontWeight.w500,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: const Color(0xFF3F764A),
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
           Expanded(
-            child: Text(value, style: Theme.of(context).textTheme.bodySmall),
+            child: Text(
+              value,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: Colors.grey[700]),
+            ),
           ),
         ],
       ),
@@ -1044,12 +1257,12 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   // 클립보드 복사
-  void _copyToClipboard() async {
-    final createState = ref.read(createProvider);
-    if (createState.generatedText != null) {
-      // Clipboard.setData 사용 (flutter/services.dart import 필요)
-      // await Clipboard.setData(ClipboardData(text: createState.generatedText!));
+  void _copyToClipboard(String text) async {
+    try {
+      await Clipboard.setData(ClipboardData(text: text));
       _showSuccessSnackBar('텍스트가 복사되었습니다!');
+    } catch (e) {
+      _showErrorSnackBar('복사 중 오류가 발생했습니다.');
     }
   }
 

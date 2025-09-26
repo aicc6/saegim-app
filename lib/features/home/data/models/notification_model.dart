@@ -1,7 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'notification_model.freezed.dart';
-part 'notification_model.g.dart';
 
 /// 알림 API 응답 구조
 @freezed
@@ -13,14 +12,20 @@ sealed class NotificationApiResponse with _$NotificationApiResponse {
     String? error,
   }) = _NotificationApiResponse;
 
-  factory NotificationApiResponse.fromJson(Map<String, dynamic> json) =>
-      _$NotificationApiResponseFromJson(json);
+  factory NotificationApiResponse.fromJson(Map<String, dynamic> json) {
+    return NotificationApiResponse(
+      success: json['success'] as bool,
+      message: json['message'] as String,
+      data: json['data'] != null ? NotificationHistoryResponse.fromJson(json['data'] as Map<String, dynamic>) : null,
+      error: json['error'] as String?,
+    );
+  }
 }
 
 /// 알림 항목 모델
 @freezed
 sealed class NotificationItem with _$NotificationItem {
-  const factory NotificationItem({
+  factory NotificationItem({
     required String id, // 서버에서 UUID 문자열로 옴
     required String title,
     required String message, // 서버의 'body' → 'message'
@@ -31,17 +36,37 @@ sealed class NotificationItem with _$NotificationItem {
     Map<String, dynamic>? metadata, // 서버의 'fcm_response' → 'metadata'
   }) = _NotificationItem;
 
-  factory NotificationItem.fromJson(Map<String, dynamic> json) =>
-      NotificationItem(
-        id: json['id'] as String,
-        title: json['title'] as String,
-        message: json['body'] as String,
-        isRead: json['is_read'] as bool? ?? false,
-        type: json['notification_type'] as String,
-        createdAt: DateTime.parse(json['created_at'] as String),
-        readAt: json['read_at'] != null ? DateTime.parse(json['read_at'] as String) : null,
-        metadata: json['fcm_response'] as Map<String, dynamic>?,
-      );
+  factory NotificationItem.fromJson(Map<String, dynamic> json) {
+    // status 필드를 사용하여 읽음 상태 판단
+    bool isReadValue = false;
+
+    // 우선 is_read 필드가 있는지 확인
+    if (json.containsKey('is_read')) {
+      final isReadRaw = json['is_read'];
+      if (isReadRaw is bool) {
+        isReadValue = isReadRaw;
+      } else if (isReadRaw is String) {
+        isReadValue = isReadRaw.toLowerCase() == 'true' || isReadRaw == '1';
+      } else if (isReadRaw is int) {
+        isReadValue = isReadRaw == 1;
+      }
+    } else if (json.containsKey('status')) {
+      // status 필드로 읽음 상태 판단
+      final status = json['status'] as String?;
+      isReadValue = status?.toLowerCase() == 'opened';
+    }
+
+    return NotificationItem(
+      id: json['id'] as String,
+      title: json['title'] as String,
+      message: json['body'] as String,
+      isRead: isReadValue,
+      type: json['notification_type'] as String,
+      createdAt: DateTime.parse(json['created_at'] as String),
+      readAt: json['read_at'] != null ? DateTime.parse(json['read_at'] as String) : null,
+      metadata: json['fcm_response'] as Map<String, dynamic>?,
+    );
+  }
 }
 
 /// 알림 히스토리 응답 모델
@@ -54,8 +79,16 @@ sealed class NotificationHistoryResponse with _$NotificationHistoryResponse {
     @Default(false) bool hasMore,
   }) = _NotificationHistoryResponse;
 
-  factory NotificationHistoryResponse.fromJson(Map<String, dynamic> json) =>
-      _$NotificationHistoryResponseFromJson(json);
+  factory NotificationHistoryResponse.fromJson(Map<String, dynamic> json) {
+    return NotificationHistoryResponse(
+      notifications: (json['notifications'] as List)
+          .map((item) => NotificationItem.fromJson(item as Map<String, dynamic>))
+          .toList(),
+      total: json['total'] as int,
+      unreadCount: json['unread_count'] as int,
+      hasMore: json['has_more'] as bool? ?? false,
+    );
+  }
 }
 
 /// 알림 요청 매개변수
@@ -66,8 +99,12 @@ sealed class NotificationParams with _$NotificationParams {
     @Default(0) int offset,
   }) = _NotificationParams;
 
-  factory NotificationParams.fromJson(Map<String, dynamic> json) =>
-      _$NotificationParamsFromJson(json);
+  factory NotificationParams.fromJson(Map<String, dynamic> json) {
+    return NotificationParams(
+      limit: json['limit'] as int? ?? 20,
+      offset: json['offset'] as int? ?? 0,
+    );
+  }
 }
 
 /// 알림 타입 열거형
