@@ -275,6 +275,9 @@ class AiApiService {
         final lines = response.body.split('\n');
         String accumulatedText = '';
         String? sessionId;
+        String? aiEmotion;
+        double aiEmotionConfidence = 0.0;
+        List<String> keywords = [];
 
         for (final line in lines) {
           final trimmedLine = line.trim();
@@ -294,6 +297,18 @@ class AiApiService {
                     break;
                   case 'content':
                     accumulatedText = data['accumulated'] ?? accumulatedText;
+                    // ✅ AI가 분석한 emotion 정보 추출
+                    if (data['emotion'] != null) {
+                      aiEmotion = data['emotion'];
+                      print('🎭 백엔드에서 분석한 emotion: $aiEmotion');
+                    }
+                    if (data['emotion_confidence'] != null) {
+                      aiEmotionConfidence = (data['emotion_confidence'] as num)
+                          .toDouble();
+                    }
+                    if (data['keywords'] != null) {
+                      keywords = List<String>.from(data['keywords']);
+                    }
                     break;
                   case 'connected':
                     // 연결 확인, 아무것도 하지 않음
@@ -311,9 +326,9 @@ class AiApiService {
         if (accumulatedText.isNotEmpty) {
           return AIGenerationResult(
             aiGeneratedText: accumulatedText,
-            aiEmotion: emotion ?? '',
-            aiEmotionConfidence: 0.8, // 기본값
-            keywords: [], // 기본값
+            aiEmotion: aiEmotion ?? emotion ?? '',
+            aiEmotionConfidence: aiEmotionConfidence,
+            keywords: keywords,
             tokensUsed: accumulatedText.length, // 추정값
             sessionId: sessionId ?? '',
           );
@@ -395,10 +410,66 @@ class AiApiService {
       print('재생성 응답 바디: ${response.body}');
 
       if (response.statusCode == 200) {
+<<<<<<< Updated upstream
         final Map<String, dynamic> responseBody = jsonDecode(response.body);
 
         if (responseBody['success'] == true && responseBody['data'] != null) {
           return AIGenerationResult.fromJson(responseBody['data']);
+=======
+        // SSE 응답 파싱 (generateText와 동일한 방식)
+        final lines = response.body.split('\n');
+        String accumulatedText = '';
+        String? newSessionId;
+        String? aiEmotion;
+        double aiEmotionConfidence = 0.0;
+        List<String> keywords = [];
+
+        for (final line in lines) {
+          final trimmedLine = line.trim();
+          if (trimmedLine.startsWith('data:')) {
+            try {
+              final jsonStr = trimmedLine.substring(5).trim();
+              if (jsonStr.isNotEmpty) {
+                final Map<String, dynamic> data = jsonDecode(jsonStr);
+                switch (data['type']) {
+                  case 'start':
+                    newSessionId = data['session_id'];
+                    break;
+                  case 'content':
+                    accumulatedText = data['accumulated'] ?? accumulatedText;
+                    // ✅ AI가 분석한 emotion 정보 추출
+                    if (data['emotion'] != null) {
+                      aiEmotion = data['emotion'];
+                      print('🎭 백엔드에서 분석한 emotion: $aiEmotion');
+                    }
+                    if (data['emotion_confidence'] != null) {
+                      aiEmotionConfidence = (data['emotion_confidence'] as num)
+                          .toDouble();
+                    }
+                    if (data['keywords'] != null) {
+                      keywords = List<String>.from(data['keywords']);
+                    }
+                    break;
+                  case 'connected':
+                    break;
+                }
+              }
+            } catch (e) {
+              print('SSE 파싱 오류: $e');
+            }
+          }
+        }
+
+        if (accumulatedText.isNotEmpty) {
+          return AIGenerationResult(
+            aiGeneratedText: accumulatedText,
+            aiEmotion: aiEmotion ?? '',
+            aiEmotionConfidence: aiEmotionConfidence,
+            keywords: keywords,
+            tokensUsed: accumulatedText.length,
+            sessionId: newSessionId ?? sessionId,
+          );
+>>>>>>> Stashed changes
         } else {
           throw APIError(responseBody['message'] ?? '재생성에 실패했습니다.');
         }
@@ -420,6 +491,108 @@ class AiApiService {
     }
   }
 
+<<<<<<< Updated upstream
+=======
+  /// 스트리밍 재생성 (백엔드 API 스펙에 맞춤)
+  Future<AIGenerationResult> regenerateStream(String sessionId) async {
+    final jwt = await _getJwtToken();
+    if (jwt == null || jwt.isEmpty) {
+      throw const APIError('인증 토큰이 없습니다. 다시 로그인해주세요.');
+    }
+
+    final uri = Uri.parse('$baseUrl/api/ai/regenerate/$sessionId/stream');
+
+    print('스트리밍 재생성 API 요청 URL: $uri');
+
+    try {
+      final response = await http.post(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $jwt',
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
+        },
+      );
+
+      print('스트리밍 재생성 응답 상태 코드: ${response.statusCode}');
+      print('스트리밍 재생성 응답 바디: ${response.body}');
+
+      if (response.statusCode == 200) {
+        // SSE 응답 파싱
+        final lines = response.body.split('\n');
+        String accumulatedText = '';
+        String? newSessionId;
+        String? aiEmotion;
+        double aiEmotionConfidence = 0.0;
+        List<String> keywords = [];
+
+        for (final line in lines) {
+          final trimmedLine = line.trim();
+          if (trimmedLine.startsWith('data:')) {
+            try {
+              final jsonStr = trimmedLine.substring(5).trim();
+              if (jsonStr.isNotEmpty) {
+                final Map<String, dynamic> data = jsonDecode(jsonStr);
+                switch (data['type']) {
+                  case 'start':
+                    newSessionId = data['session_id'];
+                    break;
+                  case 'content':
+                    accumulatedText = data['accumulated'] ?? accumulatedText;
+                    // ✅ AI가 분석한 emotion 정보 추출
+                    if (data['emotion'] != null) {
+                      aiEmotion = data['emotion'];
+                      print('🎭 백엔드에서 분석한 emotion: $aiEmotion');
+                    }
+                    if (data['emotion_confidence'] != null) {
+                      aiEmotionConfidence = (data['emotion_confidence'] as num)
+                          .toDouble();
+                    }
+                    if (data['keywords'] != null) {
+                      keywords = List<String>.from(data['keywords']);
+                    }
+                    break;
+                  case 'connected':
+                    break;
+                }
+              }
+            } catch (e) {
+              print('SSE 파싱 오류: $e');
+            }
+          }
+        }
+
+        if (accumulatedText.isNotEmpty) {
+          return AIGenerationResult(
+            aiGeneratedText: accumulatedText,
+            aiEmotion: aiEmotion ?? '',
+            aiEmotionConfidence: aiEmotionConfidence,
+            keywords: keywords,
+            tokensUsed: accumulatedText.length,
+            sessionId: newSessionId ?? sessionId,
+          );
+        } else {
+          throw const APIError('재생성된 텍스트가 비어있습니다.');
+        }
+      } else {
+        String errorMessage = '서버 오류: ${response.statusCode}';
+        try {
+          final errorBody = jsonDecode(response.body);
+          errorMessage = errorBody['message'] ?? errorMessage;
+        } catch (e) {
+          errorMessage =
+              '$errorMessage - ${response.reasonPhrase ?? 'Unknown error'}';
+        }
+        throw APIError(errorMessage);
+      }
+    } catch (e) {
+      print('스트리밍 재생성 API 호출 오류: $e');
+      if (e is APIError) rethrow;
+      throw APIError('스트리밍 재생성 중 네트워크 오류: ${e.toString()}');
+    }
+  }
+
+>>>>>>> Stashed changes
   /// 사용 로그 전송
   Future<void> sendUsageLog(Map<String, dynamic> body) async {
     try {
@@ -583,6 +756,9 @@ class CreateNotifier extends StateNotifier<CreateState> {
         generatedKeywords: result.keywords,
         sessionId: result.sessionId,
         originalPrompt: state.prompt,
+        emotion: result.aiEmotion.isNotEmpty ? result.aiEmotion : state.emotion,
+        // 🎭 디버깅: 백엔드에서 emotion을 받지 못함
+        // print('🎭 백엔드 emotion: ${result.aiEmotion}, 사용자 선택: ${state.emotion}');
         isGenerating: false,
         wasJustGenerated: true,
       );
@@ -621,6 +797,9 @@ class CreateNotifier extends StateNotifier<CreateState> {
         generatedText: result.aiGeneratedText,
         generatedKeywords: result.keywords,
         sessionId: result.sessionId, // 새로운 세션 ID일 수 있음
+        emotion: result.aiEmotion.isNotEmpty ? result.aiEmotion : state.emotion,
+        // 🎭 디버깅: 백엔드에서 emotion을 받지 못함
+        // print('🎭 백엔드 emotion: ${result.aiEmotion}, 사용자 선택: ${state.emotion}');
         isGenerating: false,
         wasJustGenerated: true,
       );
