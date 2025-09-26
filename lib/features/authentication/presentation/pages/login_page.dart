@@ -26,50 +26,53 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   /// 인증 상태 변화 처리
-  void _handleAuthStateChange(BuildContext context, AuthState? previous, AuthState next) {
-    // 로그인 성공 시 홈페이지로 이동
-    if (next.navigationState == NavigationState.navigatingToHome && next.isAuthenticated) {
+  void _handleAuthStateChange(
+    BuildContext context,
+    AuthState? previous,
+    AuthState next,
+  ) {
+    final wasAuthenticated = previous?.isAuthenticated ?? false;
+    final hasNewAuthSuccess = next.isAuthenticated && !wasAuthenticated;
+
+    if (hasNewAuthSuccess) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          context.go(RoutePaths.home);
-          // 네비게이션 상태 리셋
-          ref.read(authNotifierProvider.notifier).clearNavigation();
-        }
+        if (!mounted) return;
+        context.go(RoutePaths.home);
       });
       return;
     }
 
-    // 계정 복구 페이지로 이동
-    if (next.navigationState == NavigationState.navigatingToRestore &&
-        next.errorMessage != null &&
-        next.errorMessage!.startsWith('ACCOUNT_DELETED_REDIRECT:')) {
-      final email = next.errorMessage!.split(':')[1];
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          context.push(
-            '${RoutePaths.authRestoreAccount}?email=${Uri.encodeComponent(email)}',
-          );
-          // 네비게이션 상태 리셋
-          ref.read(authNotifierProvider.notifier).clearNavigation();
-        }
-      });
-      return;
-    }
+    final nextError = next.errorMessage;
+    final previousError = previous?.errorMessage;
 
-    // 일반 에러 메시지 표시 (새로운 에러만)
-    if (next.errorMessage != null &&
-        !next.errorMessage!.startsWith('ACCOUNT_DELETED_REDIRECT:') &&
-        next.navigationState == NavigationState.none &&
-        next.errorTimestamp != null &&
-        (previous == null || previous.errorTimestamp != next.errorTimestamp)) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(next.errorMessage!),
-            backgroundColor: Colors.red,
-          ),
+    // 탈퇴 계정: 복구 페이지로 이동
+    if (nextError != null &&
+        nextError.startsWith('ACCOUNT_DELETED_REDIRECT:') &&
+        nextError != previousError) {
+      final parts = nextError.split(':');
+      final email = parts.length > 1 ? parts[1] : '';
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.push(
+          '${RoutePaths.authRestoreAccount}?email=${Uri.encodeComponent(email)}',
         );
-      }
+        ref.read(authNotifierProvider.notifier).clearError();
+      });
+      return;
+    }
+
+    // 일반 에러 알림
+    if (nextError != null &&
+        !nextError.startsWith('ACCOUNT_DELETED_REDIRECT:') &&
+        nextError != previousError) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(nextError),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
