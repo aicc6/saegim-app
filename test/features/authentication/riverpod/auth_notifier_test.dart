@@ -97,7 +97,10 @@ void main() {
     test('계정 복구 기능 확인', () async {
       final authNotifier = container.read(authNotifierProvider.notifier);
 
-      final result = await authNotifier.restoreAccount('test@example.com');
+      final result = await authNotifier.restoreAccount(
+        email: 'test@example.com',
+        code: '123456',
+      );
 
       expect(result, true);
 
