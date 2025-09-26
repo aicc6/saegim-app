@@ -116,8 +116,11 @@ class _RestoreAccountPageState extends ConsumerState<RestoreAccountPage> {
 
         // 인증 상태 다시 확인 후 적절한 페이지로 이동
         await ref.read(authNotifierProvider.notifier).checkAuthStatus();
+        if (!mounted) {
+          return;
+        }
         final authState = ref.read(authNotifierProvider);
-        
+
         if (authState.isAuthenticated) {
           context.go(RoutePaths.home);
         } else {
@@ -143,7 +146,8 @@ class _RestoreAccountPageState extends ConsumerState<RestoreAccountPage> {
   Widget build(BuildContext context) {
     // 인증 상태 변화 감지 및 네비게이션 처리
     ref.listen(authNotifierProvider, (previous, next) {
-      if (next.isAuthenticated && !previous!.isAuthenticated) {
+      final wasAuthenticated = previous?.isAuthenticated ?? false;
+      if (!wasAuthenticated && next.isAuthenticated) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             context.go(RoutePaths.home);

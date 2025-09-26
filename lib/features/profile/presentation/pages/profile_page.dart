@@ -6,6 +6,7 @@ import 'package:saegim/app/routes/route_paths.dart';
 import 'package:saegim/features/authentication/presentation/riverpod/auth_notifier.dart';
 import 'package:saegim/features/profile/presentation/providers/profile_notifier.dart';
 import 'package:saegim/shared/widgets/common_app_bar.dart';
+import 'package:saegim/shared/utils/app_logger.dart';
 
 class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
@@ -954,18 +955,23 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             }
 
                             Navigator.of(context).pop();
-                            
+
                             try {
-                              print('🔄 계정 탈퇴 API 호출 시작');
+                              AppLogger.debug(
+                                '계정 탈퇴 API 호출 시작',
+                                'ProfilePage',
+                              );
                               final success = await ref
                                   .read(profileNotifierProvider.notifier)
                                   .withdrawAccount(password: password);
 
-                              print('✅ 계정 탈퇴 API 결과: $success');
+                              AppLogger.debug(
+                                '계정 탈퇴 API 결과: $success',
+                                'ProfilePage',
+                              );
 
                               if (success) {
                                 if (context.mounted) {
-                                  print('📝 성공 메시지 표시');
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
                                       content: Text('계정 탈퇴가 완료되었습니다.'),
@@ -975,24 +981,44 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                     ),
                                   );
                                 }
-                                
+
                                 // context 상태에 관계없이 로그아웃 처리
-                                print('🔐 로그아웃 시작 (context mounted: ${context.mounted})');
-                                await ref.read(authNotifierProvider.notifier).logout();
-                                print('🔐 로그아웃 완료');
-                                
+                                AppLogger.debug(
+                                  '로그아웃 시작 (context mounted: ${context.mounted})',
+                                  'ProfilePage',
+                                );
+                                await ref
+                                    .read(authNotifierProvider.notifier)
+                                    .logout();
+                                AppLogger.debug(
+                                  '로그아웃 완료',
+                                  'ProfilePage',
+                                );
+
                                 // 저장된 GoRouter 참조를 사용한 안전한 페이지 이동
-                                print('🚀 저장된 GoRouter를 사용한 페이지 이동');
+                                AppLogger.debug(
+                                  '저장된 GoRouter를 사용한 페이지 이동',
+                                  'ProfilePage',
+                                );
                                 try {
                                   _router.go(RoutePaths.authLogin);
-                                  print('✅ GoRouter 페이지 이동 명령 완료');
+                                  AppLogger.debug(
+                                    'GoRouter 페이지 이동 명령 완료',
+                                    'ProfilePage',
+                                  );
                                 } catch (e) {
-                                  print('❌ GoRouter 페이지 이동 실패: $e');
+                                  AppLogger.error(
+                                    'GoRouter 페이지 이동 실패',
+                                    tag: 'ProfilePage',
+                                    error: e,
+                                  );
                                   // 마지막 수단으로 앱 종료 후 재시작 유도
-                                  print('🔄 앱 재시작을 위해 종료 시도');
+                                  AppLogger.warning(
+                                    '앱 재시작을 위해 종료 시도',
+                                    'ProfilePage',
+                                  );
                                 }
                               } else if (!success && context.mounted) {
-                                print('❌ 계정 탈퇴 실패');
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: const Text('계정 탈퇴에 실패했습니다. 다시 시도해주세요.'),
@@ -1001,11 +1027,18 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                   ),
                                 );
                               } else if (!context.mounted) {
-                                print('❌ context가 unmounted 상태 (success: $success)');
+                                AppLogger.warning(
+                                  'context가 unmounted 상태 (success: $success)',
+                                  'ProfilePage',
+                                );
                               }
                             } catch (e, stackTrace) {
-                              print('❌ 예외 발생: $e');
-                              print('📚 스택트레이스: $stackTrace');
+                              AppLogger.error(
+                                '계정 탈퇴 처리 중 예외 발생',
+                                tag: 'ProfilePage',
+                                error: e,
+                                stackTrace: stackTrace,
+                              );
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
@@ -1126,7 +1159,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   await ref.read(authNotifierProvider.notifier).logout();
                   _router.go(RoutePaths.authLogin);
                 } catch (e) {
-                  print('로그아웃 에러: $e');
+                  AppLogger.error(
+                    '로그아웃 에러',
+                    tag: 'ProfilePage',
+                    error: e,
+                  );
                   // 에러 발생시에도 로그인 페이지로 이동
                   _router.go(RoutePaths.authLogin);
                 }

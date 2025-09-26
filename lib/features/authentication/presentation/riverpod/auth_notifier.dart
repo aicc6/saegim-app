@@ -268,35 +268,55 @@ class AuthNotifier extends _$AuthNotifier {
 
       // DioException에서 응답 데이터 추출
       try {
-        print('🔍 [AuthNotifier] Exception type: ${e.runtimeType}');
-        print('🔍 [AuthNotifier] Exception details: $e');
+        AppLogger.debug(
+          'Exception type: ${e.runtimeType}',
+          'AuthNotifier',
+        );
+        AppLogger.debug(
+          'Exception details: $e',
+          'AuthNotifier',
+        );
 
         // DioException인 경우 response 데이터 확인
         final dynamic exception = e;
         if (exception.runtimeType.toString().contains('DioException')) {
           final response = (exception as dynamic).response;
-          print('🔍 [AuthNotifier] Response status: ${response?.statusCode}');
-          print('🔍 [AuthNotifier] Response data: ${response?.data}');
+          AppLogger.debug(
+            'Response status: ${response?.statusCode}',
+            'AuthNotifier',
+          );
+          AppLogger.debug(
+            'Response data: ${response?.data}',
+            'AuthNotifier',
+          );
 
           if (response?.data != null) {
             final responseData = response.data;
             final detail = responseData['detail'];
-            print('🔍 [AuthNotifier] Detail from response: $detail');
+            AppLogger.debug(
+              'Detail from response: $detail',
+              'AuthNotifier',
+            );
 
             if (detail != null && detail['error'] == 'ACCOUNT_DELETED') {
               // 탈퇴된 계정인 경우 - 계정 복구 페이지로 리다이렉트 필요
               AppLogger.info('탈퇴된 계정 로그인 시도: $email', 'AuthNotifier');
-              print(
-                '🔍 [AuthNotifier] ACCOUNT_DELETED detected for email: $email',
+              AppLogger.debug(
+                'ACCOUNT_DELETED detected for email: $email',
+                'AuthNotifier',
               );
               final redirectMessage = 'ACCOUNT_DELETED_REDIRECT:$email';
-              print('🔍 [AuthNotifier] Setting errorMessage: $redirectMessage');
+              AppLogger.debug(
+                'Setting errorMessage: $redirectMessage',
+                'AuthNotifier',
+              );
               state = state.copyWith(
                 isLoading: false,
                 errorMessage: redirectMessage,
               );
-              print(
-                '🔍 [AuthNotifier] State updated with errorMessage: ${state.errorMessage}',
+              AppLogger.debug(
+                'State updated with errorMessage: ${state.errorMessage}',
+                'AuthNotifier',
               );
               return false;
             }
