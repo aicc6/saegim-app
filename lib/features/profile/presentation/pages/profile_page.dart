@@ -6,8 +6,8 @@ import 'package:saegim/app/routes/route_paths.dart';
 import 'package:saegim/core/services/auth_storage_service.dart';
 import 'package:saegim/features/authentication/presentation/riverpod/auth_notifier.dart';
 import 'package:saegim/features/profile/presentation/providers/profile_notifier.dart';
-import 'package:saegim/shared/widgets/common_app_bar.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
+import 'package:saegim/shared/widgets/common_app_bar.dart';
 
 class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
@@ -269,7 +269,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       ),
                     ],
                   ),
-                  if (state.nicknameCheckMessage != null && 
+                  if (state.nicknameCheckMessage != null &&
                       state.nicknameCheckMessage!.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
@@ -531,7 +531,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 '계정 보안을 위해 주기적으로 변경해주세요.',
                 style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
               ),
-              trailing: const Icon(Icons.chevron_right, color: Color(0xFF6B7280)),
+              trailing: const Icon(
+                Icons.chevron_right,
+                color: Color(0xFF6B7280),
+              ),
               onTap: () => context.push('/settings/change-password'),
               contentPadding: EdgeInsets.zero,
             ),
@@ -867,23 +870,29 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   const SizedBox(height: 10),
 
                   // Title - reduced font size
-                  const Text(
+                  Text(
                     '계정 탈퇴',
-                    style: TextStyle(
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF2E3A59),
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
 
                   const SizedBox(height: 6),
 
                   // Description - shortened and reduced font size
-                  const Text(
+                  Text(
                     '탈퇴 후 모든 데이터가 30일 후 영구 삭제됩니다.',
                     style: TextStyle(
                       fontSize: 12,
-                      color: Color(0xFF6B7280),
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withOpacity(0.7),
                       height: 1.2,
                     ),
                     textAlign: TextAlign.center,
@@ -962,7 +971,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 8),
                             side: const BorderSide(color: Color(0xFFD1D5DB)),
-                            foregroundColor: const Color(0xFF6B7280),
+                            foregroundColor:
+                                Theme.of(context).brightness == Brightness.dark
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface.withOpacity(0.7),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(6),
                             ),
@@ -991,10 +1005,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             Navigator.of(context).pop();
 
                             try {
-                              AppLogger.debug(
-                                '계정 탈퇴 API 호출 시작',
-                                'ProfilePage',
-                              );
+                              AppLogger.debug('계정 탈퇴 API 호출 시작', 'ProfilePage');
                               final success = await ref
                                   .read(profileNotifierProvider.notifier)
                                   .withdrawAccount(password: password);
@@ -1024,10 +1035,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                 await ref
                                     .read(authNotifierProvider.notifier)
                                     .logout();
-                                AppLogger.debug(
-                                  '로그아웃 완료',
-                                  'ProfilePage',
-                                );
+                                AppLogger.debug('로그아웃 완료', 'ProfilePage');
 
                                 // 저장된 GoRouter 참조를 사용한 안전한 페이지 이동
                                 AppLogger.debug(
@@ -1055,7 +1063,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                               } else if (!success && context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: const Text('계정 탈퇴에 실패했습니다. 다시 시도해주세요.'),
+                                    content: const Text(
+                                      '계정 탈퇴에 실패했습니다. 다시 시도해주세요.',
+                                    ),
                                     backgroundColor: Colors.red[600],
                                     behavior: SnackBarBehavior.floating,
                                   ),
@@ -1076,7 +1086,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: const Text('오류가 발생했습니다. 다시 시도해주세요.'),
+                                    content: const Text(
+                                      '오류가 발생했습니다. 다시 시도해주세요.',
+                                    ),
                                     backgroundColor: Colors.red[600],
                                     behavior: SnackBarBehavior.floating,
                                   ),
@@ -1121,7 +1133,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             ),
           ),
           const SizedBox(height: 16),
-          
+
           SizedBox(
             width: double.infinity,
             child: OutlinedButton(
@@ -1141,10 +1153,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   SizedBox(width: 8),
                   Text(
                     '로그아웃',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
@@ -1160,19 +1169,23 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text(
+          title: Text(
             '로그아웃',
-            style: TextStyle(
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF2E3A59),
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.onSurface,
             ),
           ),
-          content: const Text(
+          content: Text(
             '정말 로그아웃하시겠습니까?',
             style: TextStyle(
               fontSize: 14,
-              color: Color(0xFF6B7280),
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
             ),
           ),
           shape: RoundedRectangleBorder(
@@ -1181,9 +1194,15 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text(
+              child: Text(
                 '취소',
-                style: TextStyle(color: Color(0xFF6B7280)),
+                style: TextStyle(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withOpacity(0.7),
+                ),
               ),
             ),
             FilledButton(
@@ -1193,11 +1212,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   await ref.read(authNotifierProvider.notifier).logout();
                   _router.go(RoutePaths.authLogin);
                 } catch (e) {
-                  AppLogger.error(
-                    '로그아웃 에러',
-                    tag: 'ProfilePage',
-                    error: e,
-                  );
+                  AppLogger.error('로그아웃 에러', tag: 'ProfilePage', error: e);
                   // 에러 발생시에도 로그인 페이지로 이동
                   _router.go(RoutePaths.authLogin);
                 }
