@@ -1,23 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:saegim/app/routes/app_router.dart';
+import 'package:saegim/core/providers/theme_provider.dart';
+import 'package:saegim/core/theme/app_theme.dart';
 
-class SaeGimApp extends StatelessWidget {
+class SaeGimApp extends ConsumerWidget {
   const SaeGimApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeProvider);
+
     return MaterialApp.router(
       title: '새김',
       debugShowCheckedModeBanner: false,
       routerConfig: AppRouter.createRouter(),
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFFB2C5B8), // sage-100
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-        fontFamily: 'System',
-      ),
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: themeMode,
     );
   }
 }

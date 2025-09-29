@@ -241,23 +241,28 @@ class _SupportPageState extends ConsumerState<SupportPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 헤더
-            const Center(
+            Center(
               child: Column(
                 children: [
-                  Icon(Icons.support, size: 60, color: Color(0xFFB2C5B8)),
-                  SizedBox(height: 16),
+                  const Icon(Icons.support, size: 60, color: Color(0xFFB2C5B8)),
+                  const SizedBox(height: 16),
                   Text(
                     '고객지원',
-                    style: TextStyle(
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF2E3A59),
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   Text(
                     '문제나 건의사항을 알려주세요.',
-                    style: TextStyle(fontSize: 16, color: Color(0xFF6B7280)),
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                    ),
                   ),
                 ],
               ),
@@ -267,11 +272,11 @@ class _SupportPageState extends ConsumerState<SupportPage> {
 
             // 문의 폼
             Card(
-              elevation: 4,
+              elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
                 child: Form(
@@ -280,12 +285,12 @@ class _SupportPageState extends ConsumerState<SupportPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // 제목 입력
-                      const Text(
+                      Text(
                         '문의 제목',
-                        style: TextStyle(
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF2E3A59),
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -327,12 +332,12 @@ class _SupportPageState extends ConsumerState<SupportPage> {
                       const SizedBox(height: 24),
 
                       // 내용 입력
-                      const Text(
+                      Text(
                         '문의 내용',
-                        style: TextStyle(
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF2E3A59),
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -375,12 +380,12 @@ class _SupportPageState extends ConsumerState<SupportPage> {
                       const SizedBox(height: 24),
 
                       // 이미지 첨부
-                      const Text(
+                      Text(
                         '이미지 첨부 (선택사항)',
-                        style: TextStyle(
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF2E3A59),
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(height: 8),

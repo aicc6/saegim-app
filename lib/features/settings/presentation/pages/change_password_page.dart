@@ -126,12 +126,14 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
             const SizedBox(height: 32),
 
             // 제목
-            const Text(
+            Text(
               'Google 계정으로 로그인됨',
-              style: TextStyle(
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF2E3A59),
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.onSurface,
               ),
               textAlign: TextAlign.center,
             ),
@@ -176,10 +178,7 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
                 icon: const Icon(Icons.open_in_new, size: 20),
                 label: const Text(
                   'Google 계정 관리',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
               ),
             ),
@@ -222,21 +221,23 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
             const SizedBox(height: 20),
 
             // 페이지 제목
-            const Center(
+            Center(
               child: Column(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.lock_outline,
                     size: 60,
                     color: Color(0xFFB2C5B8),
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   Text(
                     '비밀번호 변경',
-                    style: TextStyle(
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF2E3A59),
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ],
@@ -257,19 +258,12 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
               ),
               child: const Row(
                 children: [
-                  Icon(
-                    Icons.info_outline,
-                    color: Color(0xFFB2C5B8),
-                    size: 20,
-                  ),
+                  Icon(Icons.info_outline, color: Color(0xFFB2C5B8), size: 20),
                   SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       '안전한 계정 보호를 위해 현재 비밀번호를 확인하고 새로운 비밀번호를 설정해주세요.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF2E3A59),
-                      ),
+                      style: TextStyle(fontSize: 14, color: Color(0xFF2E3A59)),
                     ),
                   ),
                 ],

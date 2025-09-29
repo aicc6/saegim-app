@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:saegim/core/providers/theme_provider.dart';
 import 'package:saegim/shared/widgets/common_app_bar.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class AppPreferencesPage extends StatefulWidget {
+class AppPreferencesPage extends ConsumerStatefulWidget {
   const AppPreferencesPage({super.key});
 
   @override
-  State<AppPreferencesPage> createState() => _AppPreferencesPageState();
+  ConsumerState<AppPreferencesPage> createState() => _AppPreferencesPageState();
 }
 
-class _AppPreferencesPageState extends State<AppPreferencesPage> {
-  ThemeMode _currentTheme = ThemeMode.system;
+class _AppPreferencesPageState extends ConsumerState<AppPreferencesPage> {
   String _currentLanguage = 'ko';
   bool _autoBackup = true;
   bool _offlineMode = false;
@@ -27,8 +28,6 @@ class _AppPreferencesPageState extends State<AppPreferencesPage> {
   Future<void> _loadPreferences() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      final themeIndex = prefs.getInt('theme_mode') ?? 0;
-      _currentTheme = ThemeMode.values[themeIndex];
       _currentLanguage = prefs.getString('language') ?? 'ko';
       _autoBackup = prefs.getBool('auto_backup') ?? true;
       _offlineMode = prefs.getBool('offline_mode') ?? false;
@@ -39,11 +38,7 @@ class _AppPreferencesPageState extends State<AppPreferencesPage> {
   }
 
   Future<void> _saveTheme(ThemeMode theme) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('theme_mode', theme.index);
-    setState(() {
-      _currentTheme = theme;
-    });
+    await ref.read(themeProvider.notifier).setTheme(theme);
   }
 
   Future<void> _saveLanguage(String language) async {
@@ -67,10 +62,10 @@ class _AppPreferencesPageState extends State<AppPreferencesPage> {
         padding: const EdgeInsets.all(16),
         children: [
           // 페이지 제목
-          const Center(
+          Center(
             child: Column(
               children: [
-                Icon(
+                const Icon(
                   Icons.settings_outlined,
                   size: 60,
                   color: Color(0xFFB2C5B8),
@@ -78,10 +73,12 @@ class _AppPreferencesPageState extends State<AppPreferencesPage> {
                 SizedBox(height: 16),
                 Text(
                   '앱 환경설정',
-                  style: TextStyle(
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF2E3A59),
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ],
@@ -184,10 +181,12 @@ class _AppPreferencesPageState extends State<AppPreferencesPage> {
       padding: const EdgeInsets.only(bottom: 12),
       child: Text(
         title,
-        style: const TextStyle(
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
           fontSize: 18,
           fontWeight: FontWeight.bold,
-          color: Color(0xFF2E3A59),
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).colorScheme.onSurface,
         ),
       ),
     );
@@ -197,11 +196,11 @@ class _AppPreferencesPageState extends State<AppPreferencesPage> {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
+            color: Theme.of(context).shadowColor.withOpacity(0.1),
             spreadRadius: 1,
             blurRadius: 4,
             offset: const Offset(0, 2),
@@ -215,17 +214,20 @@ class _AppPreferencesPageState extends State<AppPreferencesPage> {
           color: Color(0xFFB2C5B8),
           size: 28,
         ),
-        title: const Text(
+        title: Text(
           '테마',
-          style: TextStyle(
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            color: Color(0xFF2E3A59),
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         subtitle: Text(
-          _getThemeDisplayName(_currentTheme),
-          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+          _getThemeDisplayName(ref.watch(themeProvider)),
+          style: TextStyle(
+            fontSize: 14,
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+          ),
         ),
         trailing: const Icon(
           Icons.arrow_forward_ios,
@@ -241,11 +243,11 @@ class _AppPreferencesPageState extends State<AppPreferencesPage> {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
+            color: Theme.of(context).shadowColor.withOpacity(0.1),
             spreadRadius: 1,
             blurRadius: 4,
             offset: const Offset(0, 2),
@@ -259,17 +261,20 @@ class _AppPreferencesPageState extends State<AppPreferencesPage> {
           color: Color(0xFFB2C5B8),
           size: 28,
         ),
-        title: const Text(
+        title: Text(
           '언어',
-          style: TextStyle(
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            color: Color(0xFF2E3A59),
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         subtitle: Text(
           _getLanguageDisplayName(_currentLanguage),
-          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+          style: TextStyle(
+            fontSize: 14,
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+          ),
         ),
         trailing: const Icon(
           Icons.arrow_forward_ios,
@@ -291,11 +296,11 @@ class _AppPreferencesPageState extends State<AppPreferencesPage> {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
+            color: Theme.of(context).shadowColor.withOpacity(0.1),
             spreadRadius: 1,
             blurRadius: 4,
             offset: const Offset(0, 2),
@@ -304,22 +309,21 @@ class _AppPreferencesPageState extends State<AppPreferencesPage> {
       ),
       child: SwitchListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-        secondary: Icon(
-          icon,
-          color: const Color(0xFFB2C5B8),
-          size: 28,
-        ),
+        secondary: Icon(icon, color: const Color(0xFFB2C5B8), size: 28),
         title: Text(
           title,
-          style: const TextStyle(
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            color: Color(0xFF2E3A59),
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         subtitle: Text(
           subtitle,
-          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+          style: TextStyle(
+            fontSize: 14,
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+          ),
         ),
         value: value,
         onChanged: onChanged,
@@ -358,12 +362,12 @@ class _AppPreferencesPageState extends State<AppPreferencesPage> {
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
+        title: Text(
           '테마 선택',
-          style: TextStyle(
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF2E3A59),
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         content: Column(
@@ -377,9 +381,11 @@ class _AppPreferencesPageState extends State<AppPreferencesPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text(
+            child: Text(
               '취소',
-              style: TextStyle(color: Color(0xFF6B7280)),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+              ),
             ),
           ),
         ],
@@ -392,7 +398,7 @@ class _AppPreferencesPageState extends State<AppPreferencesPage> {
       contentPadding: EdgeInsets.zero,
       leading: Icon(icon, color: const Color(0xFFB2C5B8)),
       title: Text(title),
-      trailing: _currentTheme == theme
+      trailing: ref.watch(themeProvider) == theme
           ? const Icon(Icons.check, color: Color(0xFFB2C5B8))
           : null,
       onTap: () {
@@ -407,12 +413,12 @@ class _AppPreferencesPageState extends State<AppPreferencesPage> {
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
+        title: Text(
           '언어 선택',
-          style: TextStyle(
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF2E3A59),
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         content: Column(
@@ -426,9 +432,11 @@ class _AppPreferencesPageState extends State<AppPreferencesPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text(
+            child: Text(
               '취소',
-              style: TextStyle(color: Color(0xFF6B7280)),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+              ),
             ),
           ),
         ],
