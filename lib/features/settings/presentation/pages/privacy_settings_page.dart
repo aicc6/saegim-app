@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:saegim/shared/widgets/common_app_bar.dart';
 
 class PrivacySettingsPage extends StatelessWidget {
