@@ -9,89 +9,79 @@ class PrivacySettingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: const CommonAppBar(showBackButton: true, showMenuButton: false),
-      backgroundColor: const Color(0xFFFAFBFA),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              '개인정보 설정',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF2D3748),
-              ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          // 페이지 제목
+          const Center(
+            child: Column(
+              children: [
+                Icon(
+                  Icons.privacy_tip_outlined,
+                  size: 60,
+                  color: Color(0xFFB2C5B8),
+                ),
+                SizedBox(height: 16),
+                Text(
+                  '개인정보 설정',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF2E3A59),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            const Text(
-              '개인정보 보호 및 계정 관리 설정',
-              style: TextStyle(
-                fontSize: 16,
-                color: Color(0xFF718096),
-              ),
-            ),
-            const SizedBox(height: 32),
+          ),
+          const SizedBox(height: 32),
 
-            // 개인정보 보호 섹션
-            _buildSectionTitle('개인정보 보호'),
-            const SizedBox(height: 16),
-            _buildSettingItem(
-              context,
-              icon: Icons.privacy_tip_outlined,
-              title: '개인정보 처리방침',
-              subtitle: '개인정보 수집 및 이용에 대한 안내',
-              onTap: () {
-                // 개인정보 처리방침 페이지로 이동
-              },
-            ),
-            _buildSettingItem(
-              context,
-              icon: Icons.security_outlined,
-              title: '데이터 보안',
-              subtitle: '내 데이터 보안 설정 관리',
-              onTap: () {
-                // 데이터 보안 설정 페이지로 이동
-              },
-            ),
-            _buildSettingItem(
-              context,
-              icon: Icons.download_outlined,
-              title: '내 데이터 다운로드',
-              subtitle: '작성한 일기와 사진을 다운로드',
-              onTap: () {
-                // 데이터 다운로드 기능
-              },
-            ),
+          // 개인정보 보호 섹션
+          _buildSectionTitle('개인정보 보호'),
+          const SizedBox(height: 12),
+          _buildSettingItem(
+            context,
+            icon: Icons.privacy_tip_outlined,
+            title: '개인정보 처리방침',
+            subtitle: '개인정보 수집 및 이용에 대한 안내',
+            onTap: () {
+              // 개인정보 처리방침 페이지로 이동
+            },
+          ),
+          _buildSettingItem(
+            context,
+            icon: Icons.security_outlined,
+            title: '데이터 보안',
+            subtitle: '내 데이터 보안 설정 관리',
+            onTap: () {
+              // 데이터 보안 설정 페이지로 이동
+            },
+          ),
+          _buildSettingItem(
+            context,
+            icon: Icons.download_outlined,
+            title: '내 데이터 다운로드',
+            subtitle: '작성한 일기와 사진을 다운로드',
+            onTap: () {
+              // 데이터 다운로드 기능
+            },
+          ),
 
-            const SizedBox(height: 32),
-
-            // 계정 관리 섹션
-            _buildSectionTitle('계정 관리'),
-            const SizedBox(height: 16),
-            _buildSettingItem(
-              context,
-              icon: Icons.delete_outline,
-              title: '계정 탈퇴',
-              subtitle: '계정을 탈퇴합니다 (30일 이내 복구 가능)',
-              onTap: () {
-                context.push('/auth/delete-account');
-              },
-              isDestructive: true,
-            ),
-          ],
-        ),
+          const SizedBox(height: 32),
+        ],
       ),
     );
   }
 
   Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontSize: 20,
-        fontWeight: FontWeight.bold,
-        color: Color(0xFF2D3748),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF2E3A59),
+        ),
       ),
     );
   }
@@ -106,38 +96,43 @@ class PrivacySettingsPage extends StatelessWidget {
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
         leading: Icon(
           icon,
-          color: isDestructive ? const Color(0xFF8B7355) : const Color(0xFFB2C5B8),
+          color: const Color(0xFFB2C5B8),
           size: 28,
         ),
         title: Text(
           title,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            color: isDestructive ? const Color(0xFF8B7355) : const Color(0xFF2D3748),
+            color: Color(0xFF2E3A59),
           ),
         ),
         subtitle: Text(
           subtitle,
-          style: const TextStyle(
-            fontSize: 14,
-            color: Color(0xFF718096),
-          ),
+          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
         ),
         trailing: const Icon(
           Icons.arrow_forward_ios,
-          color: Color(0xFF718096),
+          color: Color(0xFFB2C5B8),
           size: 16,
         ),
         onTap: onTap,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-        tileColor: Colors.grey[50],
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       ),
     );
   }

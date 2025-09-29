@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:saegim/features/authentication/data/services/delete_account_service.dart';
 import 'package:saegim/features/authentication/presentation/riverpod/auth_notifier.dart';
 import 'package:saegim/shared/widgets/common_app_bar.dart';
-import 'package:saegim/shared/utils/app_logger.dart';
 
 class DeleteAccountPage extends ConsumerStatefulWidget {
   const DeleteAccountPage({super.key});
