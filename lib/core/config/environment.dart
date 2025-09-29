@@ -38,41 +38,23 @@ class EnvironmentConfig {
     );
 
     final parsedEnv = AppEnvironmentX.parse(envFromDefine);
-    final envFile = 'assets/env/.env.${parsedEnv.name}';
 
     try {
-      await dotenv.load(fileName: envFile);
+      await dotenv.load(fileName: 'assets/env/.env');
       _current = parsedEnv;
-      AppLogger.info('Loaded environment file: $envFile', 'EnvironmentConfig');
-    } on Object catch (error, stackTrace) {
-      // 개발 편의를 위해 기본 .env 파일로 폴백합니다.
-      AppLogger.warning(
-        'Failed to load $envFile. Falling back to default assets/env/.env.',
+      AppLogger.info(
+        'Loaded environment file: assets/env/.env',
         'EnvironmentConfig',
       );
-
-      try {
-        await dotenv.load(fileName: 'assets/env/.env');
-        _current = parsedEnv;
-        AppLogger.debug(
-          'Loaded fallback environment file: assets/env/.env',
-          'EnvironmentConfig',
-        );
-      } catch (fallbackError, fallbackStackTrace) {
-        AppLogger.error(
-          'Unable to load any environment configuration file.',
-          tag: 'EnvironmentConfig',
-          error: fallbackError,
-          stackTrace: fallbackStackTrace,
-        );
-        if (kDebugMode) {
-          Error.throwWithStackTrace(fallbackError, fallbackStackTrace);
-        }
-      }
-
+    } on Object catch (error, stackTrace) {
+      AppLogger.error(
+        'Unable to load environment configuration file: assets/env/.env.',
+        tag: 'EnvironmentConfig',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (kDebugMode) {
-        AppLogger.debug('Original error: $error', 'EnvironmentConfig');
-        debugPrintStack(stackTrace: stackTrace);
+        Error.throwWithStackTrace(error, stackTrace);
       }
     }
   }

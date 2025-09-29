@@ -10,6 +10,7 @@ class RoutePaths {
   static const String authForgotPassword = '/auth/forgot-password';
   static const String authResetPassword = '/auth/reset-password';
   static const String authRestoreAccount = '/auth/restore-account';
+  static const String authDeleteAccount = '/auth/delete-account';
 
   // 메인 앱 (인증 필요)
   static const String home = '/';
@@ -17,7 +18,7 @@ class RoutePaths {
   static const String calendar = '/calendar';
 
   // 다이어리
-  static const String diaryList = '/diary/list';
+  static const String diaryList = '/diary';
   static const String diaryDetail = '/diary/:id';
 
   // 사용자 관리

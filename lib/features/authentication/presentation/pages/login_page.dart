@@ -25,65 +25,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     super.dispose();
   }
 
-  /// 인증 상태 변화 처리
-  void _handleAuthStateChange(
-    BuildContext context,
-    AuthState? previous,
-    AuthState next,
-  ) {
-    final wasAuthenticated = previous?.isAuthenticated ?? false;
-    final hasNewAuthSuccess = next.isAuthenticated && !wasAuthenticated;
-
-    if (hasNewAuthSuccess) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        context.go(RoutePaths.home);
-      });
-      return;
-    }
-
-    final nextError = next.errorMessage;
-    final previousError = previous?.errorMessage;
-
-    // 탈퇴 계정: 복구 페이지로 이동
-    if (nextError != null &&
-        nextError.startsWith('ACCOUNT_DELETED_REDIRECT:') &&
-        nextError != previousError) {
-      final parts = nextError.split(':');
-      final email = parts.length > 1 ? parts[1] : '';
-
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        context.push(
-          '${RoutePaths.authRestoreAccount}?email=${Uri.encodeComponent(email)}',
-        );
-        ref.read(authNotifierProvider.notifier).clearError();
-      });
-      return;
-    }
-
-    // 일반 에러 알림
-    if (nextError != null &&
-        !nextError.startsWith('ACCOUNT_DELETED_REDIRECT:') &&
-        nextError != previousError) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(nextError),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
-
-    // 인증 상태 변화 감지 및 네비게이션 처리
-    ref.listen(authNotifierProvider, (previous, next) {
-      _handleAuthStateChange(context, previous, next);
-    });
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -256,6 +200,61 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
                 const SizedBox(height: 24),
 
+                // 구글 로그인 버튼
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: authState.isLoading ? null : _handleGoogleLogin,
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      side: const BorderSide(color: Color(0xFFD1D5DB)),
+                    ),
+                    icon: Container(
+                      width: 20,
+                      height: 20,
+                      decoration: const BoxDecoration(
+                        image: DecorationImage(
+                          image: NetworkImage('https://developers.google.com/identity/images/g-logo.png'),
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                    ),
+                    label: const Text(
+                      'Google로 로그인',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF374151),
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // 또는 구분선
+                Row(
+                  children: const [
+                    Expanded(child: Divider(color: Color(0xFFD1D5DB))),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        '또는',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF6B7280),
+                        ),
+                      ),
+                    ),
+                    Expanded(child: Divider(color: Color(0xFFD1D5DB))),
+                  ],
+                ),
+
+                const SizedBox(height: 24),
+
                 // 비밀번호 찾기
                 Center(
                   child: TextButton(
@@ -312,12 +311,102 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   Future<void> _handleLogin() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
-    await ref
+    final success = await ref
         .read(authNotifierProvider.notifier)
         .login(_emailController.text.trim(), _passwordController.text);
+
+    if (!mounted) return;
+
+    if (success) {
+      final authState = ref.read(authNotifierProvider);
+
+      // 계정 복구 알림 표시
+      if (authState.isRecovered) {
+        _showRecoveryDialog(authState.recoveryMessage);
+      } else {
+        // 로그인 후 글쓰기 페이지(홈페이지)로 이동
+        context.go(RoutePaths.home);
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('로그인에 실패했습니다. 다시 시도해주세요.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _showRecoveryDialog(String? message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.restore, color: Color(0xFFB2C5B8), size: 24),
+            SizedBox(width: 8),
+            Text(
+              '계정이 복구되었습니다',
+              style: TextStyle(
+                color: Color(0xFF2D3748),
+                fontWeight: FontWeight.w600,
+                fontSize: 18,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          message ?? '30일 이내에 로그인하여 계정이 자동으로 복구되었습니다.\n새김과 함께 다시 시작해보세요!',
+          style: const TextStyle(
+            color: Color(0xFF4A5C54),
+            height: 1.5,
+            fontSize: 15,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              context.go(RoutePaths.home);
+            },
+            style: TextButton.styleFrom(
+              backgroundColor: const Color(0xFFB2C5B8),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+            child: const Text(
+              '시작하기',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleGoogleLogin() async {
+    final success = await ref
+        .read(authNotifierProvider.notifier)
+        .loginWithGoogle();
+
+    if (!mounted) return;
+
+    if (success) {
+      // 로그인 후 홈페이지로 이동
+      context.go(RoutePaths.home);
+    } else {
+      final authState = ref.read(authNotifierProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(authState.errorMessage ?? '구글 로그인에 실패했습니다.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }

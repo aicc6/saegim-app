@@ -59,7 +59,7 @@ class _RestoreAccountPageState extends ConsumerState<RestoreAccountPage> {
       
       final success = await ref
           .read(authNotifierProvider.notifier)
-          .sendRestoreEmail(widget.email);
+          .sendVerificationEmail(widget.email);
 
       if (mounted && success) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -101,9 +101,18 @@ class _RestoreAccountPageState extends ConsumerState<RestoreAccountPage> {
     setState(() => _isLoading = true);
 
     try {
-      final success = await ref
+      // verify code, then check status
+      final verified = await ref
           .read(authNotifierProvider.notifier)
-          .restoreAccount(email: widget.email, code: code);
+          .verifyEmail(widget.email, code);
+
+      if (!verified) {
+        throw Exception('인증 코드가 올바르지 않습니다.');
+      }
+
+      await ref.read(authNotifierProvider.notifier).checkAuthStatus();
+
+      final success = verified;
 
       if (mounted && success) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -114,18 +123,11 @@ class _RestoreAccountPageState extends ConsumerState<RestoreAccountPage> {
           ),
         );
 
-        // 인증 상태 다시 확인 후 적절한 페이지로 이동
-        await ref.read(authNotifierProvider.notifier).checkAuthStatus();
-        if (!mounted) {
-          return;
-        }
+        // 인증 상태 확인 후 적절한 페이지로 이동
         final authState = ref.read(authNotifierProvider);
-
-        if (authState.isAuthenticated) {
-          context.go(RoutePaths.home);
-        } else {
-          context.go(RoutePaths.authLogin);
-        }
+        context.go(
+          authState.isAuthenticated ? RoutePaths.home : RoutePaths.authLogin,
+        );
       }
     } catch (e) {
       if (mounted) {

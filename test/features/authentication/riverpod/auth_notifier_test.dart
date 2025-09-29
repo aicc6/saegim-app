@@ -97,10 +97,7 @@ void main() {
     test('계정 복구 기능 확인', () async {
       final authNotifier = container.read(authNotifierProvider.notifier);
 
-      final result = await authNotifier.restoreAccount(
-        email: 'test@example.com',
-        code: '123456',
-      );
+      final result = await authNotifier.restoreAccount('test@example.com');
 
       expect(result, true);
 
@@ -144,6 +141,8 @@ void main() {
           userEmail: null,
           isInitialized: false,
           errorMessage: null,
+          isRecovered: false,
+          recoveryMessage: null,
         );
 
         final newState = originalState.copyWith(

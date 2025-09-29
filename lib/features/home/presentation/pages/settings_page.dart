@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:saegim/core/services/auth_storage_service.dart';
 import 'package:saegim/shared/widgets/common_app_bar.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -19,12 +20,23 @@ class _SettingsPageState extends State<SettingsPage> {
   int _tapCount = 0;
   bool _isDeveloperModeEnabled = false;
   String _appVersion = '';
+  bool _isGoogleUser = false;
 
   @override
   void initState() {
     super.initState();
     _loadDeveloperModeState();
     _loadAppVersion();
+    _checkUserType();
+  }
+
+  Future<void> _checkUserType() async {
+    final isGoogleUser = await AuthStorageService.instance.isGoogleUser();
+    if (mounted) {
+      setState(() {
+        _isGoogleUser = isGoogleUser;
+      });
+    }
   }
 
   Future<void> _loadDeveloperModeState() async {
@@ -143,13 +155,15 @@ class _SettingsPageState extends State<SettingsPage> {
             subtitle: '계정 정보, 데이터 관리',
             onTap: () => context.push('/settings/privacy'),
           ),
-          _buildSettingsTile(
-            context,
-            icon: Icons.key_outlined,
-            title: '비밀번호 변경',
-            subtitle: '계정 보안 관리',
-            onTap: () => context.push('/settings/change-password'),
-          ),
+          // 구글 사용자가 아닌 경우에만 비밀번호 변경 메뉴 표시
+          if (!_isGoogleUser)
+            _buildSettingsTile(
+              context,
+              icon: Icons.key_outlined,
+              title: '비밀번호 변경',
+              subtitle: '계정 보안 관리',
+              onTap: () => context.push('/settings/change-password'),
+            ),
 
           const SizedBox(height: 40),
 

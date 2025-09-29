@@ -1,47 +1,12 @@
-import 'dart:convert';
-
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../home/presentation/riverpod/emotions_notifier.dart';
-import '../shared/widgets/image_editor.dart';
 import '../shared/widgets/keyword_editor.dart';
 import 'emotion_guide.dart';
 
 // models/diary_models.dart
-class ImageInfo {
-  final String id;
-  final String filePath;
-  final String? thumbnailPath;
-  final String mimeType;
-
-  ImageInfo({
-    required this.id,
-    required this.filePath,
-    this.thumbnailPath,
-    required this.mimeType,
-  });
-
-  factory ImageInfo.fromJson(Map<String, dynamic> json) {
-    return ImageInfo(
-      id: json['id'] ?? '',
-      filePath: json['file_path'] ?? '',
-      thumbnailPath: json['thumbnail_path'],
-      mimeType: json['mime_type'] ?? '',
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'file_path': filePath,
-      'thumbnail_path': thumbnailPath,
-      'mime_type': mimeType,
-    };
-  }
-}
 
 class DiaryEntry {
   final String id;
@@ -53,7 +18,6 @@ class DiaryEntry {
   final String? aiEmotion;
   final double? aiEmotionConfidence;
   final List<String> keywords;
-  final List<ImageInfo> images;
   final String diaryDate;
   final String createdAt;
   final String updatedAt;
@@ -69,7 +33,6 @@ class DiaryEntry {
     this.aiEmotion,
     this.aiEmotionConfidence,
     required this.keywords,
-    required this.images,
     required this.diaryDate,
     required this.createdAt,
     required this.updatedAt,
@@ -87,11 +50,6 @@ class DiaryEntry {
       aiEmotion: json['ai_emotion'],
       aiEmotionConfidence: json['ai_emotion_confidence']?.toDouble(),
       keywords: List<String>.from(json['keywords'] ?? []),
-      images:
-          (json['images'] as List?)
-              ?.map((img) => ImageInfo.fromJson(img))
-              .toList() ??
-          [],
       diaryDate: json['diary_date'] ?? json['created_at'] ?? '',
       createdAt: json['created_at'] ?? '',
       updatedAt: json['updated_at'] ?? '',
@@ -105,7 +63,6 @@ class DiaryEntry {
     String? aiGeneratedText,
     String? userEmotion,
     List<String>? keywords,
-    List<ImageInfo>? images,
   }) {
     return DiaryEntry(
       id: id,
@@ -117,7 +74,6 @@ class DiaryEntry {
       aiEmotion: aiEmotion,
       aiEmotionConfidence: aiEmotionConfidence,
       keywords: keywords ?? this.keywords,
-      images: images ?? this.images,
       diaryDate: diaryDate,
       createdAt: createdAt,
       updatedAt: updatedAt,
@@ -134,7 +90,6 @@ class DiaryListEntry {
   final String? userEmotion;
   final String? aiEmotion;
   final List<String> keywords;
-  final List<ImageInfo> images;
   final String? diaryDate;
   final String createdAt;
 
@@ -146,7 +101,6 @@ class DiaryListEntry {
     this.userEmotion,
     this.aiEmotion,
     required this.keywords,
-    required this.images,
     this.diaryDate,
     required this.createdAt,
   });
@@ -160,11 +114,6 @@ class DiaryListEntry {
       userEmotion: json['user_emotion'],
       aiEmotion: json['ai_emotion'],
       keywords: List<String>.from(json['keywords'] ?? []),
-      images:
-          (json['images'] as List?)
-              ?.map((img) => ImageInfo.fromJson(img))
-              .toList() ??
-          [],
       diaryDate: json['diary_date'],
       createdAt: json['created_at'] ?? '',
     );
@@ -176,14 +125,12 @@ class DiaryState {
   final List<DiaryListEntry> diaries;
   final DiaryEntry? currentDiary;
   final bool isLoading;
-  final Set<String> deletedImageIds;
   final DiaryEntry? tempEntry;
 
   DiaryState({
     this.diaries = const [],
     this.currentDiary,
     this.isLoading = false,
-    this.deletedImageIds = const {},
     this.tempEntry,
   });
 
@@ -191,7 +138,6 @@ class DiaryState {
     List<DiaryListEntry>? diaries,
     DiaryEntry? currentDiary,
     bool? isLoading,
-    Set<String>? deletedImageIds,
     DiaryEntry? tempEntry,
     bool clearCurrentDiary = false,
     bool clearTempEntry = false,
@@ -202,7 +148,6 @@ class DiaryState {
           ? null
           : (currentDiary ?? this.currentDiary),
       isLoading: isLoading ?? this.isLoading,
-      deletedImageIds: deletedImageIds ?? this.deletedImageIds,
       tempEntry: clearTempEntry ? null : (tempEntry ?? this.tempEntry),
     );
   }
@@ -259,7 +204,6 @@ class DiaryNotifier extends StateNotifier<DiaryState> {
               userEmotion: updates['user_emotion'] ?? diary.userEmotion,
               aiEmotion: diary.aiEmotion,
               keywords: updates['keywords']?.cast<String>() ?? diary.keywords,
-              images: diary.images,
               diaryDate: diary.diaryDate,
               createdAt: diary.createdAt,
             );
@@ -289,18 +233,6 @@ class DiaryNotifier extends StateNotifier<DiaryState> {
     } catch (e) {
       rethrow;
     }
-  }
-
-  void addDeletedImageId(String imageId) {
-    final updatedDeletedIds = Set<String>.from(state.deletedImageIds)
-      ..add(imageId);
-    state = state.copyWith(deletedImageIds: updatedDeletedIds);
-  }
-
-  void removeDeletedImageId(String imageId) {
-    final updatedDeletedIds = Set<String>.from(state.deletedImageIds)
-      ..remove(imageId);
-    state = state.copyWith(deletedImageIds: updatedDeletedIds);
   }
 
   void setTempEntry(DiaryEntry? entry) {
@@ -352,7 +284,6 @@ class _ViewPostPageState extends ConsumerState<ViewPostPage> {
   late TextEditingController _keywordController;
   String _editedEmotion = '';
   List<String> _editedKeywords = [];
-  List<ImageInfo> _editedImages = [];
   int _currentIndex = 0;
   List<DiaryListEntry> _sameDateEntries = [];
   bool _deleteModalOpen = false;
@@ -364,7 +295,6 @@ class _ViewPostPageState extends ConsumerState<ViewPostPage> {
     _titleController = TextEditingController();
     _contentController = TextEditingController();
     _keywordController = TextEditingController();
-    _loadDeletedImageIds();
     _initializePage();
   }
 
@@ -395,7 +325,6 @@ class _ViewPostPageState extends ConsumerState<ViewPostPage> {
         userEmotion: foundEntry.userEmotion,
         aiEmotion: foundEntry.aiEmotion,
         keywords: foundEntry.keywords,
-        images: foundEntry.images,
         diaryDate: foundEntry.diaryDate ?? foundEntry.createdAt,
         createdAt: foundEntry.createdAt,
         updatedAt: foundEntry.createdAt,
@@ -433,34 +362,6 @@ class _ViewPostPageState extends ConsumerState<ViewPostPage> {
         (e) => e.id == widget.entryId,
       );
       if (_currentIndex == -1) _currentIndex = 0;
-    }
-  }
-
-  Future<void> _loadDeletedImageIds() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final savedIds = prefs.getString('deletedImageIds_${widget.entryId}');
-      if (savedIds != null) {
-        final List<String> parsedIds = List<String>.from(json.decode(savedIds));
-        for (final imageId in parsedIds) {
-          ref.read(diaryProvider.notifier).addDeletedImageId(imageId);
-        }
-      }
-    } catch (e) {
-      debugPrint('Error parsing deleted image IDs: $e');
-    }
-  }
-
-  Future<void> _saveDeletedImageIds() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final deletedIds = ref.read(diaryProvider).deletedImageIds.toList();
-      await prefs.setString(
-        'deletedImageIds_${widget.entryId}',
-        json.encode(deletedIds),
-      );
-    } catch (e) {
-      debugPrint('Error saving deleted image IDs: $e');
     }
   }
 
@@ -506,7 +407,6 @@ class _ViewPostPageState extends ConsumerState<ViewPostPage> {
         _contentController.text = entry.aiGeneratedText ?? entry.content;
         _editedEmotion = entry.userEmotion ?? '';
         _editedKeywords = List.from(entry.keywords);
-        _editedImages = List.from(entry.images);
       });
     }
   }
@@ -521,18 +421,7 @@ class _ViewPostPageState extends ConsumerState<ViewPostPage> {
         _contentController.text = entry.aiGeneratedText ?? entry.content;
         _editedEmotion = entry.userEmotion ?? '';
         _editedKeywords = List.from(entry.keywords);
-        _editedImages = List.from(entry.images);
       });
-
-      // Restore deleted images for current diary
-      final currentDeletedIds = Set<String>.from(
-        ref.read(diaryProvider).deletedImageIds,
-      );
-      for (final img in entry.images) {
-        if (currentDeletedIds.contains(img.id)) {
-          ref.read(diaryProvider.notifier).removeDeletedImageId(img.id);
-        }
-      }
     }
   }
 
@@ -628,7 +517,6 @@ class _ViewPostPageState extends ConsumerState<ViewPostPage> {
   Widget build(BuildContext context) {
     final diaryState = ref.watch(diaryProvider);
     final entry = diaryState.currentDiary;
-    final deletedImageIds = diaryState.deletedImageIds;
 
     // Show temp entry while loading
     if (entry == null && diaryState.tempEntry != null) {
@@ -646,14 +534,6 @@ class _ViewPostPageState extends ConsumerState<ViewPostPage> {
         ),
       );
     }
-
-    final displayImages = _isEditing ? _editedImages : entry.images;
-    final filteredImages = displayImages
-        .where(
-          (img) =>
-              img.thumbnailPath != null && !deletedImageIds.contains(img.id),
-        )
-        .toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -932,23 +812,6 @@ class _ViewPostPageState extends ConsumerState<ViewPostPage> {
                   ),
 
                 const SizedBox(height: 24),
-
-                // Images Section
-                ImageEditor(
-                  images: filteredImages,
-                  onImagesChanged: (images) {
-                    setState(() {
-                      _editedImages = List<ImageInfo>.from(images);
-                    });
-                  },
-                  isEditing: _isEditing,
-                  dio: ref.read(dioProvider),
-                  onImageDeleted: (imageId) {
-                    ref.read(diaryProvider.notifier).addDeletedImageId(imageId);
-                    _saveDeletedImageIds();
-                  },
-                  entryId: widget.entryId,
-                ),
 
                 const SizedBox(height: 24),
 
