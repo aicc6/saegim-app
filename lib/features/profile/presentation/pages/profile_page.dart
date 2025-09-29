@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:saegim/app/routes/route_paths.dart';
+import 'package:saegim/core/services/auth_storage_service.dart';
 import 'package:saegim/features/authentication/presentation/riverpod/auth_notifier.dart';
 import 'package:saegim/features/profile/presentation/providers/profile_notifier.dart';
 import 'package:saegim/shared/widgets/common_app_bar.dart';
@@ -21,6 +22,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   late final TextEditingController _withdrawPasswordController;
   final _imagePicker = ImagePicker();
   late final GoRouter _router; // GoRouter 참조 저장
+  bool _isGoogleUser = false;
 
   @override
   void initState() {
@@ -34,7 +36,17 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       final notifier = ref.read(profileNotifierProvider.notifier);
       notifier.resetNicknameValidation(); // 닉네임 검증 상태 초기화
       notifier.refreshProfile();
+      _checkUserType();
     });
+  }
+
+  Future<void> _checkUserType() async {
+    final isGoogleUser = await AuthStorageService.instance.isGoogleUser();
+    if (mounted) {
+      setState(() {
+        _isGoogleUser = isGoogleUser;
+      });
+    }
   }
 
   @override
@@ -503,6 +515,28 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             contentPadding: EdgeInsets.zero,
           ),
           const Divider(height: 1),
+          // 이메일 사용자에게만 비밀번호 변경 옵션 표시
+          if (!_isGoogleUser) ...[
+            ListTile(
+              leading: const Icon(Icons.lock_outline, color: Color(0xFF6B7280)),
+              title: const Text(
+                '비밀번호 변경',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF2E3A59),
+                ),
+              ),
+              subtitle: const Text(
+                '계정 보안을 위해 주기적으로 변경해주세요.',
+                style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+              ),
+              trailing: const Icon(Icons.chevron_right, color: Color(0xFF6B7280)),
+              onTap: () => context.push('/settings/change-password'),
+              contentPadding: EdgeInsets.zero,
+            ),
+            const Divider(height: 1),
+          ],
           ListTile(
             leading: Icon(Icons.logout, color: Colors.red[600]),
             title: Text(
