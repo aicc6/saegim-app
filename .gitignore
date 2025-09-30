@@ -68,4 +68,47 @@ ios/Runner/GoogleService-Info.plist
 lib/firebase_options.dart
 firebase.json
 
+# Keystore files (Android signing)
 **/keystore/
+*.jks
+*.keystore
+key.properties
+
+# iOS signing
+*.p12
+*.mobileprovision
+*.cer
+ios/Runner/GoogleService-Info.plist
+ios/Podfile.lock
+
+# Secrets and credentials
+**/secrets/
+**/credentials/
+*.pem
+*.key
+*secret*
+*credential*
+
+# API keys and tokens
+**/api_keys/
+*.api_key
+*token*
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Backup files
+*.backup
+*.bak
+*.tmp
+*~
+
+# OS generated files
+Thumbs.db
+Desktop.ini
+
+# Local configuration
+local.properties
+.flutter-plugins
