@@ -40,6 +40,14 @@ class DiaryEntry {
   });
 
   factory DiaryEntry.fromJson(Map<String, dynamic> json) {
+    // 🔍 emotion 데이터 디버그 로그
+    print('🔍 DiaryEntry.fromJson - emotion 데이터 확인:');
+    print('  - json["user_emotion"]: ${json["user_emotion"]}');
+    print('  - json["ai_emotion"]: ${json["ai_emotion"]}');
+    print(
+      '  - json["ai_emotion_confidence"]: ${json["ai_emotion_confidence"]}',
+    );
+
     return DiaryEntry(
       id: json['id'] ?? '',
       userId: json['user_id'] ?? '',
@@ -504,11 +512,20 @@ class _ViewPostPageState extends ConsumerState<ViewPostPage> {
 
   EmotionOption? _getEmotionType(String? emotion) {
     if (emotion == null) return null;
+
+    // 🔍 emotion 변환 디버그 로그
+    print('🔍 _getEmotionType - emotion 변환:');
+    print('  - 입력 emotion: $emotion');
+    print('  - emotion 타입: ${emotion.runtimeType}');
+
     try {
-      return EmotionOption.values.firstWhere(
+      final result = EmotionOption.values.firstWhere(
         (e) => e.toString().split('.').last == emotion,
       );
+      print('  - 변환 결과: $result');
+      return result;
     } catch (e) {
+      print('  - 변환 실패: $e');
       return null;
     }
   }
@@ -708,50 +725,61 @@ class _ViewPostPageState extends ConsumerState<ViewPostPage> {
                             ),
                             if (entry.aiEmotion != null) ...[
                               const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  const Text(
-                                    'AI 분석 감정: ',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Text(
-                                    emotionConfigs
-                                        .firstWhere(
-                                          (config) =>
-                                              config.value ==
-                                              _getEmotionType(entry.aiEmotion),
-                                          orElse: () => emotionConfigs.first,
-                                        )
-                                        .emoji,
-                                    style: const TextStyle(fontSize: 20),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Expanded(
-                                    child: Text(
-                                      emotionConfigs
-                                          .firstWhere(
-                                            (config) =>
-                                                config.value ==
-                                                _getEmotionType(
-                                                  entry.aiEmotion,
-                                                ),
-                                            orElse: () => emotionConfigs.first,
-                                          )
-                                          .label,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  if (entry.aiEmotionConfidence != null)
-                                    Text(
-                                      ' (${(entry.aiEmotionConfidence! * 100).round()}%)',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey.shade600,
+                              Builder(
+                                builder: (context) {
+                                  // 🔍 AI emotion 표시 디버그 로그
+                                  print('🔍 AI emotion 표시:');
+                                  print(
+                                    '  - entry.aiEmotion: ${entry.aiEmotion}',
+                                  );
+                                  print(
+                                    '  - entry.aiEmotionConfidence: ${entry.aiEmotionConfidence}',
+                                  );
+
+                                  final emotionType = _getEmotionType(
+                                    entry.aiEmotion,
+                                  );
+                                  print('  - emotionType: $emotionType');
+
+                                  final emotionConfig = emotionConfigs
+                                      .firstWhere(
+                                        (config) => config.value == emotionType,
+                                        orElse: () => emotionConfigs.first,
+                                      );
+                                  print(
+                                    '  - emotionConfig: ${emotionConfig.label}',
+                                  );
+
+                                  return Row(
+                                    children: [
+                                      const Text(
+                                        'AI 분석 감정: ',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
-                                    ),
-                                ],
+                                      Text(
+                                        emotionConfig.emoji,
+                                        style: const TextStyle(fontSize: 20),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          emotionConfig.label,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      if (entry.aiEmotionConfidence != null)
+                                        Text(
+                                          ' (${(entry.aiEmotionConfidence! * 100).round()}%)',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey.shade600,
+                                          ),
+                                        ),
+                                    ],
+                                  );
+                                },
                               ),
                             ],
                           ],

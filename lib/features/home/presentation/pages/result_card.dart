@@ -188,7 +188,15 @@ class MessageCard extends StatelessWidget {
   }
 
   Widget _buildEmotionChip(String emotion) {
+    // 🔍 result_card에서 emotion 처리 디버그 로그
+    print('🔍 result_card - emotion 처리:');
+    print('  - 입력 emotion: $emotion');
+    print('  - emotion 타입: ${emotion.runtimeType}');
+
     final emotionConfig = getEmotionConfig(emotion);
+    print('  - emotionConfig: ${emotionConfig?.label}');
+    print('  - emotionConfig emoji: ${emotionConfig?.emoji}');
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(

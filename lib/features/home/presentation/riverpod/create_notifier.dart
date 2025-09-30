@@ -254,8 +254,13 @@ class AiApiService {
 
     final uri = Uri.parse('$baseUrl/api/ai/generate/stream');
 
-    print('API 요청 URL: $uri');
-    print('JWT Token 존재: ${jwt.isNotEmpty}');
+    final requestBody = {
+      'prompt': prompt,
+      'style': style.value,
+      'length': length.value,
+      'emotion': emotion ?? '',
+      'regeneration_count': regenerationCount,
+    };
 
     try {
       final response = await http.post(
@@ -265,17 +270,10 @@ class AiApiService {
           'Content-Type': 'application/json',
           'Accept': 'text/event-stream',
         },
-        body: jsonEncode({
-          'prompt': prompt,
-          'style': style.value,
-          'length': length.value,
-          'emotion': emotion ?? '',
-          'regeneration_count': regenerationCount,
-        }),
+        body: jsonEncode(requestBody),
       );
 
-      print('응답 상태 코드: ${response.statusCode}');
-      print('응답 바디: ${response.body}');
+      print('AI 생성 API 응답: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         // SSE 응답 파싱
@@ -304,27 +302,23 @@ class AiApiService {
                     break;
                   case 'content':
                     accumulatedText = data['accumulated'] ?? accumulatedText;
-                    // ✅ AI가 분석한 emotion 정보 추출
-                    if (data['emotion'] != null) {
+                    break;
+                  case 'complete':
+                    accumulatedText = data['generated_text'] ?? accumulatedText;
+
+                    // AI 분석 emotion 정보 추출
+                    if (data['emotion'] != null && data['emotion'] != '') {
                       aiEmotion = data['emotion'];
-                      print('🎭 백엔드에서 분석한 emotion: $aiEmotion');
                     }
-                    if (data['emotion_confidence'] != null) {
-                      aiEmotionConfidence = (data['emotion_confidence'] as num)
-                          .toDouble();
-                    }
+
                     if (data['keywords'] != null) {
                       keywords = List<String>.from(data['keywords']);
                     }
-                    break;
-                  case 'connected':
-                    // 연결 확인, 아무것도 하지 않음
                     break;
                 }
               }
             } catch (e) {
               // JSON 파싱 실패 시 해당 줄은 무시
-              print('SSE 라인 파싱 실패: $trimmedLine, 오류: $e');
             }
           }
         }
@@ -355,7 +349,6 @@ class AiApiService {
         throw APIError(errorMessage);
       }
     } catch (e) {
-      print('API 호출 오류: $e');
       if (e is APIError) rethrow;
       throw APIError('네트워크 오류: ${e.toString()}');
     }
@@ -376,9 +369,6 @@ class AiApiService {
         },
       );
 
-      print('원본 입력 조회 - 상태 코드: ${response.statusCode}');
-      print('원본 입력 조회 - 응답: ${response.body}');
-
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);
         if (data['success'] == true && data['data'] != null) {
@@ -387,7 +377,6 @@ class AiApiService {
       }
       return null;
     } catch (e) {
-      print('원본 입력 복구 실패: $e');
       return null;
     }
   }
@@ -401,8 +390,6 @@ class AiApiService {
 
     final uri = Uri.parse('$baseUrl/api/ai/regenerate/$sessionId/stream');
 
-    print('스트리밍 재생성 API 요청 URL: $uri');
-
     try {
       final response = await http.post(
         uri,
@@ -413,8 +400,7 @@ class AiApiService {
         },
       );
 
-      print('스트리밍 재생성 응답 상태 코드: ${response.statusCode}');
-      print('스트리밍 재생성 응답 바디: ${response.body}');
+      print('AI 재생성 API 응답: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         // SSE 응답 파싱
@@ -432,31 +418,30 @@ class AiApiService {
               final jsonStr = trimmedLine.substring(5).trim();
               if (jsonStr.isNotEmpty) {
                 final Map<String, dynamic> data = jsonDecode(jsonStr);
+
                 switch (data['type']) {
                   case 'start':
                     newSessionId = data['session_id'];
                     break;
                   case 'content':
                     accumulatedText = data['accumulated'] ?? accumulatedText;
-                    // ✅ AI가 분석한 emotion 정보 추출
-                    if (data['emotion'] != null) {
+                    break;
+                  case 'complete':
+                    accumulatedText = data['generated_text'] ?? accumulatedText;
+
+                    // AI 분석 emotion 정보 추출
+                    if (data['emotion'] != null && data['emotion'] != '') {
                       aiEmotion = data['emotion'];
-                      print('🎭 백엔드에서 분석한 emotion: $aiEmotion');
                     }
-                    if (data['emotion_confidence'] != null) {
-                      aiEmotionConfidence = (data['emotion_confidence'] as num)
-                          .toDouble();
-                    }
+
                     if (data['keywords'] != null) {
                       keywords = List<String>.from(data['keywords']);
                     }
                     break;
-                  case 'connected':
-                    break;
                 }
               }
             } catch (e) {
-              print('SSE 파싱 오류: $e');
+              // JSON 파싱 실패 시 해당 줄은 무시
             }
           }
         }
@@ -485,7 +470,6 @@ class AiApiService {
         throw APIError(errorMessage);
       }
     } catch (e) {
-      print('스트리밍 재생성 API 호출 오류: $e');
       if (e is APIError) rethrow;
       throw APIError('스트리밍 재생성 중 네트워크 오류: ${e.toString()}');
     }
@@ -494,11 +478,8 @@ class AiApiService {
   /// JWT 토큰 조회
   Future<String?> _getJwtToken() async {
     try {
-      final token = await AuthStorageService.instance.getAuthToken();
-      print('저장된 JWT 토큰 존재: ${token != null && token.isNotEmpty}');
-      return token;
+      return await AuthStorageService.instance.getAuthToken();
     } catch (e) {
-      print('JWT 토큰 조회 실패: $e');
       return null;
     }
   }
@@ -544,7 +525,7 @@ class CreateNotifier extends StateNotifier<CreateState> {
         );
       }
     } catch (e) {
-      print('생성 상태 로드 실패: $e');
+      // 상태 로드 실패 시 무시
     }
   }
 
@@ -574,7 +555,7 @@ class CreateNotifier extends StateNotifier<CreateState> {
         await prefs.remove('sessionId');
       }
     } catch (e) {
-      print('생성 상태 저장 실패: $e');
+      // 상태 저장 실패 시 무시
     }
   }
 
@@ -616,8 +597,6 @@ class CreateNotifier extends StateNotifier<CreateState> {
     state = state.copyWith(isGenerating: true, clearError: true);
 
     try {
-      print('텍스트 생성 시작 - 프롬프트: ${state.prompt}');
-
       final result = await _aiApiService.generateText(
         prompt: state.prompt.trim(),
         style: state.style,
@@ -646,15 +625,10 @@ class CreateNotifier extends StateNotifier<CreateState> {
       );
 
       await _saveState();
-
-      print('AI 텍스트 생성 성공 - 세션 ID: ${result.sessionId}');
-      print('생성된 텍스트 길이: ${result.aiGeneratedText.length}');
     } catch (e) {
       final errorMessage = e is APIError ? e.message : '텍스트 생성 중 오류가 발생했습니다.';
       if (!mounted) return;
       state = state.copyWith(error: errorMessage, isGenerating: false);
-
-      print('AI 텍스트 생성 실패: $e');
     }
   }
 
@@ -670,8 +644,6 @@ class CreateNotifier extends StateNotifier<CreateState> {
     state = state.copyWith(isGenerating: true, clearError: true);
 
     try {
-      print('텍스트 재생성 시작 - 세션 ID: ${state.sessionId}');
-
       final result = await _aiApiService.regenerateStream(state.sessionId!);
 
       if (!mounted) return;
@@ -694,14 +666,10 @@ class CreateNotifier extends StateNotifier<CreateState> {
       );
 
       await _saveState();
-
-      print('AI 텍스트 재생성 성공 - 새 세션 ID: ${result.sessionId}');
     } catch (e) {
       final errorMessage = e is APIError ? e.message : '텍스트 재생성 중 오류가 발생했습니다.';
       if (!mounted) return;
       state = state.copyWith(error: errorMessage, isGenerating: false);
-
-      print('AI 텍스트 재생성 실패: $e');
     }
   }
 
@@ -722,7 +690,7 @@ class CreateNotifier extends StateNotifier<CreateState> {
         state = state.copyWith(originalPrompt: originalInput);
       }
     } catch (e) {
-      print('원본 입력 복구 실패: $e');
+      // 원본 입력 복구 실패 시 무시
     }
   }
 

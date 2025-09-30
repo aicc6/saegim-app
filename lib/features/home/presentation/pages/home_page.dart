@@ -30,7 +30,6 @@ class _HomePageState extends ConsumerState<HomePage> {
     super.dispose();
   }
 
-
   // 감정 토글
   void _toggleEmotion(EmotionOption emotion) {
     ref.read(emotionProvider.notifier).toggleEmotion(emotion);
@@ -304,7 +303,6 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
           const SizedBox(height: 16),
 
-
           const SizedBox(height: 16),
           TextField(
             controller: _promptController,
@@ -377,7 +375,6 @@ class _HomePageState extends ConsumerState<HomePage> {
       ),
     );
   }
-
 
   // 옵션 선택 섹션
   Widget _buildOptionsSection(
