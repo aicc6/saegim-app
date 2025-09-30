@@ -2,9 +2,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:saegim/core/services/auth_storage_service.dart';
 import 'package:saegim/shared/widgets/common_app_bar.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -115,24 +115,26 @@ class _SettingsPageState extends State<SettingsPage> {
         children: [
           const SizedBox(height: 20),
           // 페이지 제목
-          const Center(
+          Center(
             child: Column(
               children: [
-                Icon(Icons.settings, size: 60, color: Color(0xFFB2C5B8)),
-                SizedBox(height: 16),
+                const Icon(Icons.settings, size: 60, color: Color(0xFFB2C5B8)),
+                const SizedBox(height: 16),
                 Text(
                   '설정',
-                  style: TextStyle(
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF2E3A59),
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 40),
-          
+
           // 설정 메뉴들
           _buildSettingsTile(
             context,
@@ -170,12 +172,14 @@ class _SettingsPageState extends State<SettingsPage> {
           // 앱 정보 섹션
           const Divider(),
           const SizedBox(height: 20),
-          const Text(
+          Text(
             '앱 정보',
-            style: TextStyle(
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF2E3A59),
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 16),
@@ -196,7 +200,10 @@ class _SettingsPageState extends State<SettingsPage> {
               ],
             ),
             child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 8,
+              ),
               leading: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
@@ -219,10 +226,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               subtitle: Text(
                 _appVersion,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                ),
+                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
               ),
               onTap: _onVersionTap,
             ),
@@ -235,17 +239,22 @@ class _SettingsPageState extends State<SettingsPage> {
             const SizedBox(height: 20),
             Row(
               children: [
-                const Text(
+                Text(
                   '개발자 도구',
-                  style: TextStyle(
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF2E3A59),
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFB2C5B8).withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
@@ -304,11 +313,7 @@ class _SettingsPageState extends State<SettingsPage> {
             color: const Color(0xFFB2C5B8).withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(
-            icon,
-            color: const Color(0xFFB2C5B8),
-            size: 24,
-          ),
+          child: Icon(icon, color: const Color(0xFFB2C5B8), size: 24),
         ),
         title: Text(
           title,
@@ -320,15 +325,9 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
         subtitle: Text(
           subtitle,
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey[600],
-          ),
+          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
         ),
-        trailing: const Icon(
-          Icons.chevron_right,
-          color: Color(0xFFB2C5B8),
-        ),
+        trailing: const Icon(Icons.chevron_right, color: Color(0xFFB2C5B8)),
         onTap: onTap,
       ),
     );

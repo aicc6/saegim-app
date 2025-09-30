@@ -54,7 +54,7 @@ class CommonAppBar extends StatelessWidget implements PreferredSizeWidget {
                       context.push('/settings');
                       break;
                     case 'notifications':
-                      context.push(RoutePaths.notifications);
+                      context.push('/settings/notifications');
                       break;
                     case 'support':
                       context.push(RoutePaths.support);

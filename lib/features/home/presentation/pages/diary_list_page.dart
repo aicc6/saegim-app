@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:saegim/shared/widgets/common_app_bar.dart';
-import 'package:saegim/features/calendar/data/services/diary_api_service.dart';
-import 'package:saegim/features/calendar/data/models/diary_model.dart';
-import 'package:saegim/features/calendar/data/models/diary_image_model.dart';
-import 'package:saegim/shared/utils/app_logger.dart';
 import 'package:go_router/go_router.dart';
+import 'package:saegim/features/calendar/data/models/diary_image_model.dart';
+import 'package:saegim/features/calendar/data/models/diary_model.dart';
+import 'package:saegim/features/calendar/data/services/diary_api_service.dart';
+import 'package:saegim/shared/utils/app_logger.dart';
+import 'package:saegim/shared/widgets/common_app_bar.dart';
 
 class DiaryListPage extends StatefulWidget {
   const DiaryListPage({super.key});
@@ -25,8 +25,8 @@ class _DiaryListPageState extends State<DiaryListPage> {
 
   bool _isLoading = false;
   bool _hasMore = true;
-  List<DiaryEntry> _filteredDiaries = [];
-  List<DiaryEntry> _displayedDiaries = [];
+  final List<DiaryEntry> _filteredDiaries = [];
+  final List<DiaryEntry> _displayedDiaries = [];
   int _currentPage = 1;
   final int _itemsPerPage = 20;
 
@@ -239,8 +239,10 @@ class _DiaryListPageState extends State<DiaryListPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
-        border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
+        color: Theme.of(context).scaffoldBackgroundColor,
+        border: Border(
+          bottom: BorderSide(color: Theme.of(context).dividerColor),
+        ),
       ),
       child: Column(
         children: [
@@ -252,7 +254,12 @@ class _DiaryListPageState extends State<DiaryListPage> {
               prefixIcon: const Icon(Icons.search, color: Color(0xFFB2C5B8)),
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.clear, color: Colors.grey),
+                      icon: Icon(
+                        Icons.clear,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withOpacity(0.6),
+                      ),
                       onPressed: () {
                         _searchController.clear();
                         _applyFilters();
@@ -261,17 +268,17 @@ class _DiaryListPageState extends State<DiaryListPage> {
                   : null,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey[300]!),
+                borderSide: BorderSide(color: Theme.of(context).dividerColor),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(
-                  color: Color(0xFFB2C5B8),
+                borderSide: BorderSide(
+                  color: Theme.of(context).colorScheme.primary,
                   width: 2,
                 ),
               ),
               filled: true,
-              fillColor: Colors.white,
+              fillColor: Theme.of(context).cardColor,
             ),
             onChanged: (value) => _applyFilters(),
           ),
@@ -383,16 +390,20 @@ class _DiaryListPageState extends State<DiaryListPage> {
     required Function(String?) onChanged,
   }) {
     return DropdownButtonFormField<String>(
-      value: value,
+      initialValue: value,
       decoration: InputDecoration(
-        prefixIcon: Icon(icon, size: 18, color: Colors.grey[600]),
+        prefixIcon: Icon(
+          icon,
+          size: 18,
+          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey[300]!),
+          borderSide: BorderSide(color: Theme.of(context).dividerColor),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: Theme.of(context).cardColor,
         isDense: true,
       ),
       items: items.map((item) {
@@ -406,8 +417,11 @@ class _DiaryListPageState extends State<DiaryListPage> {
         );
       }).toList(),
       onChanged: onChanged,
-      style: const TextStyle(fontSize: 13, color: Colors.black87),
-      dropdownColor: Colors.white,
+      style: TextStyle(
+        fontSize: 13,
+        color: Theme.of(context).colorScheme.onSurface,
+      ),
+      dropdownColor: Theme.of(context).cardColor,
       isExpanded: true, // 중요: 드롭다운이 전체 너비를 사용하도록 설정
     );
   }
@@ -416,14 +430,20 @@ class _DiaryListPageState extends State<DiaryListPage> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[300]!),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('기간 선택', style: TextStyle(fontWeight: FontWeight.w500)),
+          Text(
+            '기간 선택',
+            style: TextStyle(
+              fontWeight: FontWeight.w500,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -571,7 +591,9 @@ class _DiaryListPageState extends State<DiaryListPage> {
       label: Text(label, style: const TextStyle(fontSize: 12)),
       deleteIcon: const Icon(Icons.close, size: 16),
       onDeleted: onRemove,
-      backgroundColor: const Color(0xFFF0F4F1),
+      backgroundColor:
+          Theme.of(context).chipTheme.backgroundColor ??
+          Theme.of(context).colorScheme.surfaceContainerHighest,
       deleteIconColor: const Color(0xFFB2C5B8),
     );
   }
@@ -581,18 +603,27 @@ class _DiaryListPageState extends State<DiaryListPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.search_off, size: 80, color: Colors.grey[400]),
+          Icon(
+            Icons.search_off,
+            size: 80,
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+          ),
           const SizedBox(height: 16),
           Text(
             '검색 결과가 없습니다',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Colors.grey[600],
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
             ),
           ),
           const SizedBox(height: 8),
-          Text('다른 검색어나 필터를 시도해보세요', style: TextStyle(color: Colors.grey[500])),
+          Text(
+            '다른 검색어나 필터를 시도해보세요',
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+            ),
+          ),
           const SizedBox(height: 24),
           ElevatedButton(
             onPressed: () {
@@ -649,11 +680,11 @@ class _DiaryListPageState extends State<DiaryListPage> {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Theme.of(context).shadowColor.withOpacity(0.1),
             spreadRadius: 1,
             blurRadius: 10,
             offset: const Offset(0, 2),
@@ -677,7 +708,7 @@ class _DiaryListPageState extends State<DiaryListPage> {
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(16),
                 ),
-                color: Colors.grey[200],
+                color: Theme.of(context).colorScheme.surface,
               ),
               child: Stack(
                 children: [
@@ -689,7 +720,9 @@ class _DiaryListPageState extends State<DiaryListPage> {
                     child: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surface.withOpacity(0.9),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
@@ -733,10 +766,10 @@ class _DiaryListPageState extends State<DiaryListPage> {
                   // 제목
                   Text(
                     diary.title ?? '제목 없음',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -748,7 +781,9 @@ class _DiaryListPageState extends State<DiaryListPage> {
                     diary.aiGeneratedText ?? diary.content,
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.grey[600],
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withOpacity(0.7),
                       height: 1.4,
                     ),
                     maxLines: 2,
@@ -768,7 +803,11 @@ class _DiaryListPageState extends State<DiaryListPage> {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF0F4F1),
+                            color:
+                                Theme.of(context).chipTheme.backgroundColor ??
+                                Theme.of(
+                                  context,
+                                ).colorScheme.surfaceContainerHighest,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: const Color(0xFFB2C5B8),
@@ -777,9 +816,9 @@ class _DiaryListPageState extends State<DiaryListPage> {
                           ),
                           child: Text(
                             '#$keyword',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 11,
-                              color: Color(0xFF4A7C59),
+                              color: Theme.of(context).colorScheme.onSurface,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -812,7 +851,7 @@ class _DiaryListPageState extends State<DiaryListPage> {
       return Container(
         width: double.infinity,
         height: double.infinity,
-        color: Colors.grey[300],
+        color: Theme.of(context).colorScheme.surface,
         child: const Center(
           child: SizedBox(
             width: 24,
@@ -853,8 +892,14 @@ class _DiaryListPageState extends State<DiaryListPage> {
             },
             errorBuilder: (context, error, stackTrace) {
               return Container(
-                color: Colors.grey[300],
-                child: const Icon(Icons.image, size: 60, color: Colors.grey),
+                color: Theme.of(context).colorScheme.surface,
+                child: Icon(
+                  Icons.image,
+                  size: 60,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withOpacity(0.5),
+                ),
               );
             },
           ),
@@ -866,8 +911,12 @@ class _DiaryListPageState extends State<DiaryListPage> {
     return Container(
       width: double.infinity,
       height: double.infinity,
-      color: Colors.grey[300],
-      child: const Icon(Icons.image, size: 60, color: Colors.grey),
+      color: Theme.of(context).colorScheme.surface,
+      child: Icon(
+        Icons.image,
+        size: 60,
+        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+      ),
     );
   }
 

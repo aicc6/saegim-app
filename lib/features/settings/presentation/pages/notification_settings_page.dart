@@ -44,21 +44,23 @@ class NotificationSettingsPage extends ConsumerWidget {
       padding: const EdgeInsets.all(16),
       children: [
         // 페이지 제목
-        const Center(
+        Center(
           child: Column(
             children: [
-              Icon(
+              const Icon(
                 Icons.notifications_outlined,
                 size: 60,
                 color: Color(0xFFB2C5B8),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               Text(
                 '알림 설정',
-                style: TextStyle(
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF2E3A59),
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.onSurface,
                 ),
               ),
             ],
@@ -67,7 +69,7 @@ class NotificationSettingsPage extends ConsumerWidget {
         const SizedBox(height: 32),
 
         // 기본 알림 설정
-        _buildSectionTitle('기본 알림'),
+        _buildSectionTitle(context, '기본 알림'),
         _buildSwitchTile(
           title: '푸시 알림',
           subtitle: '새김 앱의 모든 알림을 받습니다',
@@ -80,7 +82,7 @@ class NotificationSettingsPage extends ConsumerWidget {
         const SizedBox(height: 24),
 
         // 다이어리 알림
-        _buildSectionTitle('다이어리 알림'),
+        _buildSectionTitle(context, '다이어리 알림'),
         _buildSwitchTile(
           title: '다이어리 작성 알림',
           subtitle: '매일 다이어리 작성을 알려드립니다',
@@ -104,7 +106,7 @@ class NotificationSettingsPage extends ConsumerWidget {
         const SizedBox(height: 24),
 
         // 활동 알림
-        _buildSectionTitle('활동 알림'),
+        _buildSectionTitle(context, '활동 알림'),
         _buildSwitchTile(
           title: '주간 리포트 알림',
           subtitle: '감정 분석 리포트가 생성되면 알려드립니다',
@@ -127,15 +129,17 @@ class NotificationSettingsPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _buildSectionTitle(BuildContext context, String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Text(
         title,
-        style: const TextStyle(
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
           fontSize: 18,
           fontWeight: FontWeight.bold,
-          color: Color(0xFF2E3A59),
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).colorScheme.onSurface,
         ),
       ),
     );

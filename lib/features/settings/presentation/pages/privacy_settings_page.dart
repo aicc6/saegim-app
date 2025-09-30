@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:saegim/shared/widgets/common_app_bar.dart';
 
 class PrivacySettingsPage extends StatelessWidget {
@@ -13,21 +12,23 @@ class PrivacySettingsPage extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         children: [
           // 페이지 제목
-          const Center(
+          Center(
             child: Column(
               children: [
-                Icon(
+                const Icon(
                   Icons.privacy_tip_outlined,
                   size: 60,
                   color: Color(0xFFB2C5B8),
                 ),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 Text(
                   '개인정보 설정',
-                  style: TextStyle(
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF2E3A59),
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ],
@@ -36,7 +37,7 @@ class PrivacySettingsPage extends StatelessWidget {
           const SizedBox(height: 32),
 
           // 개인정보 보호 섹션
-          _buildSectionTitle('개인정보 보호'),
+          _buildSectionTitle(context, '개인정보 보호'),
           const SizedBox(height: 12),
           _buildSettingItem(
             context,
@@ -72,15 +73,17 @@ class PrivacySettingsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _buildSectionTitle(BuildContext context, String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Text(
         title,
-        style: const TextStyle(
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
           fontSize: 18,
           fontWeight: FontWeight.bold,
-          color: Color(0xFF2E3A59),
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).colorScheme.onSurface,
         ),
       ),
     );
@@ -92,7 +95,6 @@ class PrivacySettingsPage extends StatelessWidget {
     required String title,
     required String subtitle,
     required VoidCallback onTap,
-    bool isDestructive = false,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -110,11 +112,7 @@ class PrivacySettingsPage extends StatelessWidget {
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-        leading: Icon(
-          icon,
-          color: const Color(0xFFB2C5B8),
-          size: 28,
-        ),
+        leading: Icon(icon, color: const Color(0xFFB2C5B8), size: 28),
         title: Text(
           title,
           style: const TextStyle(
