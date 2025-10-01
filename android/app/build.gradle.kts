@@ -42,6 +42,17 @@ android {
     }
 
     signingConfigs {
+        // 팀 공유 디버그 키스토어 설정
+        getByName("debug") {
+            val storeFilePath = keystoreProperties["storeFile"] as String?
+            if (!storeFilePath.isNullOrBlank()) {
+                storeFile = file(storeFilePath)
+                storePassword = keystoreProperties["storePassword"] as String?
+                keyAlias = keystoreProperties["keyAlias"] as String?
+                keyPassword = keystoreProperties["keyPassword"] as String?
+            }
+        }
+
         create("release") {
             val storeFilePath = keystoreProperties["storeFile"] as String?
             if (!storeFilePath.isNullOrBlank()) {
@@ -54,6 +65,10 @@ android {
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
+
         release {
             signingConfig = signingConfigs.getByName("release")
         }
