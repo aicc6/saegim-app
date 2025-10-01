@@ -1,9 +1,10 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:saegim/core/network/dio_client.dart';
-import 'package:saegim/features/calendar/data/models/diary_model.dart';
 import 'package:saegim/features/calendar/data/models/diary_image_model.dart';
+import 'package:saegim/features/calendar/data/models/diary_model.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
-import 'dart:io';
 
 /// 다이어리 API 서비스
 class DiaryApiService {
@@ -1280,9 +1281,7 @@ class DiaryApiService {
         'DiaryApiService',
       );
 
-      final response = await this.dio.delete(
-        '/api/diary/$diaryId/images/$imageId',
-      );
+      final response = await dio.delete('/api/diary/$diaryId/images/$imageId');
 
       if (response.statusCode == 200 || response.statusCode == 204) {
         AppLogger.info(

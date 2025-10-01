@@ -165,10 +165,28 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   // 감정 설정 가져오기
   result_card.EmotionConfig _getEmotionConfig(String emotion) {
+    // 한글 감정을 영어 enum 값으로 변환
+    final emotionMap = {
+      '행복': 'happy',
+      '평온': 'peaceful',
+      '불안': 'unrest',
+      '분노': 'angry',
+      '화남': 'angry',
+      '슬픔': 'sad',
+      'happy': 'happy',
+      'peaceful': 'peaceful',
+      'unrest': 'unrest',
+      'angry': 'angry',
+      'sad': 'sad',
+    };
+
+    final normalizedEmotion = emotionMap[emotion.trim()] ?? emotion;
+
     final config = emotionConfigs.firstWhere(
-      (config) => config.value.toString().split('.').last == emotion,
+      (config) => config.value.toString().split('.').last == normalizedEmotion,
       orElse: () => emotionConfigs.first,
     );
+
     return result_card.EmotionConfig(
       emoji: config.emoji,
       label: config.label,
