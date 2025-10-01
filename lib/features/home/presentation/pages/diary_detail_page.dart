@@ -718,9 +718,27 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         success = createdDiary != null;
 
         if (success) {
-          // 저장 성공 시 실제 ID로 교체하고 상세 페이지로 이동
+          // 저장 성공 시 로딩 상태 해제 후 페이지 이동
           if (mounted) {
-            context.go('/diary/${createdDiary.id}');
+            setState(() {
+              isSaving = false;
+              isEditMode = false;
+            });
+          }
+
+          if (mounted && context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('새 다이어리가 성공적으로 생성되었습니다.'),
+                backgroundColor: Color(0xFF4A7C59),
+              ),
+            );
+
+            // 약간의 지연 후 페이지 이동
+            await Future.delayed(const Duration(milliseconds: 500));
+            if (mounted && context.mounted) {
+              context.go('/diary/${createdDiary.id}');
+            }
           }
           return;
         }
@@ -779,53 +797,65 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         }
       }
 
-      if (mounted && context.mounted) {
-        setState(() {
-          isSaving = false;
-          if (success && imageUploadSuccess) {
-            isEditMode = false; // 성공 시 즉시 편집 모드 종료
+      if (success) {
+        if (imageUploadSuccess) {
+          // 다이어리와 이미지 모두 성공
+          if (mounted) {
+            setState(() {
+              isSaving = false;
+              isEditMode = false; // 성공 시 즉시 편집 모드 종료
+            });
           }
-        });
 
-        if (success) {
-          if (imageUploadSuccess) {
-            // 다이어리와 이미지 모두 성공
-            await _loadDiary();
+          await _loadDiary();
 
-            if (mounted && context.mounted) {
-              final hadImages = newImages.isNotEmpty;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    hadImages
-                        ? '다이어리와 이미지가 성공적으로 저장되었습니다.'
-                        : '다이어리가 성공적으로 수정되었습니다.',
-                  ),
-                  backgroundColor: const Color(0xFF4A7C59),
-                  duration: const Duration(seconds: 3),
+          if (mounted && context.mounted) {
+            final hadImages = newImages.isNotEmpty;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  hadImages
+                      ? '다이어리와 이미지가 성공적으로 저장되었습니다.'
+                      : '다이어리가 성공적으로 수정되었습니다.',
                 ),
-              );
-            }
-          } else {
-            // 다이어리는 성공했지만 이미지 업로드 실패
-            await _loadDiary();
-
-            if (mounted && context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    '다이어리는 저장되었지만 이미지 업로드에 실패했습니다.\n네트워크 상태를 확인해주세요.',
-                  ),
-                  backgroundColor: Colors.orange,
-                  duration: Duration(seconds: 4),
-                ),
-              );
-            }
+                backgroundColor: const Color(0xFF4A7C59),
+                duration: const Duration(seconds: 3),
+              ),
+            );
           }
         } else {
-          if (mounted && context.mounted) {
-            _showUpdateNotAvailableDialog();
+          // 다이어리는 성공했지만 이미지 업로드 실패
+          if (mounted) {
+            setState(() {
+              isSaving = false;
+              isEditMode = false; // 성공 시 즉시 편집 모드 종료
+            });
           }
+
+          await _loadDiary();
+
+          if (mounted && context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  '다이어리는 저장되었지만 이미지 업로드에 실패했습니다.\n네트워크 상태를 확인해주세요.',
+                ),
+                backgroundColor: Colors.orange,
+                duration: Duration(seconds: 4),
+              ),
+            );
+          }
+        }
+      } else {
+        // 저장 실패
+        if (mounted) {
+          setState(() {
+            isSaving = false;
+          });
+        }
+
+        if (mounted && context.mounted) {
+          _showUpdateNotAvailableDialog();
         }
       }
     } catch (e) {
@@ -838,15 +868,15 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         setState(() {
           isSaving = false;
         });
+      }
 
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('다이어리 수정 중 오류가 발생했습니다.'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+      if (mounted && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('다이어리 수정 중 오류가 발생했습니다.'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }

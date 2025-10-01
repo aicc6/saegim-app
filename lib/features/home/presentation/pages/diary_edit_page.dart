@@ -34,6 +34,7 @@ class _DiaryEditPageState extends State<DiaryEditPage> {
   @override
   void initState() {
     super.initState();
+    _isLoading = false; // 명시적으로 로딩 상태 초기화
     _titleController = TextEditingController(text: widget.diary.title ?? '');
     _aiGeneratedTextController = TextEditingController(
       text: widget.diary.aiGeneratedText ?? '',
@@ -44,6 +45,11 @@ class _DiaryEditPageState extends State<DiaryEditPage> {
     // 원래 감정이 null이면 첫 번째 감정을 기본값으로 설정
     _selectedEmotion =
         widget.diary.emotion ?? _emotions.first['value'] as String;
+
+    AppLogger.info(
+      '📱 DiaryEditPage initialized, _isLoading = $_isLoading',
+      'DiaryEditPage',
+    );
   }
 
   @override
@@ -60,9 +66,14 @@ class _DiaryEditPageState extends State<DiaryEditPage> {
       return;
     }
 
+    AppLogger.info(
+      '🔄 Starting diary save, setting _isLoading = true',
+      'DiaryEditPage',
+    );
     setState(() {
       _isLoading = true;
     });
+    AppLogger.info('✅ _isLoading state set to true', 'DiaryEditPage');
 
     try {
       // 키워드 파싱 (쉼표로 구분)
@@ -103,20 +114,58 @@ class _DiaryEditPageState extends State<DiaryEditPage> {
             : _aiGeneratedTextController.text.trim(),
       );
 
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+      if (success) {
+        // 로딩 상태 먼저 해제
+        AppLogger.info(
+          '✅ Diary update successful, setting _isLoading = false',
+          'DiaryEditPage',
+        );
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+          AppLogger.info(
+            '✅ _isLoading state updated to false, current value: $_isLoading',
+            'DiaryEditPage',
+          );
+        } else {
+          AppLogger.warning(
+            '⚠️ Widget not mounted, cannot update _isLoading state',
+            'DiaryEditPage',
+          );
+        }
 
-        if (success) {
+        // 성공 메시지 표시
+        if (mounted && context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('다이어리가 성공적으로 수정되었습니다.'),
               backgroundColor: Color(0xFF4A7C59),
             ),
           );
+        }
+
+        // 페이지 닫기 (약간의 지연을 두어 상태 업데이트가 완료되도록)
+        await Future.delayed(const Duration(milliseconds: 100));
+        if (mounted && context.mounted) {
           context.pop(true); // true를 반환하여 수정 완료를 알림
-        } else {
+        }
+      } else {
+        AppLogger.warning(
+          '❌ Diary update failed, setting _isLoading = false',
+          'DiaryEditPage',
+        );
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+          AppLogger.info(
+            '✅ _isLoading state updated to false (failed case)',
+            'DiaryEditPage',
+          );
+        }
+
+        if (mounted && context.mounted) {
           _showUpdateNotAvailableDialog(context);
         }
       }
@@ -126,10 +175,21 @@ class _DiaryEditPageState extends State<DiaryEditPage> {
         tag: 'DiaryEditPage',
         error: e,
       );
+      AppLogger.info(
+        '💥 Exception occurred, setting _isLoading = false',
+        'DiaryEditPage',
+      );
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
+        AppLogger.info(
+          '✅ _isLoading state updated to false (exception case)',
+          'DiaryEditPage',
+        );
+      }
+
+      if (mounted && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('다이어리 수정 중 오류가 발생했습니다.'),
