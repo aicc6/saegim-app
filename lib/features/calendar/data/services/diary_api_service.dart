@@ -520,6 +520,124 @@ class DiaryApiService {
     return statistics;
   }
 
+  /// 다이어리 생성
+  ///
+  /// [content]: 다이어리 본문 (필수)
+  /// [aiGeneratedText]: AI가 생성한 글
+  /// [userEmotion]: 사용자가 선택한 감정
+  /// [aiEmotion]: AI가 분석한 감정
+  /// [aiEmotionConfidence]: AI 감정 신뢰도 (0.0~1.0)
+  /// [keywords]: 키워드 배열
+  /// [diaryDate]: 다이어리 작성 날짜 (YYYY-MM-DD)
+  Future<DiaryEntry?> createDiary({
+    required String content,
+    String? aiGeneratedText,
+    String? userEmotion,
+    String? aiEmotion,
+    double? aiEmotionConfidence,
+    List<String>? keywords,
+    String? diaryDate,
+  }) async {
+    try {
+      AppLogger.info('Creating new diary', 'DiaryApiService');
+
+      // 백엔드 API 스펙에 맞춘 데이터 구조
+      final diaryData = <String, dynamic>{
+        'content': content, // 필수
+      };
+
+      // 선택적 필드 추가
+      if (aiGeneratedText != null && aiGeneratedText.isNotEmpty) {
+        diaryData['ai_generated_text'] = aiGeneratedText;
+      }
+
+      if (userEmotion != null && userEmotion.isNotEmpty) {
+        diaryData['user_emotion'] = userEmotion;
+      }
+
+      if (aiEmotion != null && aiEmotion.isNotEmpty) {
+        diaryData['ai_emotion'] = aiEmotion;
+      }
+
+      if (aiEmotionConfidence != null) {
+        diaryData['ai_emotion_confidence'] = aiEmotionConfidence;
+      }
+
+      if (keywords != null && keywords.isNotEmpty) {
+        diaryData['keywords'] = keywords;
+      }
+
+      if (diaryDate != null && diaryDate.isNotEmpty) {
+        diaryData['diary_date'] = diaryDate;
+      }
+
+      AppLogger.info(
+        'Create diary request data: $diaryData',
+        'DiaryApiService',
+      );
+
+      final response = await dio.post('/api/diary', data: diaryData);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        AppLogger.info('Diary created successfully', 'DiaryApiService');
+
+        // 응답 데이터 파싱
+        Map<String, dynamic> responseData = {};
+
+        if (response.data is Map<String, dynamic>) {
+          final responseMap = response.data as Map<String, dynamic>;
+
+          if (responseMap.containsKey('success') &&
+              responseMap['success'] == true) {
+            responseData = responseMap['data'] ?? {};
+          } else if (responseMap.containsKey('data')) {
+            final data = responseMap['data'];
+            if (data is Map<String, dynamic>) {
+              responseData = data;
+            }
+          } else {
+            responseData = responseMap;
+          }
+        }
+
+        if (responseData.isNotEmpty) {
+          return DiaryEntry.fromJson(responseData);
+        }
+
+        return null;
+      } else {
+        AppLogger.warning(
+          'Failed to create diary: ${response.statusCode}',
+          'DiaryApiService',
+        );
+        return null;
+      }
+    } on DioException catch (dioError) {
+      final statusCode = dioError.response?.statusCode;
+
+      if (statusCode == 422) {
+        AppLogger.warning(
+          'Validation error: ${dioError.response?.data}',
+          'DiaryApiService',
+        );
+      } else {
+        AppLogger.error(
+          'Failed to create diary',
+          tag: 'DiaryApiService',
+          error: dioError,
+        );
+      }
+      return null;
+    } catch (e) {
+      AppLogger.error(
+        'Unexpected error creating diary',
+        tag: 'DiaryApiService',
+        error: e,
+      );
+      return null;
+    }
+  }
+
   /// 특정 다이어리 조회
   ///
   /// [diaryId]: 조회할 다이어리 ID

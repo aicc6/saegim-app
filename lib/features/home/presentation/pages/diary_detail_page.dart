@@ -1,16 +1,18 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:saegim/features/calendar/data/models/diary_model.dart';
 import 'package:saegim/features/calendar/data/models/diary_image_model.dart';
+import 'package:saegim/features/calendar/data/models/diary_model.dart';
 import 'package:saegim/features/calendar/data/services/diary_api_service.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
-import 'dart:io';
 
 class DiaryDetailPage extends StatefulWidget {
   final String diaryId;
+  final DiaryEntry? tempEntry; // 새 다이어리용 임시 데이터
 
-  const DiaryDetailPage({super.key, required this.diaryId});
+  const DiaryDetailPage({super.key, required this.diaryId, this.tempEntry});
 
   @override
   State<DiaryDetailPage> createState() => _DiaryDetailPageState();
@@ -476,6 +478,18 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         errorMessage = null;
       });
 
+      // 새 다이어리 모드인 경우 (diaryId가 "new"이거나 tempEntry가 있는 경우)
+      if (widget.diaryId == 'new' || widget.tempEntry != null) {
+        setState(() {
+          diary = widget.tempEntry;
+          isLoading = false;
+          isEditMode = true; // 새 다이어리는 편집 모드로 시작
+        });
+        _initializeEditControllers();
+        return;
+      }
+
+      // 기존 다이어리 조회
       final loadedDiary = await DiaryApiService.instance.getDiaryById(
         widget.diaryId,
       );
@@ -680,18 +694,50 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
           .where((keyword) => keyword.isNotEmpty)
           .toList();
 
-      // 1. 다이어리 정보 업데이트
-      final success = await DiaryApiService.instance.updateDiary(
-        diaryId: diary!.id,
-        title: _titleController.text.trim().isEmpty
-            ? null
-            : _titleController.text.trim(),
-        emotion: _selectedEmotion,
-        keywords: keywordsList,
-        aiGeneratedText: _aiGeneratedTextController.text.trim().isEmpty
-            ? null
-            : _aiGeneratedTextController.text.trim(),
-      );
+      bool success = false;
+
+      // 새 다이어리인 경우 (diaryId가 "new"로 시작)
+      if (widget.diaryId == 'new' || diary!.id.startsWith('temp_')) {
+        // 다이어리 생성
+        final date = diary!.diaryDate;
+        final dateString =
+            '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
+        final createdDiary = await DiaryApiService.instance.createDiary(
+          content: diary!.content, // 필수
+          aiGeneratedText: _aiGeneratedTextController.text.trim().isEmpty
+              ? null
+              : _aiGeneratedTextController.text.trim(),
+          userEmotion: _selectedEmotion,
+          aiEmotion: diary!.aiEmotion,
+          aiEmotionConfidence: 0.8,
+          keywords: keywordsList.isNotEmpty ? keywordsList : null,
+          diaryDate: dateString,
+        );
+
+        success = createdDiary != null;
+
+        if (success) {
+          // 저장 성공 시 실제 ID로 교체하고 상세 페이지로 이동
+          if (mounted) {
+            context.go('/diary/${createdDiary.id}');
+          }
+          return;
+        }
+      } else {
+        // 기존 다이어리 업데이트
+        success = await DiaryApiService.instance.updateDiary(
+          diaryId: diary!.id,
+          title: _titleController.text.trim().isEmpty
+              ? null
+              : _titleController.text.trim(),
+          emotion: _selectedEmotion,
+          keywords: keywordsList,
+          aiGeneratedText: _aiGeneratedTextController.text.trim().isEmpty
+              ? null
+              : _aiGeneratedTextController.text.trim(),
+        );
+      }
 
       // 2. 새로 추가된 이미지들 업로드 (여러 엔드포인트 시도)
       bool imageUploadSuccess = true;
@@ -718,20 +764,11 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
           final latestImages = await DiaryApiService.instance.getDiaryImages(
             diary!.id,
           );
-          if (latestImages != null) {
-            setState(() {
-              diaryImages = latestImages;
-              newImages.clear(); // 업로드 완료 후 새 이미지 목록 클리어
-            });
-            imageUploadSuccess = true;
-          } else {
-            // 이미지 목록 조회 실패 - 로컬에만 추가
-            setState(() {
-              diaryImages.addAll(uploadedImages);
-              newImages.clear();
-            });
-            imageUploadSuccess = true;
-          }
+          setState(() {
+            diaryImages = latestImages;
+            newImages.clear(); // 업로드 완료 후 새 이미지 목록 클리어
+          });
+          imageUploadSuccess = true;
         } else {
           // 업로드 실패
           imageUploadSuccess = false;
@@ -1361,7 +1398,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
               ),
               if (isEditMode) ...[
                 const Spacer(),
-                Container(
+                SizedBox(
                   width: 80,
                   height: 32,
                   child: ElevatedButton(
@@ -1729,7 +1766,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
               const Spacer(),
               if (isEditMode) ...[
                 // 편집 모드에서 사진 추가 버튼
-                Container(
+                SizedBox(
                   height: 32,
                   child: ElevatedButton.icon(
                     onPressed: _pickImages,

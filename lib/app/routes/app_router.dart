@@ -1,19 +1,21 @@
 import 'package:go_router/go_router.dart';
 import 'package:saegim/app/routes/route_guard.dart';
 import 'package:saegim/app/routes/route_paths.dart';
+import 'package:saegim/debug/fcm_debug_page.dart';
 import 'package:saegim/features/authentication/presentation/pages/forgot_password_page.dart';
 import 'package:saegim/features/authentication/presentation/pages/login_page.dart';
 import 'package:saegim/features/authentication/presentation/pages/reset_password_page.dart';
 import 'package:saegim/features/authentication/presentation/pages/restore_account_page.dart';
 import 'package:saegim/features/authentication/presentation/pages/signup_page.dart';
+import 'package:saegim/features/calendar/data/models/diary_model.dart';
 import 'package:saegim/features/home/presentation/pages/calendar_page.dart';
 import 'package:saegim/features/home/presentation/pages/diary_detail_page.dart';
 import 'package:saegim/features/home/presentation/pages/diary_list_page.dart';
 import 'package:saegim/features/home/presentation/pages/home_page.dart';
 import 'package:saegim/features/home/presentation/pages/notifications_page.dart';
 import 'package:saegim/features/home/presentation/pages/settings_page.dart';
-import 'package:saegim/features/profile/presentation/pages/profile_page.dart';
 import 'package:saegim/features/home/presentation/pages/support_page.dart';
+import 'package:saegim/features/profile/presentation/pages/profile_page.dart';
 import 'package:saegim/features/settings/presentation/pages/app_preferences_page.dart';
 import 'package:saegim/features/settings/presentation/pages/change_password_page.dart';
 import 'package:saegim/features/settings/presentation/pages/notification_settings_page.dart';
@@ -22,7 +24,6 @@ import 'package:saegim/shared/widgets/error_page.dart';
 import 'package:saegim/shared/widgets/main_scaffold.dart';
 import 'package:saegim/shared/widgets/onboarding_page.dart';
 import 'package:saegim/shared/widgets/splash_page.dart';
-import 'package:saegim/debug/fcm_debug_page.dart';
 
 /// 앱의 라우터 설정 클래스
 class AppRouter {
@@ -104,7 +105,8 @@ class AppRouter {
                   path: '/:id',
                   builder: (context, state) {
                     final id = state.pathParameters['id']!;
-                    return DiaryDetailPage(diaryId: id);
+                    final tempEntry = state.extra as DiaryEntry?;
+                    return DiaryDetailPage(diaryId: id, tempEntry: tempEntry);
                   },
                 ),
               ],

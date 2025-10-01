@@ -2,12 +2,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:saegim/features/calendar/data/models/diary_model.dart';
 
-import '../../../calendar/data/models/diary_model.dart';
 import '../riverpod/create_notifier.dart';
 import '../riverpod/emotions_notifier.dart';
 import 'result_card.dart' as result_card;
-import 'viewpage.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -41,7 +41,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     final emotionState = ref.read(emotionProvider);
 
     if (_promptController.text.trim().isEmpty) {
-      _showErrorSnackBar('프롬프트를 입력해주세요.');
+      _showErrorSnackBar('내용을 입력해주세요.');
       return;
     }
 
@@ -223,29 +223,47 @@ class _HomePageState extends ConsumerState<HomePage> {
               _copyToClipboard(content);
             },
             onMoveToDiary: (content, emotion, keywords) async {
+              // 임시 DiaryEntry 생성하여 DiaryDetailPage로 전달
               final now = DateTime.now();
-              final diary = DiaryEntry(
-                id: now.millisecondsSinceEpoch.toString(),
-                title: '', // 제목은 편집 페이지에서 입력
-                content: content,
-                aiGeneratedText: content,
-                emotion: emotion,
-                aiEmotion: emotion, // AI가 분석한 감정을 사용
+
+              // 한글 감정을 영어로 변환
+              String? convertedEmotion;
+              if (emotion != null && emotion.isNotEmpty) {
+                final emotionMap = {
+                  '행복': 'happy',
+                  '평온': 'peaceful',
+                  '불안': 'unrest',
+                  '분노': 'angry',
+                  '화남': 'angry',
+                  '슬픔': 'sad',
+                  'happy': 'happy',
+                  'peaceful': 'peaceful',
+                  'unrest': 'unrest',
+                  'angry': 'angry',
+                  'sad': 'sad',
+                };
+                convertedEmotion = emotionMap[emotion.trim()] ?? emotion;
+              }
+
+              final userInput = _promptController.text.trim();
+              final contentText = userInput.isNotEmpty ? userInput : content;
+
+              final tempDiary = DiaryEntry(
+                id: 'temp_${now.millisecondsSinceEpoch}',
+                title: null,
+                content: contentText, // 원본 사용자 입력
+                aiGeneratedText: content, // AI가 생성한 텍스트
+                emotion: convertedEmotion,
+                aiEmotion: convertedEmotion,
                 keywords: keywords ?? [],
                 diaryDate: now,
                 createdAt: now,
                 isPublic: false,
               );
 
-              // 다이어리 편집 페이지로 이동
+              // DiaryDetailPage로 이동 (새 다이어리 모드)
               if (mounted) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        ViewPostPage(tempEntry: diary, fromPath: '/create'),
-                  ),
-                );
+                context.go('/diary/new', extra: tempDiary);
               }
             },
             onRegenerate: (message) {
