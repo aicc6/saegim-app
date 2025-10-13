@@ -21,6 +21,7 @@ class _DiaryEditPageState extends State<DiaryEditPage> {
 
   String? _selectedEmotion;
   bool _isLoading = false;
+  DateTime? _selectedDate;
 
   // 감정 옵션 (서버 호환을 위해 정확한 영어 값 사용)
   final List<Map<String, String>> _emotions = [
@@ -45,6 +46,8 @@ class _DiaryEditPageState extends State<DiaryEditPage> {
     // 원래 감정이 null이면 첫 번째 감정을 기본값으로 설정
     _selectedEmotion =
         widget.diary.emotion ?? _emotions.first['value'] as String;
+    // 선택된 날짜 초기화 (기존 다이어리 날짜 사용)
+    _selectedDate = widget.diary.diaryDate;
 
     AppLogger.info(
       '📱 DiaryEditPage initialized, _isLoading = $_isLoading',
@@ -112,6 +115,7 @@ class _DiaryEditPageState extends State<DiaryEditPage> {
         aiGeneratedText: _aiGeneratedTextController.text.trim().isEmpty
             ? null
             : _aiGeneratedTextController.text.trim(),
+        diaryDate: _selectedDate, // 선택된 날짜 전달
       );
 
       if (success) {
@@ -235,9 +239,9 @@ class _DiaryEditPageState extends State<DiaryEditPage> {
 
   @override
   Widget build(BuildContext context) {
-    final diaryDate = widget.diary.diaryDate;
-    final formattedDate = diaryDate != null
-        ? '${diaryDate.month}월 ${diaryDate.day}일'
+    final displayDate = _selectedDate ?? widget.diary.diaryDate;
+    final formattedDate = displayDate != null
+        ? '${displayDate.month}월 ${displayDate.day}일'
         : '날짜 없음';
 
     return Scaffold(
@@ -257,7 +261,7 @@ class _DiaryEditPageState extends State<DiaryEditPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // 날짜 표시
+                      // 날짜 표시 및 선택
                       Text(
                         '$formattedDate 일기 수정',
                         style: const TextStyle(
@@ -268,6 +272,11 @@ class _DiaryEditPageState extends State<DiaryEditPage> {
                       ),
 
                       const SizedBox(height: 32),
+
+                      // 날짜 선택 필드
+                      _buildDateField(),
+
+                      const SizedBox(height: 24),
 
                       // 제목 입력
                       _buildTitleField(),
@@ -334,6 +343,118 @@ class _DiaryEditPageState extends State<DiaryEditPage> {
         ],
       ),
     );
+  }
+
+  // 날짜 선택 필드
+  Widget _buildDateField() {
+    print('🗓️ _buildDateField 호출됨, _selectedDate: $_selectedDate');
+    final formattedDate = _selectedDate != null
+        ? '${_selectedDate!.month}월 ${_selectedDate!.day}일'
+        : '날짜를 선택하세요';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFF4A7C59),
+          width: 2,
+        ), // 더 진한 테두리
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '📅 날짜 선택',
+            style: TextStyle(
+              fontSize: 16,
+              color: Color(0xFF4A7C59),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          GestureDetector(
+            onTap: () {
+              print('🗓️ 날짜 필드 터치됨');
+              _selectDate(context);
+            },
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+              decoration: BoxDecoration(
+                border: Border.all(color: const Color(0xFF4A7C59)),
+                borderRadius: BorderRadius.circular(8),
+                color: const Color(0xFFF8FFFE),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    formattedDate,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: _selectedDate != null
+                          ? const Color(0xFF1F2937)
+                          : const Color(0xFF9CA3AF),
+                    ),
+                  ),
+                  const Icon(
+                    Icons.calendar_today,
+                    size: 24,
+                    color: Color(0xFF4A7C59),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            '날짜를 터치하여 변경하세요',
+            style: TextStyle(
+              fontSize: 12,
+              color: Color(0xFF6B7280),
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 날짜 선택 다이얼로그
+  Future<void> _selectDate(BuildContext context) async {
+    print('🗓️ 날짜 선택 다이얼로그 호출됨');
+
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF4A7C59),
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: Color(0xFF1F2937),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    print('🗓️ 선택된 날짜: $picked');
+
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+        print('🗓️ _selectedDate 업데이트됨: $_selectedDate');
+      });
+    }
   }
 
   // 제목 입력 필드

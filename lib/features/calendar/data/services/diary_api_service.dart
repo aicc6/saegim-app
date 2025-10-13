@@ -562,6 +562,7 @@ class DiaryApiService {
   /// [diaryDate]: 다이어리 작성 날짜 (YYYY-MM-DD)
   Future<DiaryEntry?> createDiary({
     required String content,
+    String? title,
     String? aiGeneratedText,
     String? userEmotion,
     String? aiEmotion,
@@ -578,6 +579,17 @@ class DiaryApiService {
       };
 
       // 선택적 필드 추가
+      print('🔥 DiaryApiService.createDiary 디버깅:');
+      print('🔥 - 받은 title: "$title" (타입: ${title.runtimeType})');
+      print('🔥 - title != null: ${title != null}');
+      if (title != null) {
+        print('🔥 - title.isNotEmpty: ${title.isNotEmpty}');
+        diaryData['title'] = title; // 빈 문자열도 허용
+        print('🔥 - diaryData에 title 추가됨: "${diaryData['title']}"');
+      } else {
+        print('🔥 - title이 null이므로 diaryData에 추가하지 않음');
+      }
+
       if (aiGeneratedText != null && aiGeneratedText.isNotEmpty) {
         diaryData['ai_generated_text'] = aiGeneratedText;
       }
@@ -772,6 +784,7 @@ class DiaryApiService {
     String? emotion,
     List<String>? keywords,
     String? aiGeneratedText,
+    DateTime? diaryDate,
   }) async {
     try {
       AppLogger.info('📝 Updating diary: $diaryId', 'DiaryApiService');
@@ -787,6 +800,11 @@ class DiaryApiService {
       if (keywords != null) updateData['keywords'] = keywords;
       if (aiGeneratedText != null)
         updateData['ai_generated_text'] = aiGeneratedText;
+      if (diaryDate != null) {
+        // 날짜를 YYYY-MM-DD 형식으로 변환
+        updateData['diary_date'] =
+            '${diaryDate.year}-${diaryDate.month.toString().padLeft(2, '0')}-${diaryDate.day.toString().padLeft(2, '0')}';
+      }
 
       AppLogger.info('📊 Update request data: $updateData', 'DiaryApiService');
 

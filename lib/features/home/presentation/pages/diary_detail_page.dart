@@ -37,6 +37,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
   late TextEditingController _keywordsController;
   late TextEditingController _aiGeneratedTextController;
   String? _selectedEmotion;
+  DateTime? _selectedDate;
 
   // 이미지 관련 변수들
   List<DiaryImage> diaryImages = [];
@@ -656,17 +657,58 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
   void _initializeEditControllers() {
     if (diary == null) return;
 
-    _titleController.text = diary!.title ?? '';
+    print('🔥 편집 컨트롤러 초기화 - 원본 제목: "${diary!.title}"');
+
+    // 새 다이어리인 경우 제목을 빈 문자열로 초기화 (사용자가 입력할 수 있도록)
+    if (widget.diaryId == 'new' || diary!.id.startsWith('temp_')) {
+      _titleController.text = ''; // 새 다이어리는 빈 제목으로 시작
+    } else {
+      _titleController.text = diary!.title ?? '';
+    }
+
     _keywordsController.text = diary!.keywords.join(', ');
     _aiGeneratedTextController.text = diary!.aiGeneratedText ?? '';
     _selectedEmotion = diary!.emotion ?? _emotions.first['value'] as String;
+    _selectedDate = diary!.diaryDate; // 날짜 초기화
+    print('🔥 편집 컨트롤러 초기화 완료 - 컨트롤러 제목: "${_titleController.text}"');
+  }
+
+  /// 날짜 선택 다이얼로그
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF4A7C59),
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: Color(0xFF1F2937),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+      });
+    }
   }
 
   /// 편집 모드 시작
   void _startEditMode() {
+    print('🔥 편집 모드 시작 - 현재 다이어리 제목: "${diary?.title}"');
     setState(() {
       isEditMode = true;
     });
+    print('🔥 편집 모드 시작 완료 - 컨트롤러 제목: "${_titleController.text}"');
   }
 
   /// 편집 모드 취소
@@ -701,15 +743,25 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       // 새 다이어리인 경우 (diaryId가 "new"로 시작)
       if (widget.diaryId == 'new' || diary!.id.startsWith('temp_')) {
         // 다이어리 생성
-        final date = diary!.diaryDate;
+        final date = _selectedDate ?? diary!.diaryDate;
         if (date == null) {
           throw Exception('Diary date is required');
         }
         final dateString =
             '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
+        final titleText = _titleController.text.trim();
+
+        // 새 다이어리 생성 시 편집 모드에서 입력한 데이터 사용
+        print('🔥 새 다이어리 생성 디버깅:');
+        print('🔥 - content: "${diary!.content}"');
+        print('🔥 - titleText: "$titleText" (길이: ${titleText.length})');
+        print('🔥 - titleText.isNotEmpty: ${titleText.isNotEmpty}');
+        print('🔥 - 전달할 title: ${titleText.isNotEmpty ? titleText : null}');
+
         final createdDiary = await DiaryApiService.instance.createDiary(
-          content: diary!.content, // 필수
+          content: diary!.content, // 필수 - 원본 콘텐츠 사용
+          title: titleText.isNotEmpty ? titleText : null, // 편집 모드에서 입력한 제목 사용
           aiGeneratedText: _aiGeneratedTextController.text.trim().isEmpty
               ? null
               : _aiGeneratedTextController.text.trim(),
@@ -749,16 +801,18 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         }
       } else {
         // 기존 다이어리 업데이트
+        final titleText = _titleController.text.trim();
+
+        // 제목이 비어있지 않으면 항상 전달 (빈 문자열도 포함)
         success = await DiaryApiService.instance.updateDiary(
           diaryId: diary!.id,
-          title: _titleController.text.trim().isEmpty
-              ? null
-              : _titleController.text.trim(),
+          title: titleText, // null 대신 빈 문자열도 허용
           emotion: _selectedEmotion,
           keywords: keywordsList,
           aiGeneratedText: _aiGeneratedTextController.text.trim().isEmpty
               ? null
               : _aiGeneratedTextController.text.trim(),
+          diaryDate: _selectedDate, // 선택된 날짜 전달
         );
       }
 
@@ -812,7 +866,17 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
             });
           }
 
+          // 선택된 날짜를 임시로 저장
+          final savedSelectedDate = _selectedDate;
+
           await _loadDiary();
+
+          // 로드 후 선택된 날짜를 다시 설정
+          if (savedSelectedDate != null && diary != null) {
+            setState(() {
+              diary = diary!.copyWith(diaryDate: savedSelectedDate);
+            });
+          }
 
           if (mounted && context.mounted) {
             final hadImages = newImages.isNotEmpty;
@@ -837,7 +901,17 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
             });
           }
 
+          // 선택된 날짜를 임시로 저장
+          final savedSelectedDate = _selectedDate;
+
           await _loadDiary();
+
+          // 로드 후 선택된 날짜를 다시 설정
+          if (savedSelectedDate != null && diary != null) {
+            setState(() {
+              diary = diary!.copyWith(diaryDate: savedSelectedDate);
+            });
+          }
 
           if (mounted && context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -1272,8 +1346,11 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
             const SizedBox(height: 8),
             TextField(
               controller: _titleController,
+              onChanged: (value) {
+                print('🔥 제목 입력 변경: "$value"');
+              },
               decoration: const InputDecoration(
-                hintText: '제목을 입력하세요',
+                hintText: '제목을 입력하세요 (예: 오늘의 일기)',
                 border: OutlineInputBorder(),
                 contentPadding: EdgeInsets.symmetric(
                   horizontal: 12,
@@ -1284,6 +1361,55 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF1F2937),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // 날짜 선택 필드
+            const Text(
+              '📅 날짜 선택',
+              style: TextStyle(
+                fontSize: 14,
+                color: Color(0xFF6B7280),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: () => _selectDate(context),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  vertical: 12,
+                  horizontal: 12,
+                ),
+                decoration: BoxDecoration(
+                  border: Border.all(color: const Color(0xFF4A7C59)),
+                  borderRadius: BorderRadius.circular(8),
+                  color: const Color(0xFFF8FFFE),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      _selectedDate != null
+                          ? '${_selectedDate!.month}월 ${_selectedDate!.day}일'
+                          : '날짜를 선택하세요',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: _selectedDate != null
+                            ? const Color(0xFF1F2937)
+                            : const Color(0xFF9CA3AF),
+                      ),
+                    ),
+                    const Icon(
+                      Icons.calendar_today,
+                      size: 20,
+                      color: Color(0xFF4A7C59),
+                    ),
+                  ],
+                ),
               ),
             ),
           ] else ...[
@@ -1301,7 +1427,9 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
           ],
           const SizedBox(height: 8),
           Text(
-            formattedDate,
+            _selectedDate != null
+                ? '${_selectedDate!.month}월 ${_selectedDate!.day}일'
+                : formattedDate,
             style: const TextStyle(fontSize: 16, color: Color(0xFF6B7280)),
           ),
         ],

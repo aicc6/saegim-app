@@ -317,10 +317,6 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     ref.listen<AuthState>(authNotifierProvider, (previous, next) {
       if (previous?.isAuthenticated != next.isAuthenticated &&
           next.isAuthenticated) {
-        AppLogger.info(
-          'Auth state changed to authenticated, refreshing calendar data',
-          'CalendarPage',
-        );
         ref.read(calendarNotifierProvider.notifier).refresh();
       }
     });
@@ -1419,10 +1415,6 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
           child: ElevatedButton(
             onPressed: () {
               // 다이어리 상세 페이지로 이동 (캘린더에서 왔다는 정보 전달)
-              AppLogger.info(
-                'Navigate to diary detail: ${diary.id}',
-                'CalendarPage',
-              );
               context.go('/diary/${diary.id}?from=calendar');
             },
             style: ElevatedButton.styleFrom(
