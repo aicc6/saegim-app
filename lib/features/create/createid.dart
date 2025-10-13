@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/services/stt_service.dart';
 import '../home/presentation/riverpod/emotions_notifier.dart';
 import '../shared/widgets/keyword_editor.dart';
 import 'emotion_guide.dart';
@@ -297,6 +298,10 @@ class _ViewPostPageState extends ConsumerState<ViewPostPage> {
   bool _deleteModalOpen = false;
   bool _showEmotionSelector = false;
 
+  // STT 관련 상태
+  final SttService _sttService = SttService();
+  bool _isListening = false;
+
   @override
   void initState() {
     super.initState();
@@ -304,6 +309,7 @@ class _ViewPostPageState extends ConsumerState<ViewPostPage> {
     _contentController = TextEditingController();
     _keywordController = TextEditingController();
     _initializePage();
+    _initializeStt();
   }
 
   @override
@@ -311,7 +317,62 @@ class _ViewPostPageState extends ConsumerState<ViewPostPage> {
     _titleController.dispose();
     _contentController.dispose();
     _keywordController.dispose();
+    _sttService.dispose();
     super.dispose();
+  }
+
+  /// STT 서비스 초기화
+  Future<void> _initializeStt() async {
+    await _sttService.initialize();
+  }
+
+  /// 음성 인식 토글
+  Future<void> _toggleStt() async {
+    if (_isListening) {
+      // 음성 인식 중지
+      await _sttService.stopListening();
+      setState(() {
+        _isListening = false;
+      });
+    } else {
+      try {
+        // 음성 인식 시작
+        await _sttService.startListening(
+          onResult: (text) {
+            // 인식된 텍스트를 현재 커서 위치에 추가
+            final currentText = _contentController.text;
+            final selection = _contentController.selection;
+
+            final newText = currentText.replaceRange(
+              selection.start,
+              selection.end,
+              text,
+            );
+
+            _contentController.text = newText;
+
+            // 커서를 추가된 텍스트 끝으로 이동
+            _contentController.selection = TextSelection.fromPosition(
+              TextPosition(offset: selection.start + text.length),
+            );
+          },
+        );
+
+        setState(() {
+          _isListening = true;
+        });
+      } catch (e) {
+        // 권한 또는 초기화 실패 시 스낵바 표시
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('음성 인식을 시작할 수 없습니다. 마이크 권한을 확인해주세요.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
   }
 
   void _initializePage() async {
@@ -852,15 +913,64 @@ class _ViewPostPageState extends ConsumerState<ViewPostPage> {
                     color: _isEditing ? Colors.white : Colors.green.shade50,
                   ),
                   child: _isEditing
-                      ? TextField(
-                          controller: _contentController,
-                          maxLines: null,
-                          expands: true,
-                          decoration: const InputDecoration(
-                            hintText: '[글 본문]',
-                            border: InputBorder.none,
-                            contentPadding: EdgeInsets.all(16),
-                          ),
+                      ? Column(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _contentController,
+                                maxLines: null,
+                                expands: true,
+                                decoration: const InputDecoration(
+                                  hintText: '[글 본문]',
+                                  border: InputBorder.none,
+                                  contentPadding: EdgeInsets.all(16),
+                                ),
+                              ),
+                            ),
+                            // STT 버튼
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade100,
+                                border: Border(
+                                  top: BorderSide(color: Colors.grey.shade300),
+                                ),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    _isListening ? '음성 인식 중...' : '음성으로 입력하기',
+                                    style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  IconButton(
+                                    onPressed: _toggleStt,
+                                    icon: Icon(
+                                      _isListening ? Icons.mic : Icons.mic_none,
+                                    ),
+                                    color: _isListening
+                                        ? Colors.red
+                                        : Colors.green.shade600,
+                                    style: IconButton.styleFrom(
+                                      backgroundColor: _isListening
+                                          ? Colors.red.shade50
+                                          : Colors.green.shade50,
+                                    ),
+                                    tooltip: _isListening
+                                        ? '음성 인식 중지'
+                                        : '음성으로 입력',
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         )
                       : SingleChildScrollView(
                           padding: const EdgeInsets.all(16),

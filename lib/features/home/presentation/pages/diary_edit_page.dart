@@ -236,7 +236,9 @@ class _DiaryEditPageState extends State<DiaryEditPage> {
   @override
   Widget build(BuildContext context) {
     final diaryDate = widget.diary.diaryDate;
-    final formattedDate = '${diaryDate.month}월 ${diaryDate.day}일';
+    final formattedDate = diaryDate != null
+        ? '${diaryDate.month}월 ${diaryDate.day}일'
+        : '날짜 없음';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),

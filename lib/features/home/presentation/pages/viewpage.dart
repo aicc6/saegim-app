@@ -73,9 +73,11 @@ class _ViewPostPageState extends State<ViewPostPage> {
 
       // diary_date를 YYYY-MM-DD 형식으로 변환
       final date = widget.tempEntry.diaryDate;
-      final dateString =
-          '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-      diaryData['diary_date'] = dateString;
+      if (date != null) {
+        final dateString =
+            '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+        diaryData['diary_date'] = dateString;
+      }
 
       AppLogger.info('Request data: $diaryData', 'ViewPostPage');
 
