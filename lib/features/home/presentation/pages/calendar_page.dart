@@ -60,6 +60,9 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
   // 숨겨진 다이어리 ID 목록
   final Set<String> _hiddenDiaryIds = {};
 
+  // 삭제 중인 다이어리 ID 목록
+  final Set<String> _deletingDiaryIds = {};
+
   // 감정 색상 매핑 (5가지 기본 감정) - 채도 조정
   Color _getEmotionColor(String emotion) {
     switch (emotion.toLowerCase()) {
@@ -990,11 +993,144 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     );
   }
 
-  // 개별 다이어리 숨기기
-  void _hideSingleDiary(String diaryId) {
-    setState(() {
-      _hiddenDiaryIds.add(diaryId);
-    });
+  // 다이어리 삭제 확인 모달 표시
+  void _showDeleteConfirmDialog(String diaryId) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text(
+            '다이어리 삭제',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF333333),
+            ),
+          ),
+          content: const Text(
+            '정말로 이 다이어리를 삭제하시겠습니까?\n삭제된 다이어리는 복구할 수 없습니다.',
+            style: TextStyle(
+              fontSize: 14,
+              color: Color(0xFF666666),
+              height: 1.4,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.grey[600],
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+              ),
+              child: const Text(
+                '취소',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _deleteDiary(diaryId);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFE76F51),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                elevation: 0,
+              ),
+              child: const Text(
+                '삭제',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // 다이어리 삭제 처리
+  Future<void> _deleteDiary(String diaryId) async {
+    if (!mounted) return;
+
+    try {
+      // 삭제 중 상태로 표시
+      setState(() {
+        _deletingDiaryIds.add(diaryId);
+      });
+
+      // API 호출로 다이어리 삭제
+      final success = await DiaryApiService.instance.deleteDiary(diaryId);
+
+      if (!mounted) return;
+
+      // 삭제 중 상태 해제
+      setState(() {
+        _deletingDiaryIds.remove(diaryId);
+      });
+
+      if (success) {
+        // 삭제 성공 시 목록에서 제거
+        setState(() {
+          _hiddenDiaryIds.add(diaryId);
+        });
+
+        // 캘린더 데이터 새로고침
+        ref.read(calendarNotifierProvider.notifier).refresh();
+
+        // 성공 메시지 표시
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('다이어리가 삭제되었습니다'),
+            backgroundColor: Color(0xFF4A7C59),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      } else {
+        // 삭제 실패 시 에러 메시지 표시
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('다이어리 삭제에 실패했습니다. 다시 시도해주세요.'),
+            backgroundColor: Color(0xFFE76F51),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      // 삭제 중 상태 해제
+      setState(() {
+        _deletingDiaryIds.remove(diaryId);
+      });
+
+      AppLogger.error(
+        'Failed to delete diary: $diaryId',
+        tag: 'CalendarPage',
+        error: e,
+      );
+
+      // 에러 메시지 표시
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('다이어리 삭제 중 오류가 발생했습니다.'),
+          backgroundColor: Color(0xFFE76F51),
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   // 선택된 날짜의 다이어리 상세 정보 빌드
@@ -1124,15 +1260,30 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                // X 버튼
-                IconButton(
-                  onPressed: () {
-                    _hideSingleDiary(diary.id);
-                  },
-                  icon: Icon(Icons.close, color: Colors.grey[400], size: 18),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
+                // X 버튼 (삭제 확인 모달 표시 또는 로딩 표시)
+                _deletingDiaryIds.contains(diary.id)
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Color(0xFF4A7C59),
+                          ),
+                        ),
+                      )
+                    : IconButton(
+                        onPressed: () {
+                          _showDeleteConfirmDialog(diary.id);
+                        },
+                        icon: Icon(
+                          Icons.close,
+                          color: Colors.grey[400],
+                          size: 18,
+                        ),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
               ],
             ),
           ),
