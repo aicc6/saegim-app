@@ -674,8 +674,9 @@ class _DiaryListPageState extends State<DiaryListPage> {
 
   Widget _buildDiaryCard(DiaryEntry diary) {
     final date = diary.diaryDate;
-    final dateString =
-        '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    final dateString = date != null
+        ? '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}'
+        : '날짜 미정';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),

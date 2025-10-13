@@ -102,6 +102,36 @@ class DiaryApiService {
 
         if (diariesData.isNotEmpty) {
           try {
+            // 첫 번째 아이템의 상세 구조 로깅
+            if (diariesData.isNotEmpty) {
+              final firstItem = diariesData.first as Map<String, dynamic>;
+              AppLogger.info(
+                'First diary item structure: $firstItem',
+                'DiaryApiService',
+              );
+              AppLogger.info(
+                'Keywords type: ${firstItem['keywords'].runtimeType}',
+                'DiaryApiService',
+              );
+              if (firstItem.containsKey('keywords')) {
+                final keywords = firstItem['keywords'] as List;
+                AppLogger.info(
+                  'Keywords value: ${firstItem['keywords']}',
+                  'DiaryApiService',
+                );
+                if (keywords.isNotEmpty) {
+                  AppLogger.info(
+                    'First keyword type: ${keywords.first.runtimeType}',
+                    'DiaryApiService',
+                  );
+                  AppLogger.info(
+                    'First keyword value: ${keywords.first}',
+                    'DiaryApiService',
+                  );
+                }
+              }
+            }
+
             final diaries = diariesData
                 .map(
                   (item) => DiaryEntry.fromJson(item as Map<String, dynamic>),
@@ -319,7 +349,8 @@ class DiaryApiService {
 
             final monthlyDiaries = allDiaries.where((diary) {
               final diaryDate = diary.diaryDate;
-              return diaryDate.isAfter(
+              return diaryDate != null &&
+                  diaryDate.isAfter(
                     startDate.subtract(const Duration(days: 1)),
                   ) &&
                   diaryDate.isBefore(endDate.add(const Duration(days: 1)));

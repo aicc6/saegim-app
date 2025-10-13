@@ -535,6 +535,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
     try {
       final diaryDate = diary!.diaryDate;
+      if (diaryDate == null) return;
 
       // 월간 다이어리 목록을 가져와서 같은 날짜로 필터링
       final monthlyDiaries = await DiaryApiService.instance.getMonthlyDiaries(
@@ -546,7 +547,8 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         // 같은 날짜의 일기들만 필터링
         final sameDateDiaries = monthlyDiaries.where((d) {
           final entryDate = d.diaryDate;
-          return entryDate.year == diaryDate.year &&
+          return entryDate != null &&
+              entryDate.year == diaryDate.year &&
               entryDate.month == diaryDate.month &&
               entryDate.day == diaryDate.day;
         }).toList();
@@ -700,6 +702,9 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       if (widget.diaryId == 'new' || diary!.id.startsWith('temp_')) {
         // 다이어리 생성
         final date = diary!.diaryDate;
+        if (date == null) {
+          throw Exception('Diary date is required');
+        }
         final dateString =
             '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
@@ -1238,7 +1243,9 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
     if (diary == null) return const SizedBox.shrink();
 
     final diaryDate = diary!.diaryDate;
-    final formattedDate = '${diaryDate.month}월 ${diaryDate.day}일';
+    final formattedDate = diaryDate != null
+        ? '${diaryDate.month}월 ${diaryDate.day}일'
+        : '날짜 미정';
 
     return Container(
       padding: isEditMode ? const EdgeInsets.all(16) : EdgeInsets.zero,

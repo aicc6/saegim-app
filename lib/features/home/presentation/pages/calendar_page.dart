@@ -247,9 +247,9 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     final calendarState = ref.read(calendarNotifierProvider);
     final hasDiary = calendarState.monthlyDiaries.any(
       (diary) =>
-          diary.diaryDate.year == date.year &&
-          diary.diaryDate.month == date.month &&
-          diary.diaryDate.day == date.day,
+          diary.diaryDate?.year == date.year &&
+          diary.diaryDate?.month == date.month &&
+          diary.diaryDate?.day == date.day,
     );
 
     if (hasDiary) {
@@ -271,7 +271,8 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
   bool _hasDiaryOnDate(DateTime date, List<DiaryEntry> diaries) {
     return diaries.any((diary) {
       final diaryDate = diary.diaryDate;
-      return diaryDate.year == date.year &&
+      return diaryDate != null &&
+          diaryDate.year == date.year &&
           diaryDate.month == date.month &&
           diaryDate.day == date.day;
     });
@@ -281,7 +282,8 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
   List<DiaryEntry> _getDiariesForDate(DateTime date, List<DiaryEntry> diaries) {
     return diaries.where((diary) {
       final diaryDate = diary.diaryDate;
-      return diaryDate.year == date.year &&
+      return diaryDate != null &&
+          diaryDate.year == date.year &&
           diaryDate.month == date.month &&
           diaryDate.day == date.day;
     }).toList();

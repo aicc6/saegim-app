@@ -27,13 +27,34 @@ class DiaryEntry {
   final List<String> keywords;
 
   @JsonKey(name: 'diary_date')
-  final DateTime diaryDate;
+  final DateTime? diaryDate;
 
   @JsonKey(name: 'created_at')
   final DateTime createdAt;
 
   @JsonKey(name: 'is_public')
   final bool? isPublic;
+
+  @JsonKey(name: 'images', fromJson: _imagesFromJson)
+  final List<String> images;
+
+  static List<String> _imagesFromJson(dynamic json) {
+    if (json == null) return [];
+    if (json is! List) return [];
+
+    return json
+        .map((item) {
+          // item이 String이면 그대로 사용
+          if (item is String) return item;
+          // item이 Map이면 file_path 추출
+          if (item is Map) {
+            return (item['file_path'] ?? item['url'] ?? '') as String;
+          }
+          return '';
+        })
+        .where((url) => url.isNotEmpty)
+        .toList();
+  }
 
   const DiaryEntry({
     required this.id,
@@ -43,9 +64,10 @@ class DiaryEntry {
     this.emotion,
     this.aiEmotion,
     required this.keywords,
-    required this.diaryDate,
+    this.diaryDate,
     required this.createdAt,
     this.isPublic,
+    this.images = const [],
   });
 
   // 감정 이모티콘 매핑 (5가지 기본 감정) - AI 분석 감정 우선
@@ -88,6 +110,7 @@ class DiaryEntry {
     DateTime? diaryDate,
     DateTime? createdAt,
     bool? isPublic,
+    List<String>? images,
   }) {
     return DiaryEntry(
       id: id ?? this.id,
@@ -99,6 +122,7 @@ class DiaryEntry {
       diaryDate: diaryDate ?? this.diaryDate,
       createdAt: createdAt ?? this.createdAt,
       isPublic: isPublic ?? this.isPublic,
+      images: images ?? this.images,
     );
   }
 }
