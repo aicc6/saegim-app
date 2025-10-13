@@ -26,8 +26,10 @@ class DiaryEntry {
   @JsonKey(name: 'keywords')
   final List<String> keywords;
 
-  @JsonKey(name: 'diary_date')
+  @JsonKey(name: 'diary_date', toJson: _diaryDateToJson)
   final DateTime? diaryDate;
+
+  static String? _diaryDateToJson(DateTime? date) => date?.toIso8601String();
 
   @JsonKey(name: 'created_at')
   final DateTime createdAt;
