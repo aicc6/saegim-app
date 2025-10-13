@@ -4,6 +4,7 @@ import 'package:saegim/core/network/dio_client.dart';
 import 'package:saegim/core/services/auth_storage_service.dart';
 import 'package:saegim/core/services/fcm_message_service.dart';
 import 'package:saegim/features/authentication/data/services/google_sign_in_service.dart';
+import 'package:saegim/features/home/presentation/riverpod/create_notifier.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
 
 part 'auth_notifier.g.dart';
@@ -237,13 +238,24 @@ class AuthNotifier extends _$AuthNotifier {
 
           // FCM 토큰 서버 등록
           try {
-            final fcmRegistered = await FCMMessageService.instance.registerTokenOnLogin(
-              userId: userId,
-            );
+            final fcmRegistered = await FCMMessageService.instance
+                .registerTokenOnLogin(userId: userId);
             AppLogger.info('FCM 토큰 등록 결과: $fcmRegistered', 'AuthNotifier');
           } catch (e) {
             AppLogger.error('FCM 토큰 등록 실패', error: e, tag: 'AuthNotifier');
             // FCM 등록 실패는 로그인 성공에 영향주지 않음
+          }
+
+          // 사용자의 생성된 글 데이터 복원
+          try {
+            await ref.read(createProvider.notifier).loadUserData();
+            AppLogger.info('사용자 생성된 글 데이터 복원 완료', 'AuthNotifier');
+          } catch (e) {
+            AppLogger.error(
+              '사용자 생성된 글 데이터 복원 실패',
+              error: e,
+              tag: 'AuthNotifier',
+            );
           }
 
           AppLogger.info('Login successful for user: $email, token saved');
@@ -408,6 +420,14 @@ class AuthNotifier extends _$AuthNotifier {
         userEmail: null,
         isLoading: false,
       );
+
+      // 생성된 글 상태도 초기화 (SharedPreferences 데이터 포함)
+      try {
+        ref.read(createProvider.notifier).resetToDefaults();
+        AppLogger.info('생성된 글 상태 초기화 완료', 'AuthNotifier');
+      } catch (e) {
+        AppLogger.error('생성된 글 상태 초기화 실패', error: e, tag: 'AuthNotifier');
+      }
     } catch (e) {
       // 에러가 발생해도 로컬 상태는 초기화
       state = state.copyWith(

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:saegim/core/config/environment.dart';
 import 'package:saegim/core/services/auth_storage_service.dart';
+import 'package:saegim/features/calendar/data/services/diary_api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // 타입 정의
@@ -506,13 +507,19 @@ class CreateNotifier extends StateNotifier<CreateState> {
     _loadState();
   }
 
-  // SharedPreferences에서 상태 로드
+  // SharedPreferences에서 상태 로드 (사용자별)
   Future<void> _loadState() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final generatedText = prefs.getString('generatedText');
-      final generatedKeywords = prefs.getStringList('generatedKeywords');
-      final sessionId = prefs.getString('sessionId');
+      final userId = await AuthStorageService.instance.getUserId();
+
+      // 사용자별 키 생성 (userId가 null이면 기본 키 사용)
+      final userKey = userId ?? 'default';
+      final generatedText = prefs.getString('generatedText_$userKey');
+      final generatedKeywords = prefs.getStringList(
+        'generatedKeywords_$userKey',
+      );
+      final sessionId = prefs.getString('sessionId_$userKey');
 
       if (!mounted) return;
       if (generatedText != null ||
@@ -529,30 +536,34 @@ class CreateNotifier extends StateNotifier<CreateState> {
     }
   }
 
-  // SharedPreferences에 상태 저장
+  // SharedPreferences에 상태 저장 (사용자별)
   Future<void> _saveState() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      final userId = await AuthStorageService.instance.getUserId();
+
+      // 사용자별 키 생성 (userId가 null이면 기본 키 사용)
+      final userKey = userId ?? 'default';
 
       if (state.generatedText != null) {
-        await prefs.setString('generatedText', state.generatedText!);
+        await prefs.setString('generatedText_$userKey', state.generatedText!);
       } else {
-        await prefs.remove('generatedText');
+        await prefs.remove('generatedText_$userKey');
       }
 
       if (state.generatedKeywords != null) {
         await prefs.setStringList(
-          'generatedKeywords',
+          'generatedKeywords_$userKey',
           state.generatedKeywords!,
         );
       } else {
-        await prefs.remove('generatedKeywords');
+        await prefs.remove('generatedKeywords_$userKey');
       }
 
       if (state.sessionId != null) {
-        await prefs.setString('sessionId', state.sessionId!);
+        await prefs.setString('sessionId_$userKey', state.sessionId!);
       } else {
-        await prefs.remove('sessionId');
+        await prefs.remove('sessionId_$userKey');
       }
     } catch (e) {
       // 상태 저장 실패 시 무시
@@ -737,7 +748,69 @@ class CreateNotifier extends StateNotifier<CreateState> {
       generationHistory: [],
       currentHistoryIndex: 0,
     );
-    _saveState();
+    _saveState(); // 현재 사용자의 데이터만 삭제됨
+  }
+
+  // 로그인 시 사용자 데이터 복원을 위한 public 메서드
+  Future<void> loadUserData() async {
+    await _loadState();
+  }
+
+  // 생성된 글을 다이어리에 저장
+  Future<bool> saveToDiary({String? title, String? diaryDate}) async {
+    if (state.generatedText?.isEmpty ?? true) {
+      if (!mounted) return false;
+      state = state.copyWith(error: '저장할 글이 없습니다.');
+      return false;
+    }
+
+    try {
+      final diaryApiService = DiaryApiService.instance;
+
+      // 날짜 형식 변환 (YYYY-MM-DD)
+      String? formattedDate;
+      if (diaryDate != null) {
+        try {
+          final date = DateTime.parse(diaryDate);
+          formattedDate =
+              '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+        } catch (e) {
+          // 날짜 파싱 실패 시 현재 날짜 사용
+          final now = DateTime.now();
+          formattedDate =
+              '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+        }
+      } else {
+        // 날짜가 제공되지 않으면 현재 날짜 사용
+        final now = DateTime.now();
+        formattedDate =
+            '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      }
+
+      final result = await diaryApiService.createDiary(
+        content: state.generatedText!,
+        title: title ?? 'AI 생성 글',
+        aiGeneratedText: state.generatedText!,
+        userEmotion: state.emotion,
+        aiEmotion: state.emotion,
+        keywords: state.generatedKeywords,
+        diaryDate: formattedDate,
+      );
+
+      if (result != null) {
+        // 저장 성공 시 생성된 글 상태 초기화
+        clearGeneratedText();
+        return true;
+      } else {
+        if (!mounted) return false;
+        state = state.copyWith(error: '다이어리 저장에 실패했습니다.');
+        return false;
+      }
+    } catch (e) {
+      if (!mounted) return false;
+      state = state.copyWith(error: '다이어리 저장 중 오류가 발생했습니다: ${e.toString()}');
+      return false;
+    }
   }
 }
 
