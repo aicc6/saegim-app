@@ -1098,7 +1098,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
         children: [
           // 개별 다이어리 헤더 (다이어리 번호와 X 버튼)
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
             decoration: BoxDecoration(
               color: Colors.grey[50],
               borderRadius: const BorderRadius.only(
@@ -1112,14 +1112,19 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                // 생성일자 표시 (로컬 시간으로 변환)
                 Text(
-                  '다이어리 $diaryNumber',
+                  () {
+                    final localTime = diary.createdAt.toLocal();
+                    return '${localTime.month}/${localTime.day} ${localTime.hour.toString().padLeft(2, '0')}:${localTime.minute.toString().padLeft(2, '0')}';
+                  }(),
                   style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
                     color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
+                // X 버튼
                 IconButton(
                   onPressed: () {
                     _hideSingleDiary(diary.id);
@@ -1151,24 +1156,6 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 다이어리 번호 (여러 개일 때만 표시)
-        if (_getDiariesForDate(
-              selectedDate,
-              ref.read(calendarNotifierProvider).monthlyDiaries,
-            ).length >
-            1)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Text(
-              '다이어리 $diaryNumber',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[600],
-              ),
-            ),
-          ),
-
         // 제목과 감정 이모지
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
