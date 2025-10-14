@@ -1,9 +1,13 @@
 // home_page.dart
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:saegim/features/calendar/data/models/diary_model.dart';
+import 'package:saegim/shared/utils/app_logger.dart';
 
 import '../riverpod/create_notifier.dart';
 import '../riverpod/emotions_notifier.dart';
@@ -19,9 +23,199 @@ class HomePage extends ConsumerStatefulWidget {
 class _HomePageState extends ConsumerState<HomePage> {
   final TextEditingController _promptController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final ImagePicker _imagePicker = ImagePicker();
   DateTime selectedDate = DateTime.now();
   TimeOfDay? selectedTime;
   bool showResults = false;
+  List<XFile> selectedImages = []; // 선택된 이미지 목록 (최대 3장)
+
+  @override
+  void initState() {
+    super.initState();
+    // 앱 재실행 시 이전 생성 결과 초기화
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(createProvider.notifier).clearGeneratedText();
+        setState(() {
+          showResults = false;
+          _promptController.clear();
+          selectedImages.clear();
+        });
+      }
+    });
+  }
+
+  /// 이미지 선택 (갤러리에서)
+  Future<void> _pickImages() async {
+    try {
+      final remainingSlots = 3 - selectedImages.length;
+      if (remainingSlots <= 0) {
+        _showErrorSnackBar('최대 3장까지만 선택할 수 있습니다.');
+        return;
+      }
+
+      final List<XFile> images = await _imagePicker.pickMultipleMedia(
+        imageQuality: 80,
+      );
+
+      if (images.isNotEmpty) {
+        final imagesToAdd = images.take(remainingSlots).toList();
+        setState(() {
+          selectedImages.addAll(imagesToAdd);
+        });
+
+        AppLogger.info(
+          '${imagesToAdd.length}장의 이미지가 추가되었습니다 (총 ${selectedImages.length}장)',
+          'HomePage',
+        );
+
+        if (images.length > remainingSlots) {
+          _showErrorSnackBar('최대 3장까지만 선택할 수 있어 $remainingSlots장만 추가되었습니다.');
+        }
+      }
+    } catch (e) {
+      AppLogger.error('Failed to pick images', tag: 'HomePage', error: e);
+      _showErrorSnackBar('이미지 선택 중 오류가 발생했습니다.');
+    }
+  }
+
+  /// 카메라로 사진 촬영
+  Future<void> _takePicture() async {
+    try {
+      if (selectedImages.length >= 3) {
+        _showErrorSnackBar('최대 3장까지만 선택할 수 있습니다.');
+        return;
+      }
+
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 80,
+      );
+
+      if (image != null) {
+        setState(() {
+          selectedImages.add(image);
+        });
+
+        AppLogger.info(
+          '카메라로 촬영한 이미지가 추가되었습니다 (총 ${selectedImages.length}장)',
+          'HomePage',
+        );
+      }
+    } catch (e) {
+      AppLogger.error('Failed to take picture', tag: 'HomePage', error: e);
+      _showErrorSnackBar('카메라 사용 중 오류가 발생했습니다.');
+    }
+  }
+
+  /// 이미지 삭제
+  void _removeImage(int index) {
+    setState(() {
+      selectedImages.removeAt(index);
+    });
+  }
+
+  /// 이미지 선택 옵션 다이얼로그
+  void _showImagePickerDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text(
+            '사진 추가',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1F2937),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '사진을 선택하는 방법을 선택해주세요. (최대 3장)',
+                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              // 갤러리에서 선택 버튼
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    _pickImages();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF3F764A),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
+                  ),
+                  icon: const Icon(Icons.photo_library, size: 20),
+                  label: const Text(
+                    '갤러리에서 선택',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // 카메라로 촬영 버튼
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    _takePicture();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6B7280),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
+                  ),
+                  icon: const Icon(Icons.camera_alt, size: 20),
+                  label: const Text(
+                    '카메라로 촬영',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+              ),
+              child: Text(
+                '취소',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   void dispose() {
@@ -122,6 +316,9 @@ class _HomePageState extends ConsumerState<HomePage> {
   result_card.GeneratedMessage _convertToGeneratedMessage(
     CreateState createState,
   ) {
+    // XFile을 File로 변환
+    final imageFiles = selectedImages.map((xFile) => File(xFile.path)).toList();
+
     // 히스토리가 비어있으면 현재 텍스트로 단일 버전 생성
     if (createState.generationHistory.isEmpty) {
       return result_card.GeneratedMessage(
@@ -135,6 +332,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             length: createState.length.value,
             style: createState.style.value,
             keywords: createState.generatedKeywords,
+            images: imageFiles.isNotEmpty ? imageFiles : null,
           ),
         ],
         currentVersionIndex: 0,
@@ -150,6 +348,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             length: createState.length.value,
             style: createState.style.value,
             keywords: createState.generatedKeywords,
+            images: imageFiles.isNotEmpty ? imageFiles : null,
           ),
         )
         .toList();
@@ -248,6 +447,11 @@ class _HomePageState extends ConsumerState<HomePage> {
               final userInput = _promptController.text.trim();
               final contentText = userInput.isNotEmpty ? userInput : content;
 
+              // 선택된 이미지들의 경로 추출
+              final imagePaths = selectedImages
+                  .map((xFile) => xFile.path)
+                  .toList();
+
               final tempDiary = DiaryEntry(
                 id: 'temp_${now.millisecondsSinceEpoch}',
                 title: null,
@@ -259,6 +463,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                 diaryDate: now,
                 createdAt: now,
                 isPublic: false,
+                imagePaths: imagePaths.isNotEmpty ? imagePaths : null,
               );
 
               // DiaryDetailPage로 이동 (새 다이어리 모드)
@@ -289,6 +494,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               setState(() {
                 _promptController.clear();
                 showResults = false;
+                selectedImages.clear(); // 이미지도 초기화
                 ref.read(createProvider.notifier).clearGeneratedText();
               });
             },
@@ -340,32 +546,85 @@ class _HomePageState extends ConsumerState<HomePage> {
           const SizedBox(height: 16),
 
           const SizedBox(height: 16),
-          TextField(
-            controller: _promptController,
-            maxLines: 6,
-            decoration: InputDecoration(
-              hintText: '예 : 바람, 초록빛 오후, 천천히 걷는 길',
-              hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
-              filled: true,
-              fillColor: Colors.white,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 20,
+
+          // 텍스트 입력 필드 + 이미지 아이콘
+          Stack(
+            children: [
+              TextField(
+                controller: _promptController,
+                maxLines: 6,
+                decoration: InputDecoration(
+                  hintText: '예 : 바람, 초록빛 오후, 천천히 걷는 길',
+                  hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.fromLTRB(16, 20, 50, 20),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(18),
+                    borderSide: BorderSide(color: Colors.grey),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(18),
+                    borderSide: BorderSide(color: Colors.grey),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(18),
+                    borderSide: BorderSide(color: Color(0xFF3F764A)),
+                  ),
+                ),
               ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(18),
-                borderSide: BorderSide(color: Colors.grey),
+              // 이미지 아이콘 (오른쪽 상단)
+              Positioned(
+                right: 12,
+                top: 12,
+                child: GestureDetector(
+                  onTap: _showImagePickerDialog,
+                  child: Stack(
+                    children: [
+                      Icon(
+                        Icons.add_photo_alternate_outlined,
+                        size: 24,
+                        color: selectedImages.isNotEmpty
+                            ? const Color(0xFF3F764A)
+                            : Colors.grey[400],
+                      ),
+                      // 이미지 개수 배지
+                      if (selectedImages.isNotEmpty)
+                        Positioned(
+                          right: -4,
+                          top: -4,
+                          child: Container(
+                            width: 16,
+                            height: 16,
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: Text(
+                                '${selectedImages.length}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(18),
-                borderSide: BorderSide(color: Colors.grey),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(18),
-                borderSide: BorderSide(color: Color(0xFF3F764A)),
-              ),
-            ),
+            ],
           ),
+
+          // 선택된 이미지 미리보기
+          if (selectedImages.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _buildImagePreviewGrid(),
+          ],
+
           const SizedBox(height: 24),
           _buildOptionsSection(createState, emotionState),
           const SizedBox(height: 32),
@@ -409,6 +668,96 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
         ],
       ),
+    );
+  }
+
+  // 이미지 미리보기 그리드
+  Widget _buildImagePreviewGrid() {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+        childAspectRatio: 1,
+      ),
+      itemCount: selectedImages.length + (selectedImages.length < 3 ? 1 : 0),
+      itemBuilder: (context, index) {
+        // 추가 버튼
+        if (index == selectedImages.length) {
+          return GestureDetector(
+            onTap: _showImagePickerDialog,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(
+                  color: Colors.grey[300]!,
+                  style: BorderStyle.solid,
+                  width: 1.5,
+                ),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.add, size: 28, color: Colors.grey[400]),
+                  const SizedBox(height: 4),
+                  Text(
+                    '추가',
+                    style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // 이미지 카드
+        final image = selectedImages[index];
+        return Stack(
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFF3F764A), width: 2),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: Image.file(
+                  File(image.path),
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: double.infinity,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: Colors.grey[200],
+                      child: Icon(Icons.broken_image, color: Colors.grey[400]),
+                    );
+                  },
+                ),
+              ),
+            ),
+            // 삭제 버튼
+            Positioned(
+              top: 4,
+              right: 4,
+              child: GestureDetector(
+                onTap: () => _removeImage(index),
+                child: Container(
+                  width: 24,
+                  height: 24,
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.close, color: Colors.white, size: 16),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 

@@ -35,6 +35,10 @@ class DiaryEntry {
   @JsonKey(name: 'is_public')
   final bool? isPublic;
 
+  // 이미지 파일 경로 목록 (임시 저장용, 서버 전송 시에는 사용하지 않음)
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  final List<String>? imagePaths;
+
   const DiaryEntry({
     required this.id,
     this.title,
@@ -46,6 +50,7 @@ class DiaryEntry {
     required this.diaryDate,
     required this.createdAt,
     this.isPublic,
+    this.imagePaths,
   });
 
   // 감정 이모티콘 매핑 (5가지 기본 감정) - AI 분석 감정 우선
@@ -88,6 +93,7 @@ class DiaryEntry {
     DateTime? diaryDate,
     DateTime? createdAt,
     bool? isPublic,
+    List<String>? imagePaths,
   }) {
     return DiaryEntry(
       id: id ?? this.id,
@@ -99,6 +105,7 @@ class DiaryEntry {
       diaryDate: diaryDate ?? this.diaryDate,
       createdAt: createdAt ?? this.createdAt,
       isPublic: isPublic ?? this.isPublic,
+      imagePaths: imagePaths ?? this.imagePaths,
     );
   }
 }

@@ -485,6 +485,23 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
           isLoading = false;
           isEditMode = true; // 새 다이어리는 편집 모드로 시작
         });
+
+        // tempEntry에서 이미지 경로가 있으면 newImages에 추가
+        if (widget.tempEntry?.imagePaths != null &&
+            widget.tempEntry!.imagePaths!.isNotEmpty) {
+          final imageFiles = widget.tempEntry!.imagePaths!
+              .map((path) => XFile(path))
+              .toList();
+          setState(() {
+            newImages = imageFiles;
+          });
+
+          AppLogger.info(
+            'Loaded ${imageFiles.length} images from tempEntry',
+            'DiaryDetailPage',
+          );
+        }
+
         _initializeEditControllers();
         return;
       }
