@@ -579,40 +579,12 @@ class _HomePageState extends ConsumerState<HomePage> {
                 top: 12,
                 child: GestureDetector(
                   onTap: _showImagePickerDialog,
-                  child: Stack(
-                    children: [
-                      Icon(
-                        Icons.add_photo_alternate_outlined,
-                        size: 24,
-                        color: selectedImages.isNotEmpty
-                            ? const Color(0xFF3F764A)
-                            : Colors.grey[400],
-                      ),
-                      // 이미지 개수 배지
-                      if (selectedImages.isNotEmpty)
-                        Positioned(
-                          right: -4,
-                          top: -4,
-                          child: Container(
-                            width: 16,
-                            height: 16,
-                            decoration: const BoxDecoration(
-                              color: Colors.red,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Center(
-                              child: Text(
-                                '${selectedImages.length}',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
+                  child: Icon(
+                    Icons.add_photo_alternate_outlined,
+                    size: 24,
+                    color: selectedImages.isNotEmpty
+                        ? const Color(0xFF3F764A)
+                        : Colors.grey[400],
                   ),
                 ),
               ),

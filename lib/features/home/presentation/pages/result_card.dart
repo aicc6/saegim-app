@@ -47,7 +47,7 @@ class EmotionConfig {
   });
 }
 
-class MessageCard extends StatelessWidget {
+class MessageCard extends StatefulWidget {
   final GeneratedMessage message;
   final bool isRegenerating;
   final EmotionConfig? Function(String emotion) getEmotionConfig;
@@ -75,11 +75,40 @@ class MessageCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final currentVersion = message.versions[message.currentVersionIndex];
-    final hasMultipleVersions = message.versions.length > 1;
+  State<MessageCard> createState() => _MessageCardState();
+}
 
-    if (isRegenerating) {
+class _MessageCardState extends State<MessageCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _shimmerController;
+  late Animation<double> _shimmerAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _shimmerController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat();
+
+    _shimmerAnimation = Tween<double>(begin: -1.0, end: 2.0).animate(
+      CurvedAnimation(parent: _shimmerController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _shimmerController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final currentVersion =
+        widget.message.versions[widget.message.currentVersionIndex];
+    final hasMultipleVersions = widget.message.versions.length > 1;
+
+    if (widget.isRegenerating) {
       return _buildLoadingCard();
     }
 
@@ -144,6 +173,31 @@ class MessageCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 로딩 텍스트
+          Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    const Color(0xFF3F764A),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                '글을 생성하고 있습니다...',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
           _buildSkeletonLine(0.4),
           const SizedBox(height: 12),
           _buildSkeletonLine(1.0),
@@ -151,19 +205,43 @@ class MessageCard extends StatelessWidget {
           _buildSkeletonLine(0.9),
           const SizedBox(height: 12),
           _buildSkeletonLine(0.8),
+          const SizedBox(height: 12),
+          _buildSkeletonLine(0.95),
         ],
       ),
     );
   }
 
   Widget _buildSkeletonLine(double widthFactor) {
-    return Container(
-      height: 16,
-      width: double.infinity * widthFactor,
-      decoration: BoxDecoration(
-        color: Colors.grey[200],
-        borderRadius: BorderRadius.circular(4.0),
-      ),
+    return AnimatedBuilder(
+      animation: _shimmerAnimation,
+      builder: (context, child) {
+        return Container(
+          height: 16,
+          width: double.infinity * widthFactor,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(4.0),
+            gradient: LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              stops: [
+                0.0,
+                _shimmerAnimation.value - 0.3,
+                _shimmerAnimation.value,
+                _shimmerAnimation.value + 0.3,
+                1.0,
+              ].map((v) => v.clamp(0.0, 1.0)).toList(),
+              colors: [
+                Colors.grey[200]!,
+                Colors.grey[200]!,
+                Colors.grey[100]!,
+                Colors.grey[200]!,
+                Colors.grey[200]!,
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -178,9 +256,9 @@ class MessageCard extends StatelessWidget {
               _buildEmotionChip(currentVersion.emotion!),
               const SizedBox(width: 8),
             ],
-            _buildChip(getLengthDisplayName(currentVersion.length)),
+            _buildChip(widget.getLengthDisplayName(currentVersion.length)),
             const SizedBox(width: 8),
-            _buildChip(getStyleDisplayName(currentVersion.style)),
+            _buildChip(widget.getStyleDisplayName(currentVersion.style)),
           ],
         ),
       ],
@@ -193,7 +271,7 @@ class MessageCard extends StatelessWidget {
     print('  - 입력 emotion: $emotion');
     print('  - emotion 타입: ${emotion.runtimeType}');
 
-    final emotionConfig = getEmotionConfig(emotion);
+    final emotionConfig = widget.getEmotionConfig(emotion);
     print('  - emotionConfig: ${emotionConfig?.label}');
     print('  - emotionConfig emoji: ${emotionConfig?.emoji}');
 
@@ -232,9 +310,9 @@ class MessageCard extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         IconButton(
-          onPressed: message.currentVersionIndex == 0
+          onPressed: widget.message.currentVersionIndex == 0
               ? null
-              : () => onPreviousVersion(message.id),
+              : () => widget.onPreviousVersion(widget.message.id),
           icon: const Icon(Icons.chevron_left),
           style: IconButton.styleFrom(
             backgroundColor: Colors.grey[200],
@@ -243,14 +321,16 @@ class MessageCard extends StatelessWidget {
         ),
         const SizedBox(width: 16),
         Text(
-          '${message.currentVersionIndex + 1} / ${message.versions.length}',
+          '${widget.message.currentVersionIndex + 1} / ${widget.message.versions.length}',
           style: TextStyle(fontSize: 14, color: Colors.grey[600]),
         ),
         const SizedBox(width: 16),
         IconButton(
-          onPressed: message.currentVersionIndex == message.versions.length - 1
+          onPressed:
+              widget.message.currentVersionIndex ==
+                  widget.message.versions.length - 1
               ? null
-              : () => onNextVersion(message.id),
+              : () => widget.onNextVersion(widget.message.id),
           icon: const Icon(Icons.chevron_right),
           style: IconButton.styleFrom(
             backgroundColor: Colors.grey[200],
@@ -365,7 +445,7 @@ class MessageCard extends StatelessWidget {
         Expanded(
           child: ActionButton(
             text: '복사하기',
-            onPressed: () => onCopy(currentVersion.text),
+            onPressed: () => widget.onCopy(currentVersion.text),
             enabled: true,
           ),
         ),
@@ -373,7 +453,7 @@ class MessageCard extends StatelessWidget {
         Expanded(
           child: ActionButton(
             text: '다이어리로 이동',
-            onPressed: () => onMoveToDiary(
+            onPressed: () => widget.onMoveToDiary(
               currentVersion.text,
               currentVersion.emotion,
               currentVersion.keywords,
@@ -385,10 +465,10 @@ class MessageCard extends StatelessWidget {
         Expanded(
           child: ActionButton(
             text: _getRegenerateButtonText(),
-            onPressed: message.versions.length >= 5
+            onPressed: widget.message.versions.length >= 5
                 ? null
-                : () => onRegenerate(message),
-            enabled: message.versions.length < 5,
+                : () => widget.onRegenerate(widget.message),
+            enabled: widget.message.versions.length < 5,
           ),
         ),
       ],
@@ -396,10 +476,10 @@ class MessageCard extends StatelessWidget {
   }
 
   String _getRegenerateButtonText() {
-    if (message.versions.length == 1) {
+    if (widget.message.versions.length == 1) {
       return '다시 생성';
-    } else if (message.versions.length >= 5) {
-      return '최대 재생성 횟수 도달 (${message.versions.length}번)';
+    } else if (widget.message.versions.length >= 5) {
+      return '최대 재생성 횟수 도달 (${widget.message.versions.length}번)';
     } else {
       return '다시 생성 ';
     }
