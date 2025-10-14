@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:saegim/app/routes/route_paths.dart';
+import 'package:saegim/core/theme/theme_extensions.dart';
 import 'package:saegim/features/authentication/presentation/riverpod/auth_notifier.dart';
 import 'package:saegim/shared/widgets/common_app_bar.dart';
 
@@ -153,7 +154,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
 
     return Scaffold(
       appBar: const CommonAppBar(showBackButton: true, showMenuButton: false),
-      backgroundColor: Colors.white,
+      // backgroundColor 제거 - Theme 자동 적용
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Form(
@@ -172,27 +173,28 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                       height: 80,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(16),
-                        color: const Color(0xFFB2C5B8),
+                        color: context.colorScheme.primary,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.person_add,
                         size: 40,
-                        color: Colors.white,
+                        color: context.colorScheme.onPrimary,
                       ),
                     ),
                     const SizedBox(height: 24),
-                    const Text(
+                    Text(
                       '새로운 시작을 환영해요!',
-                      style: TextStyle(
-                        fontSize: 24,
+                      style: context.textTheme.headlineMedium?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1F2937),
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
+                    Text(
                       '마음을 새기는 여정을 시작해보세요',
-                      style: TextStyle(fontSize: 16, color: Color(0xFF6B7280)),
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: context.secondaryText,
+                      ),
                     ),
                   ],
                 ),
@@ -201,12 +203,10 @@ class _SignupPageState extends ConsumerState<SignupPage> {
               const SizedBox(height: 40),
 
               // 이메일 입력
-              const Text(
+              Text(
                 '이메일',
-                style: TextStyle(
-                  fontSize: 16,
+                style: context.textTheme.bodyLarge?.copyWith(
                   fontWeight: FontWeight.w500,
-                  color: Color(0xFF374151),
                 ),
               ),
               const SizedBox(height: 8),
@@ -222,8 +222,8 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                       color:
                           _emailValidationStatus == 'unavailable' ||
                               _emailValidationStatus == 'invalid'
-                          ? Colors.red
-                          : const Color(0xFFD1D5DB),
+                          ? context.colorScheme.error
+                          : context.borderSubtle,
                     ),
                   ),
                   focusedBorder: OutlineInputBorder(
@@ -233,8 +233,8 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                           ? Colors.green
                           : _emailValidationStatus == 'unavailable' ||
                                 _emailValidationStatus == 'invalid'
-                          ? Colors.red
-                          : const Color(0xFFB2C5B8),
+                          ? context.colorScheme.error
+                          : context.colorScheme.primary,
                     ),
                   ),
                   suffixIcon: _emailValidationStatus == 'checking'
@@ -250,7 +250,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                       ? const Icon(Icons.check_circle, color: Colors.green)
                       : _emailValidationStatus == 'unavailable' ||
                             _emailValidationStatus == 'invalid'
-                      ? const Icon(Icons.error, color: Colors.red)
+                      ? Icon(Icons.error, color: context.colorScheme.error)
                       : null,
                 ),
                 validator: (value) {
@@ -273,7 +273,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                       fontSize: 12,
                       color: _emailValidationStatus == 'available'
                           ? Colors.green
-                          : Colors.red,
+                          : context.colorScheme.error,
                     ),
                   ),
                 ),
@@ -285,12 +285,14 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                   child: SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: _isVerificationSending ? null : _sendVerificationEmail,
+                      onPressed: _isVerificationSending
+                          ? null
+                          : _sendVerificationEmail,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _isVerificationSending
-                            ? Colors.grey[400]
-                            : const Color(0xFFB2C5B8),
-                        foregroundColor: Colors.white,
+                            ? context.colorScheme.surfaceContainerHighest
+                            : context.colorScheme.primary,
+                        foregroundColor: context.colorScheme.onPrimary,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -298,15 +300,19 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                         elevation: _isVerificationSending ? 0 : 2,
                       ),
                       child: _isVerificationSending
-                          ? const SizedBox(
+                          ? SizedBox(
                               height: 16,
                               width: 16,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  context.colorScheme.onPrimary,
+                                ),
                               ),
                             )
-                          : Text(_isVerificationSent ? '인증 코드 재발송' : '인증 코드 발송'),
+                          : Text(
+                              _isVerificationSent ? '인증 코드 재발송' : '인증 코드 발송',
+                            ),
                     ),
                   ),
                 ),
@@ -318,12 +324,10 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         '인증 코드',
-                        style: TextStyle(
-                          fontSize: 16,
+                        style: context.textTheme.bodyLarge?.copyWith(
                           fontWeight: FontWeight.w500,
-                          color: Color(0xFF374151),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -337,26 +341,41 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                                 hintText: '인증 코드 6자리',
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
-                                  borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
+                                  borderSide: BorderSide(
+                                    color: context.borderSubtle,
+                                  ),
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
-                                  borderSide: const BorderSide(color: Color(0xFFB2C5B8)),
+                                  borderSide: BorderSide(
+                                    color: context.colorScheme.primary,
+                                  ),
                                 ),
                               ),
                               maxLength: 6,
-                              buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
+                              buildCounter:
+                                  (
+                                    context, {
+                                    required currentLength,
+                                    required isFocused,
+                                    maxLength,
+                                  }) => null,
                             ),
                           ),
                           const SizedBox(width: 12),
                           ElevatedButton(
-                            onPressed: _isVerificationChecking ? null : _verifyEmailCode,
+                            onPressed: _isVerificationChecking
+                                ? null
+                                : _verifyEmailCode,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: _isVerificationChecking
-                                  ? Colors.grey[400]
-                                  : const Color(0xFFB2C5B8),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                                  ? context.colorScheme.surfaceContainerHighest
+                                  : context.colorScheme.primary,
+                              foregroundColor: context.colorScheme.onPrimary,
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 16,
+                                horizontal: 24,
+                              ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
@@ -368,7 +387,9 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                                     width: 16,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
                                     ),
                                   )
                                 : const Text('인증'),
@@ -395,12 +416,10 @@ class _SignupPageState extends ConsumerState<SignupPage> {
               const SizedBox(height: 20),
 
               // 닉네임 입력
-              const Text(
+              Text(
                 '닉네임',
-                style: TextStyle(
-                  fontSize: 16,
+                style: context.textTheme.bodyLarge?.copyWith(
                   fontWeight: FontWeight.w500,
-                  color: Color(0xFF374151),
                 ),
               ),
               const SizedBox(height: 8),
@@ -415,8 +434,8 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                       color:
                           _nicknameValidationStatus == 'unavailable' ||
                               _nicknameValidationStatus == 'invalid'
-                          ? Colors.red
-                          : const Color(0xFFD1D5DB),
+                          ? context.colorScheme.error
+                          : context.borderSubtle,
                     ),
                   ),
                   focusedBorder: OutlineInputBorder(
@@ -426,8 +445,8 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                           ? Colors.green
                           : _nicknameValidationStatus == 'unavailable' ||
                                 _nicknameValidationStatus == 'invalid'
-                          ? Colors.red
-                          : const Color(0xFFB2C5B8),
+                          ? context.colorScheme.error
+                          : context.colorScheme.primary,
                     ),
                   ),
                   suffixIcon: _nicknameValidationStatus == 'checking'
@@ -443,7 +462,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                       ? const Icon(Icons.check_circle, color: Colors.green)
                       : _nicknameValidationStatus == 'unavailable' ||
                             _nicknameValidationStatus == 'invalid'
-                      ? const Icon(Icons.error, color: Colors.red)
+                      ? Icon(Icons.error, color: context.colorScheme.error)
                       : null,
                 ),
                 validator: (value) {
@@ -472,7 +491,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                       fontSize: 12,
                       color: _nicknameValidationStatus == 'available'
                           ? Colors.green
-                          : Colors.red,
+                          : context.colorScheme.error,
                     ),
                   ),
                 ),
@@ -480,12 +499,10 @@ class _SignupPageState extends ConsumerState<SignupPage> {
               const SizedBox(height: 20),
 
               // 비밀번호 입력
-              const Text(
+              Text(
                 '비밀번호',
-                style: TextStyle(
-                  fontSize: 16,
+                style: context.textTheme.bodyLarge?.copyWith(
                   fontWeight: FontWeight.w500,
-                  color: Color(0xFF374151),
                 ),
               ),
               const SizedBox(height: 8),
@@ -496,11 +513,11 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                   hintText: '비밀번호를 입력하세요',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
+                    borderSide: BorderSide(color: context.borderSubtle),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFB2C5B8)),
+                    borderSide: BorderSide(color: context.colorScheme.primary),
                   ),
                   suffixIcon: IconButton(
                     onPressed: () {
@@ -512,7 +529,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                       _obscurePassword
                           ? Icons.visibility
                           : Icons.visibility_off,
-                      color: const Color(0xFF6B7280),
+                      color: context.secondaryText,
                     ),
                   ),
                 ),
@@ -523,7 +540,9 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                   if (value.length < 9) {
                     return '비밀번호는 9자 이상이어야 합니다';
                   }
-                  if (!RegExp(r'^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{9,}$').hasMatch(value)) {
+                  if (!RegExp(
+                    r'^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{9,}$',
+                  ).hasMatch(value)) {
                     return '영문, 숫자, 특수문자를 모두 포함해야 합니다';
                   }
                   return null;
@@ -539,11 +558,11 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                   onPressed: authState.isLoading ? null : _handleSignup,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _canSignup()
-                        ? const Color(0xFFB2C5B8)
-                        : Colors.grey[300],
+                        ? context.colorScheme.primary
+                        : context.colorScheme.surfaceContainerHighest,
                     foregroundColor: _canSignup()
-                        ? Colors.white
-                        : Colors.grey[600],
+                        ? context.colorScheme.onPrimary
+                        : context.colorScheme.onSurfaceVariant,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -551,13 +570,13 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                     elevation: _canSignup() ? 3 : 0,
                   ),
                   child: authState.isLoading
-                      ? const SizedBox(
+                      ? SizedBox(
                           height: 20,
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                             valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
+                              context.colorScheme.onPrimary,
                             ),
                           ),
                         )
@@ -578,9 +597,12 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
+                    Text(
                       '이미 계정이 있으신가요? ',
-                      style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: context.secondaryText,
+                      ),
                     ),
                     TextButton(
                       onPressed: () => context.go(RoutePaths.authLogin),
@@ -589,11 +611,11 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
-                      child: const Text(
+                      child: Text(
                         '로그인',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Color(0xFFB2C5B8),
+                          color: context.colorScheme.primary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -618,7 +640,9 @@ class _SignupPageState extends ConsumerState<SignupPage> {
     });
 
     final authNotifier = ref.read(authNotifierProvider.notifier);
-    final success = await authNotifier.sendVerificationEmail(_emailController.text.trim());
+    final success = await authNotifier.sendVerificationEmail(
+      _emailController.text.trim(),
+    );
 
     if (mounted) {
       setState(() {
@@ -689,9 +713,9 @@ class _SignupPageState extends ConsumerState<SignupPage> {
       context.go(RoutePaths.home);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('회원가입에 실패했습니다. 다시 시도해주세요.'),
-          backgroundColor: Colors.red,
+        SnackBar(
+          content: const Text('회원가입에 실패했습니다. 다시 시도해주세요.'),
+          backgroundColor: context.colorScheme.error,
         ),
       );
     }

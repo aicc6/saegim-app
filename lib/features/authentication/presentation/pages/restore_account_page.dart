@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:saegim/app/routes/route_paths.dart';
+import 'package:saegim/core/theme/theme_extensions.dart';
 import 'package:saegim/features/authentication/presentation/riverpod/auth_notifier.dart';
 import 'package:saegim/shared/widgets/common_app_bar.dart';
 
@@ -56,7 +57,6 @@ class _RestoreAccountPageState extends ConsumerState<RestoreAccountPage> {
     setState(() => _isResending = true);
 
     try {
-      
       final success = await ref
           .read(authNotifierProvider.notifier)
           .sendVerificationEmail(widget.email);
@@ -75,7 +75,7 @@ class _RestoreAccountPageState extends ConsumerState<RestoreAccountPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('인증 메일 발송에 실패했습니다: $e'),
-            backgroundColor: Colors.red[600],
+            backgroundColor: context.colorScheme.error,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -91,7 +91,7 @@ class _RestoreAccountPageState extends ConsumerState<RestoreAccountPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('6자리 인증 코드를 입력해주세요.'),
-          backgroundColor: Colors.red[600],
+          backgroundColor: context.colorScheme.error,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -134,7 +134,7 @@ class _RestoreAccountPageState extends ConsumerState<RestoreAccountPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('계정 복구에 실패했습니다: $e'),
-            backgroundColor: Colors.red[600],
+            backgroundColor: context.colorScheme.error,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -184,30 +184,28 @@ class _RestoreAccountPageState extends ConsumerState<RestoreAccountPage> {
                         width: 80,
                         height: 80,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE8F0EB),
+                          color: context.colorScheme.primaryContainer,
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.restore,
                           size: 40,
-                          color: Color(0xFF2E3A59),
+                          color: context.colorScheme.onPrimaryContainer,
                         ),
                       ),
                       const SizedBox(height: 16),
-                      const Text(
+                      Text(
                         '계정 복구',
-                        style: TextStyle(
-                          fontSize: 24,
+                        style: context.textTheme.headlineMedium?.copyWith(
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF2E3A59),
                         ),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
+                      Text(
                         '탈퇴된 계정을 복구할 수 있습니다',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Color(0xFF6B7280),
+                          color: context.secondaryText,
                         ),
                       ),
                     ],
@@ -219,39 +217,39 @@ class _RestoreAccountPageState extends ConsumerState<RestoreAccountPage> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         '이메일 주소',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF2E3A59),
+                          color: context.primaryText,
                         ),
                       ),
                       const SizedBox(height: 8),
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF3F4F6),
+                          color: context.inputBackground,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: const Color(0xFFE5E7EB),
+                            color: context.borderSubtle,
                             width: 1,
                           ),
                         ),
                         child: Row(
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.email_outlined,
-                              color: Color(0xFF6B7280),
+                              color: context.secondaryText,
                               size: 20,
                             ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
                                 widget.email,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 14,
-                                  color: Color(0xFF2E3A59),
+                                  color: context.primaryText,
                                 ),
                               ),
                             ),
@@ -267,12 +265,12 @@ class _RestoreAccountPageState extends ConsumerState<RestoreAccountPage> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         '인증 코드',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF2E3A59),
+                          color: context.primaryText,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -283,36 +281,36 @@ class _RestoreAccountPageState extends ConsumerState<RestoreAccountPage> {
                         style: const TextStyle(fontSize: 16, letterSpacing: 2),
                         decoration: InputDecoration(
                           hintText: '이메일로 받은 6자리 인증 코드를 입력하세요',
-                          hintStyle: const TextStyle(
-                            color: Color(0xFF6B7280),
+                          hintStyle: TextStyle(
+                            color: context.placeholderText,
                             fontSize: 14,
                           ),
-                          prefixIcon: const Icon(
+                          prefixIcon: Icon(
                             Icons.lock_outline,
-                            color: Color(0xFF6B7280),
+                            color: context.secondaryText,
                             size: 20,
                           ),
                           filled: true,
-                          fillColor: Colors.white,
+                          fillColor: context.inputBackground,
                           counterText: '',
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(
-                              color: Color(0xFFE5E7EB),
+                            borderSide: BorderSide(
+                              color: context.borderSubtle,
                               width: 1,
                             ),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(
-                              color: Color(0xFFE5E7EB),
+                            borderSide: BorderSide(
+                              color: context.borderSubtle,
                               width: 1,
                             ),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(
-                              color: Color(0xFFB2C5B8),
+                            borderSide: BorderSide(
+                              color: context.colorScheme.primary,
                               width: 2,
                             ),
                           ),
@@ -331,8 +329,6 @@ class _RestoreAccountPageState extends ConsumerState<RestoreAccountPage> {
                   FilledButton(
                     onPressed: _isLoading ? null : _restoreAccount,
                     style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFFB2C5B8),
-                      foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:saegim/features/authentication/presentation/riverpod/auth_notifier.dart';
 import 'package:saegim/core/services/auth_storage_service.dart';
+import 'package:saegim/features/authentication/presentation/riverpod/auth_notifier.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ThemeNotifier extends StateNotifier<ThemeMode> {
   final Ref _ref;
@@ -19,7 +19,8 @@ class ThemeNotifier extends StateNotifier<ThemeMode> {
   void _listenToAuthState() {
     _ref.listen<AuthState>(authNotifierProvider, (previous, next) {
       // 초기화가 완료된 후에만 테마 변경 로직 실행
-      if (next.isInitialized && previous?.isAuthenticated != next.isAuthenticated) {
+      if (next.isInitialized &&
+          previous?.isAuthenticated != next.isAuthenticated) {
         if (next.isAuthenticated) {
           _loadUserTheme();
         } else {
@@ -48,7 +49,10 @@ class ThemeNotifier extends StateNotifier<ThemeMode> {
         final userThemeKey = '${_userThemeKey}_$userId';
         final themeIndex = prefs.getInt(userThemeKey) ?? 0;
         state = ThemeMode.values[themeIndex];
-        AppLogger.info('사용자별 테마 로드: ${ThemeMode.values[themeIndex]}', 'ThemeNotifier');
+        AppLogger.info(
+          '사용자별 테마 로드: ${ThemeMode.values[themeIndex]}',
+          'ThemeNotifier',
+        );
       }
     } catch (e) {
       state = ThemeMode.system;
@@ -58,11 +62,12 @@ class ThemeNotifier extends StateNotifier<ThemeMode> {
 
   Future<void> _loadGuestTheme() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
       // 게스트 상태에서는 항상 시스템 테마로 시작
-      final themeIndex = 0; // ThemeMode.system.index
-      state = ThemeMode.values[themeIndex];
-      AppLogger.info('게스트 테마 로드 (시스템 테마): ${ThemeMode.values[themeIndex]}', 'ThemeNotifier');
+      state = ThemeMode.system;
+      AppLogger.info(
+        '게스트 테마 로드 (시스템 테마): ${ThemeMode.system}',
+        'ThemeNotifier',
+      );
     } catch (e) {
       state = ThemeMode.system;
       AppLogger.error('게스트 테마 로드 실패', error: e, tag: 'ThemeNotifier');
@@ -91,7 +96,10 @@ class ThemeNotifier extends StateNotifier<ThemeMode> {
           final prefs = await SharedPreferences.getInstance();
           final userThemeKey = '${_userThemeKey}_$userId';
           await prefs.setInt(userThemeKey, theme.index);
-          AppLogger.info('사용자별 테마 저장: $theme (userId: $userId)', 'ThemeNotifier');
+          AppLogger.info(
+            '사용자별 테마 저장: $theme (userId: $userId)',
+            'ThemeNotifier',
+          );
         }
         state = theme;
       } else {

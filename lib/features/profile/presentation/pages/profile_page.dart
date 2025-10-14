@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:saegim/app/routes/route_paths.dart';
 import 'package:saegim/core/services/auth_storage_service.dart';
+import 'package:saegim/core/theme/theme_extensions.dart';
 import 'package:saegim/features/authentication/presentation/riverpod/auth_notifier.dart';
 import 'package:saegim/features/profile/presentation/providers/profile_notifier.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
@@ -99,15 +100,18 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       body: RefreshIndicator(
         onRefresh: ref.read(profileNotifierProvider.notifier).refreshProfile,
         child: profileState.isLoading && profileState.profile == null
-            ? const Center(
+            ? Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 16),
                     Text(
                       '프로필을 불러오는 중...',
-                      style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: context.secondaryText,
+                      ),
                     ),
                   ],
                 ),
@@ -150,10 +154,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               const SizedBox(height: 16),
               Text(
                 profile.nickname.isNotEmpty ? profile.nickname : '닉네임 없음',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF2E3A59),
+                  color: context.primaryText,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -164,15 +168,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE8F0EB),
+                  color: context.inputBackground,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   profile.maskedEmail,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF6B7280),
-                  ),
+                  style: TextStyle(fontSize: 12, color: context.secondaryText),
                 ),
               ),
             ],
@@ -182,7 +183,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           // Divider
           Container(
             height: 1,
-            color: Colors.grey[200],
+            color: context.borderSubtle,
             margin: const EdgeInsets.only(bottom: 24),
           ),
 
@@ -190,12 +191,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 '프로필 편집',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF2E3A59),
+                  color: context.primaryText,
                 ),
               ),
               const SizedBox(height: 16),
@@ -204,12 +205,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     '닉네임',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
-                      color: Color(0xFF6B7280),
+                      color: context.secondaryText,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -248,8 +249,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                       _nicknameController.text.trim(),
                                     ),
                           style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Color(0xFFB2C5B8)),
-                            foregroundColor: const Color(0xFF2E3A59),
+                            side: BorderSide(
+                              color: context.colorScheme.primary,
+                            ),
+                            foregroundColor: context.primaryText,
                             padding: const EdgeInsets.symmetric(horizontal: 8),
                           ),
                           child: state.isCheckingNickname
@@ -311,12 +314,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         '이메일',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
-                          color: Color(0xFF6B7280),
+                          color: context.secondaryText,
                         ),
                       ),
                       TextButton(
@@ -340,15 +343,15 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.grey[50],
+                      color: context.inputBackground,
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey[300]!),
+                      border: Border.all(color: context.borderSubtle),
                     ),
                     child: Text(
                       profile.maskedEmail,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
-                        color: Color(0xFF6B7280),
+                        color: context.secondaryText,
                       ),
                     ),
                   ),
@@ -370,20 +373,20 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                               nickname: _nicknameController.text.trim(),
                             ),
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF2E3A59),
-                    foregroundColor: Colors.white,
+                    backgroundColor: context.colorScheme.primary,
+                    foregroundColor: context.colorScheme.onPrimary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
                   child: state.isUpdatingProfile
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 20,
                           height: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                             valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
+                              context.colorScheme.onPrimary,
                             ),
                           ),
                         )
@@ -413,7 +416,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1),
+                color: context.colorScheme.shadow.withValues(alpha: 0.1),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -421,12 +424,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           ),
           child: CircleAvatar(
             radius: 50,
-            backgroundColor: const Color(0xFFE8F0EB),
+            backgroundColor: context.inputBackground,
             backgroundImage: profile?.profileImageUrl != null
                 ? NetworkImage(profile!.profileImageUrl!)
                 : null,
             child: profile?.profileImageUrl == null
-                ? const Icon(Icons.person, size: 50, color: Color(0xFF9EB5A6))
+                ? Icon(Icons.person, size: 50, color: context.secondaryText)
                 : null,
           ),
         ),
@@ -434,22 +437,28 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           bottom: 0,
           right: 0,
           child: Container(
-            decoration: const BoxDecoration(
-              color: Color(0xFF2E3A59),
+            decoration: BoxDecoration(
+              color: context.colorScheme.primary,
               shape: BoxShape.circle,
             ),
             child: IconButton(
               onPressed: state.isUploadingImage ? null : _pickImage,
               icon: state.isUploadingImage
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          context.colorScheme.onPrimary,
+                        ),
                       ),
                     )
-                  : const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                  : Icon(
+                      Icons.camera_alt,
+                      color: context.colorScheme.onPrimary,
+                      size: 20,
+                    ),
               iconSize: 20,
               constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
               padding: EdgeInsets.zero,
@@ -470,17 +479,21 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFEF2F2),
+                  color: context.isDarkMode
+                      ? context.colorScheme.errorContainer
+                      : const Color(0xFFFEF2F2),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.settings,
-                  color: Color(0xFFEF4444),
+                  color: context.isDarkMode
+                      ? context.colorScheme.onErrorContainer
+                      : const Color(0xFFEF4444),
                   size: 20,
                 ),
               ),
               const SizedBox(width: 12),
-              const Column(
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
@@ -488,12 +501,15 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF2E3A59),
+                      color: context.primaryText,
                     ),
                   ),
                   Text(
                     '계정 관련 설정을 관리합니다.',
-                    style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: context.secondaryText,
+                    ),
                   ),
                 ],
               ),
@@ -501,58 +517,55 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           ),
           const SizedBox(height: 16),
           ListTile(
-            leading: const Icon(Icons.help_outline, color: Color(0xFF6B7280)),
-            title: const Text(
+            leading: Icon(Icons.help_outline, color: context.secondaryText),
+            title: Text(
               '고객센터 문의',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
-                color: Color(0xFF2E3A59),
+                color: context.primaryText,
               ),
             ),
-            trailing: const Icon(Icons.chevron_right, color: Color(0xFF6B7280)),
+            trailing: Icon(Icons.chevron_right, color: context.secondaryText),
             onTap: () => context.push(RoutePaths.support),
             contentPadding: EdgeInsets.zero,
           ),
-          const Divider(height: 1),
+          Divider(height: 1, color: context.borderSubtle),
           // 이메일 사용자에게만 비밀번호 변경 옵션 표시
           if (!_isGoogleUser) ...[
             ListTile(
-              leading: const Icon(Icons.lock_outline, color: Color(0xFF6B7280)),
-              title: const Text(
+              leading: Icon(Icons.lock_outline, color: context.secondaryText),
+              title: Text(
                 '비밀번호 변경',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: Color(0xFF2E3A59),
+                  color: context.primaryText,
                 ),
               ),
-              subtitle: const Text(
+              subtitle: Text(
                 '계정 보안을 위해 주기적으로 변경해주세요.',
-                style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                style: TextStyle(fontSize: 12, color: context.secondaryText),
               ),
-              trailing: const Icon(
-                Icons.chevron_right,
-                color: Color(0xFF6B7280),
-              ),
+              trailing: Icon(Icons.chevron_right, color: context.secondaryText),
               onTap: () => context.push('/settings/change-password'),
               contentPadding: EdgeInsets.zero,
             ),
-            const Divider(height: 1),
+            Divider(height: 1, color: context.borderSubtle),
           ],
           ListTile(
-            leading: Icon(Icons.logout, color: Colors.red[600]),
+            leading: Icon(Icons.logout, color: context.colorScheme.error),
             title: Text(
               '계정 탈퇴',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
-                color: Colors.red[600],
+                color: context.colorScheme.error,
               ),
             ),
-            subtitle: const Text(
+            subtitle: Text(
               '탈퇴 시 모든 데이터가 30일 후 영구 삭제됩니다.',
-              style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+              style: TextStyle(fontSize: 12, color: context.secondaryText),
             ),
             trailing: state.isWithdrawing
                 ? const SizedBox(
@@ -560,7 +573,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Icon(Icons.chevron_right, color: Color(0xFF6B7280)),
+                : Icon(Icons.chevron_right, color: context.secondaryText),
             onTap: state.isWithdrawing
                 ? null
                 : () => _showWithdrawDialog(context),
@@ -575,11 +588,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     return _buildCard(
       child: Column(
         children: [
-          const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
+          Icon(Icons.error_outline, size: 48, color: context.colorScheme.error),
           const SizedBox(height: 12),
           Text(
             message,
-            style: const TextStyle(fontSize: 14, color: Color(0xFF2E3A59)),
+            style: TextStyle(fontSize: 14, color: context.primaryText),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 12),
@@ -598,11 +611,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: context.colorScheme.shadow.withValues(alpha: 0.05),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -638,7 +651,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -659,7 +672,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 height: 4,
                 margin: const EdgeInsets.only(bottom: 20),
                 decoration: BoxDecoration(
-                  color: Colors.grey[300],
+                  color: context.borderSubtle,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -670,17 +683,17 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE8F0EB),
+                      color: context.inputBackground,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.email_outlined,
-                      color: Color(0xFF2E3A59),
+                      color: context.colorScheme.primary,
                       size: 20,
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Column(
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
@@ -688,14 +701,14 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF2E3A59),
+                          color: context.primaryText,
                         ),
                       ),
                       Text(
                         '새 이메일 주소로 인증 메일을 발송합니다',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Color(0xFF6B7280),
+                          color: context.secondaryText,
                         ),
                       ),
                     ],
@@ -709,24 +722,35 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF0F9FF),
+                  color: context.isDarkMode
+                      ? context.colorScheme.primaryContainer
+                      : const Color(0xFFF0F9FF),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFBAE6FD), width: 1),
+                  border: Border.all(
+                    color: context.isDarkMode
+                        ? context.colorScheme.primary
+                        : const Color(0xFFBAE6FD),
+                    width: 1,
+                  ),
                 ),
                 child: Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.info_outline,
-                      color: Color(0xFF0284C7),
+                      color: context.isDarkMode
+                          ? context.colorScheme.onPrimaryContainer
+                          : const Color(0xFF0284C7),
                       size: 20,
                     ),
                     const SizedBox(width: 12),
-                    const Expanded(
+                    Expanded(
                       child: Text(
                         '메일함을 확인하여 인증을 완료해야 변경이 반영됩니다.',
                         style: TextStyle(
                           fontSize: 13,
-                          color: Color(0xFF0369A1),
+                          color: context.isDarkMode
+                              ? context.colorScheme.onPrimaryContainer
+                              : const Color(0xFF0369A1),
                         ),
                       ),
                     ),
@@ -740,12 +764,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     '새 이메일 주소',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
-                      color: Color(0xFF374151),
+                      color: context.primaryText,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -761,10 +785,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         horizontal: 16,
                         vertical: 12,
                       ),
-                      prefixIcon: const Icon(
+                      prefixIcon: Icon(
                         Icons.email_outlined,
                         size: 20,
-                        color: Color(0xFF6B7280),
+                        color: context.secondaryText,
                       ),
                     ),
                   ),
@@ -781,8 +805,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       onPressed: () => Navigator.of(context).pop(),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 12),
-                        side: const BorderSide(color: Color(0xFFD1D5DB)),
-                        foregroundColor: const Color(0xFF6B7280),
+                        side: BorderSide(color: context.borderSubtle),
+                        foregroundColor: context.secondaryText,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -804,8 +828,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             .sendEmailChangeVerification(email);
                       },
                       style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF2E3A59),
-                        foregroundColor: Colors.white,
+                        backgroundColor: context.colorScheme.primary,
+                        foregroundColor: context.colorScheme.onPrimary,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -857,12 +881,16 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFEF2F2),
+                      color: context.isDarkMode
+                          ? context.colorScheme.errorContainer
+                          : const Color(0xFFFEF2F2),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
                       Icons.warning_amber_rounded,
-                      color: Colors.red[600],
+                      color: context.isDarkMode
+                          ? context.colorScheme.onErrorContainer
+                          : context.colorScheme.error,
                       size: 20,
                     ),
                   ),
@@ -875,9 +903,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).colorScheme.onSurface,
+                      color: context.primaryText,
                     ),
                   ),
 
@@ -888,11 +914,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     '탈퇴 후 모든 데이터가 30일 후 영구 삭제됩니다.',
                     style: TextStyle(
                       fontSize: 12,
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(
-                              context,
-                            ).colorScheme.onSurface.withOpacity(0.7),
+                      color: context.secondaryText,
                       height: 1.2,
                     ),
                     textAlign: TextAlign.center,
@@ -904,10 +926,14 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFEF2F2),
+                      color: context.isDarkMode
+                          ? context.colorScheme.errorContainer
+                          : const Color(0xFFFEF2F2),
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(
-                        color: const Color(0xFFFECACA),
+                        color: context.isDarkMode
+                            ? context.colorScheme.error
+                            : const Color(0xFFFECACA),
                         width: 1,
                       ),
                     ),
@@ -915,16 +941,20 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       children: [
                         Icon(
                           Icons.info_outline,
-                          color: Colors.red[700],
+                          color: context.isDarkMode
+                              ? context.colorScheme.onErrorContainer
+                              : context.colorScheme.error,
                           size: 14,
                         ),
                         const SizedBox(width: 6),
-                        const Expanded(
+                        Expanded(
                           child: Text(
                             '다이어리, 프로필 등 모든 데이터가 삭제됩니다.',
                             style: TextStyle(
                               fontSize: 11,
-                              color: Color(0xFF991B1B),
+                              color: context.isDarkMode
+                                  ? context.colorScheme.onErrorContainer
+                                  : const Color(0xFF991B1B),
                             ),
                           ),
                         ),
@@ -951,10 +981,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         horizontal: 10,
                         vertical: 8,
                       ),
-                      prefixIcon: const Icon(
+                      prefixIcon: Icon(
                         Icons.lock_outline,
                         size: 16,
-                        color: Color(0xFF6B7280),
+                        color: context.secondaryText,
                       ),
                       isDense: true,
                     ),
@@ -970,13 +1000,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                           onPressed: () => Navigator.of(context).pop(),
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 8),
-                            side: const BorderSide(color: Color(0xFFD1D5DB)),
-                            foregroundColor:
-                                Theme.of(context).brightness == Brightness.dark
-                                ? Theme.of(context).colorScheme.primary
-                                : Theme.of(
-                                    context,
-                                  ).colorScheme.onSurface.withOpacity(0.7),
+                            side: BorderSide(color: context.borderSubtle),
+                            foregroundColor: context.secondaryText,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(6),
                             ),
@@ -995,7 +1020,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: const Text('비밀번호를 입력해주세요.'),
-                                  backgroundColor: Colors.red[600],
+                                  backgroundColor: context.colorScheme.error,
                                   behavior: SnackBarBehavior.floating,
                                 ),
                               );
@@ -1018,11 +1043,15 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                               if (success) {
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('계정 탈퇴가 완료되었습니다.'),
-                                      backgroundColor: Colors.green,
+                                    SnackBar(
+                                      content: const Text('계정 탈퇴가 완료되었습니다.'),
+                                      backgroundColor: context.isDarkMode
+                                          ? const Color(0xFF10B981)
+                                          : Colors.green,
                                       behavior: SnackBarBehavior.floating,
-                                      duration: Duration(milliseconds: 800),
+                                      duration: const Duration(
+                                        milliseconds: 800,
+                                      ),
                                     ),
                                   );
                                 }
@@ -1089,7 +1118,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                     content: const Text(
                                       '오류가 발생했습니다. 다시 시도해주세요.',
                                     ),
-                                    backgroundColor: Colors.red[600],
+                                    backgroundColor: context.colorScheme.error,
                                     behavior: SnackBarBehavior.floating,
                                   ),
                                 );
@@ -1097,8 +1126,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             }
                           },
                           style: FilledButton.styleFrom(
-                            backgroundColor: Colors.red[600],
-                            foregroundColor: Colors.white,
+                            backgroundColor: context.colorScheme.error,
+                            foregroundColor: context.colorScheme.onError,
                             padding: const EdgeInsets.symmetric(vertical: 8),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(6),
@@ -1124,12 +1153,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             '계정 관리',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF2E3A59),
+              color: context.primaryText,
             ),
           ),
           const SizedBox(height: 16),
@@ -1140,8 +1169,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               onPressed: () => _showLogoutDialog(context),
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                side: const BorderSide(color: Color(0xFFEF4444)),
-                foregroundColor: const Color(0xFFEF4444),
+                side: BorderSide(color: context.colorScheme.error),
+                foregroundColor: context.colorScheme.error,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -1174,19 +1203,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Theme.of(context).colorScheme.primary
-                  : Theme.of(context).colorScheme.onSurface,
+              color: context.primaryText,
             ),
           ),
           content: Text(
             '정말 로그아웃하시겠습니까?',
-            style: TextStyle(
-              fontSize: 14,
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Theme.of(context).colorScheme.primary
-                  : Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-            ),
+            style: TextStyle(fontSize: 14, color: context.secondaryText),
           ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -1194,16 +1216,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                '취소',
-                style: TextStyle(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Theme.of(context).colorScheme.primary
-                      : Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withOpacity(0.7),
-                ),
-              ),
+              child: Text('취소', style: TextStyle(color: context.secondaryText)),
             ),
             FilledButton(
               onPressed: () async {
@@ -1218,7 +1231,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 }
               },
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFEF4444),
+                backgroundColor: context.colorScheme.error,
               ),
               child: const Text('로그아웃'),
             ),

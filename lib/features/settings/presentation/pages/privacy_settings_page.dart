@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:saegim/core/theme/theme_extensions.dart';
 import 'package:saegim/shared/widgets/common_app_bar.dart';
 
 class PrivacySettingsPage extends StatelessWidget {
@@ -15,10 +16,10 @@ class PrivacySettingsPage extends StatelessWidget {
           Center(
             child: Column(
               children: [
-                const Icon(
+                Icon(
                   Icons.privacy_tip_outlined,
                   size: 60,
-                  color: Color(0xFFB2C5B8),
+                  color: context.colorScheme.primary,
                 ),
                 const SizedBox(height: 16),
                 Text(
@@ -99,11 +100,11 @@ class PrivacySettingsPage extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
+            color: Theme.of(context).shadowColor.withValues(alpha: 0.1),
             spreadRadius: 1,
             blurRadius: 4,
             offset: const Offset(0, 2),
@@ -112,22 +113,21 @@ class PrivacySettingsPage extends StatelessWidget {
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-        leading: Icon(icon, color: const Color(0xFFB2C5B8), size: 28),
+        leading: Icon(icon, color: context.colorScheme.primary, size: 28),
         title: Text(
           title,
-          style: const TextStyle(
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            color: Color(0xFF2E3A59),
           ),
         ),
         subtitle: Text(
           subtitle,
-          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+          style: TextStyle(fontSize: 14, color: context.secondaryText),
         ),
-        trailing: const Icon(
+        trailing: Icon(
           Icons.arrow_forward_ios,
-          color: Color(0xFFB2C5B8),
+          color: context.colorScheme.primary,
           size: 16,
         ),
         onTap: onTap,

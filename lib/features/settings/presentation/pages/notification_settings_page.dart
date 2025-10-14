@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:saegim/core/theme/theme_extensions.dart';
 import 'package:saegim/features/settings/data/models/notification_settings_model.dart';
 import 'package:saegim/features/settings/presentation/providers/notification_settings_provider.dart';
 import 'package:saegim/shared/widgets/common_app_bar.dart';
@@ -47,10 +48,10 @@ class NotificationSettingsPage extends ConsumerWidget {
         Center(
           child: Column(
             children: [
-              const Icon(
+              Icon(
                 Icons.notifications_outlined,
                 size: 60,
-                color: Color(0xFFB2C5B8),
+                color: context.colorScheme.primary,
               ),
               const SizedBox(height: 16),
               Text(
@@ -71,6 +72,7 @@ class NotificationSettingsPage extends ConsumerWidget {
         // 기본 알림 설정
         _buildSectionTitle(context, '기본 알림'),
         _buildSwitchTile(
+          context,
           title: '푸시 알림',
           subtitle: '새김 앱의 모든 알림을 받습니다',
           value: settings.pushEnabled,
@@ -84,6 +86,7 @@ class NotificationSettingsPage extends ConsumerWidget {
         // 다이어리 알림
         _buildSectionTitle(context, '다이어리 알림'),
         _buildSwitchTile(
+          context,
           title: '다이어리 작성 알림',
           subtitle: '매일 다이어리 작성을 알려드립니다',
           value: settings.diaryReminderEnabled,
@@ -94,6 +97,7 @@ class NotificationSettingsPage extends ConsumerWidget {
 
         if (settings.diaryReminderEnabled)
           _buildTimeTile(
+            context,
             title: '알림 시간',
             subtitle: settings.diaryReminderTime ?? '20:00',
             onTap: () => _showTimePicker(
@@ -108,6 +112,7 @@ class NotificationSettingsPage extends ConsumerWidget {
         // 활동 알림
         _buildSectionTitle(context, '활동 알림'),
         _buildSwitchTile(
+          context,
           title: '주간 리포트 알림',
           subtitle: '감정 분석 리포트가 생성되면 알려드립니다',
           value: settings.reportNotificationEnabled,
@@ -116,6 +121,7 @@ class NotificationSettingsPage extends ConsumerWidget {
               .toggleReportNotification(value),
         ),
         _buildSwitchTile(
+          context,
           title: 'AI 처리 완료 알림',
           subtitle: 'AI 감정 분석이 완료되면 알려드립니다',
           value: settings.aiProcessingNotificationEnabled,
@@ -145,7 +151,8 @@ class NotificationSettingsPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildSwitchTile({
+  Widget _buildSwitchTile(
+    BuildContext context, {
     required String title,
     required String subtitle,
     required bool value,
@@ -154,11 +161,11 @@ class NotificationSettingsPage extends ConsumerWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
+            color: Theme.of(context).shadowColor.withValues(alpha: 0.1),
             spreadRadius: 1,
             blurRadius: 4,
             offset: const Offset(0, 2),
@@ -169,25 +176,25 @@ class NotificationSettingsPage extends ConsumerWidget {
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
         title: Text(
           title,
-          style: const TextStyle(
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            color: Color(0xFF2E3A59),
           ),
         ),
         subtitle: Text(
           subtitle,
-          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+          style: TextStyle(fontSize: 14, color: context.secondaryText),
         ),
         value: value,
         onChanged: onChanged,
-        activeThumbColor: const Color(0xFFB2C5B8),
-        activeTrackColor: const Color(0xFFB2C5B8).withValues(alpha: 0.5),
+        activeThumbColor: context.colorScheme.primary,
+        activeTrackColor: context.colorScheme.primary.withValues(alpha: 0.5),
       ),
     );
   }
 
-  Widget _buildTimeTile({
+  Widget _buildTimeTile(
+    BuildContext context, {
     required String title,
     required String subtitle,
     required VoidCallback onTap,
@@ -195,29 +202,28 @@ class NotificationSettingsPage extends ConsumerWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 8, left: 16),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
+        color: context.inputBackground,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+        border: Border.all(color: context.borderSubtle),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
         title: Text(
           title,
-          style: const TextStyle(
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
             fontSize: 15,
             fontWeight: FontWeight.w500,
-            color: Color(0xFF2E3A59),
           ),
         ),
         subtitle: Text(
           subtitle,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            color: Color(0xFFB2C5B8),
+            color: context.colorScheme.primary,
           ),
         ),
-        trailing: const Icon(Icons.access_time, color: Color(0xFFB2C5B8)),
+        trailing: Icon(Icons.access_time, color: context.colorScheme.primary),
         onTap: onTap,
       ),
     );
@@ -242,7 +248,7 @@ class NotificationSettingsPage extends ConsumerWidget {
           data: Theme.of(context).copyWith(
             colorScheme: Theme.of(
               context,
-            ).colorScheme.copyWith(primary: const Color(0xFFB2C5B8)),
+            ).colorScheme.copyWith(primary: context.colorScheme.primary),
           ),
           child: child!,
         );

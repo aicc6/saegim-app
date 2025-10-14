@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:saegim/core/services/auth_storage_service.dart';
+import 'package:saegim/core/theme/theme_extensions.dart';
 import 'package:saegim/shared/widgets/common_app_bar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -69,9 +70,9 @@ class _SettingsPageState extends State<SettingsPage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('🔧 개발자 모드가 활성화되었습니다'),
-            backgroundColor: Color(0xFFB2C5B8),
+          SnackBar(
+            content: const Text('🔧 개발자 모드가 활성화되었습니다'),
+            backgroundColor: context.colorScheme.primary,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -87,9 +88,9 @@ class _SettingsPageState extends State<SettingsPage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('개발자 모드가 비활성화되었습니다'),
-            backgroundColor: Colors.grey,
+          SnackBar(
+            content: const Text('개발자 모드가 비활성화되었습니다'),
+            backgroundColor: context.secondaryText,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -118,7 +119,11 @@ class _SettingsPageState extends State<SettingsPage> {
           Center(
             child: Column(
               children: [
-                const Icon(Icons.settings, size: 60, color: Color(0xFFB2C5B8)),
+                Icon(
+                  Icons.settings,
+                  size: 60,
+                  color: context.colorScheme.primary,
+                ),
                 const SizedBox(height: 16),
                 Text(
                   '설정',
@@ -188,11 +193,11 @@ class _SettingsPageState extends State<SettingsPage> {
           Container(
             margin: const EdgeInsets.only(bottom: 12),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.colorScheme.surface,
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withValues(alpha: 0.1),
+                  color: context.secondaryText.withAlpha(25),
                   spreadRadius: 1,
                   blurRadius: 4,
                   offset: const Offset(0, 2),
@@ -207,26 +212,26 @@ class _SettingsPageState extends State<SettingsPage> {
               leading: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFB2C5B8).withValues(alpha: 0.1),
+                  color: context.colorScheme.primary.withAlpha(25),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.info_outline,
-                  color: Color(0xFFB2C5B8),
+                  color: context.colorScheme.primary,
                   size: 24,
                 ),
               ),
-              title: const Text(
+              title: Text(
                 '앱 버전',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF2E3A59),
+                  color: context.primaryText,
                 ),
               ),
               subtitle: Text(
                 _appVersion,
-                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                style: TextStyle(fontSize: 14, color: context.secondaryText),
               ),
               onTap: _onVersionTap,
             ),
@@ -256,15 +261,15 @@ class _SettingsPageState extends State<SettingsPage> {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFB2C5B8).withValues(alpha: 0.2),
+                    color: context.colorScheme.primary.withAlpha(51),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     kDebugMode ? 'DEBUG MODE' : 'EASTER EGG',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF2E3A59),
+                      color: context.primaryText,
                     ),
                   ),
                 ),
@@ -294,11 +299,11 @@ class _SettingsPageState extends State<SettingsPage> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
+            color: context.secondaryText.withAlpha(25),
             spreadRadius: 1,
             blurRadius: 4,
             offset: const Offset(0, 2),
@@ -310,24 +315,24 @@ class _SettingsPageState extends State<SettingsPage> {
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: const Color(0xFFB2C5B8).withValues(alpha: 0.1),
+            color: context.colorScheme.primary.withAlpha(25),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icon, color: const Color(0xFFB2C5B8), size: 24),
+          child: Icon(icon, color: context.colorScheme.primary, size: 24),
         ),
         title: Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            color: Color(0xFF2E3A59),
+            color: context.primaryText,
           ),
         ),
         subtitle: Text(
           subtitle,
-          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+          style: TextStyle(fontSize: 14, color: context.secondaryText),
         ),
-        trailing: const Icon(Icons.chevron_right, color: Color(0xFFB2C5B8)),
+        trailing: Icon(Icons.chevron_right, color: context.colorScheme.primary),
         onTap: onTap,
       ),
     );

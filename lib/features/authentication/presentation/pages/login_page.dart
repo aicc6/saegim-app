@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:saegim/app/routes/route_paths.dart';
+import 'package:saegim/core/theme/theme_extensions.dart';
 import 'package:saegim/features/authentication/presentation/riverpod/auth_notifier.dart';
 
 /// 로그인 페이지
@@ -30,7 +31,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final authState = ref.watch(authNotifierProvider);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      // backgroundColor 제거 - Theme의 scaffoldBackgroundColor 자동 적용
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -50,34 +51,31 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         height: 80,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(16),
-                          color: const Color(0xFFB2C5B8),
+                          color: context.colorScheme.primary,
                         ),
-                        child: const Center(
+                        child: Center(
                           child: Text(
                             '새김',
                             style: TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                              color: context.colorScheme.onPrimary,
                             ),
                           ),
                         ),
                       ),
                       const SizedBox(height: 24),
-                      const Text(
+                      Text(
                         '다시 만나서 반가워요!',
-                        style: TextStyle(
-                          fontSize: 28,
+                        style: context.textTheme.headlineMedium?.copyWith(
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF1F2937),
                         ),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
+                      Text(
                         '마음을 새기는 여정을 계속해보세요',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Color(0xFF6B7280),
+                        style: context.textTheme.bodyLarge?.copyWith(
+                          color: context.secondaryText,
                         ),
                       ),
                     ],
@@ -87,12 +85,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 const SizedBox(height: 48),
 
                 // 이메일 입력
-                const Text(
+                Text(
                   '이메일',
-                  style: TextStyle(
-                    fontSize: 16,
+                  style: context.textTheme.bodyLarge?.copyWith(
                     fontWeight: FontWeight.w500,
-                    color: Color(0xFF374151),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -103,11 +99,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     hintText: '이메일을 입력하세요',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
+                      borderSide: BorderSide(color: context.borderSubtle),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFB2C5B8)),
+                      borderSide: BorderSide(
+                        color: context.colorScheme.primary,
+                      ),
                     ),
                   ),
                   validator: (value) {
@@ -119,12 +117,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 const SizedBox(height: 20),
 
                 // 비밀번호 입력
-                const Text(
+                Text(
                   '비밀번호',
-                  style: TextStyle(
-                    fontSize: 16,
+                  style: context.textTheme.bodyLarge?.copyWith(
                     fontWeight: FontWeight.w500,
-                    color: Color(0xFF374151),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -135,11 +131,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     hintText: '비밀번호를 입력하세요',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
+                      borderSide: BorderSide(color: context.borderSubtle),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFB2C5B8)),
+                      borderSide: BorderSide(
+                        color: context.colorScheme.primary,
+                      ),
                     ),
                     suffixIcon: IconButton(
                       onPressed: () {
@@ -151,7 +149,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         _obscurePassword
                             ? Icons.visibility
                             : Icons.visibility_off,
-                        color: const Color(0xFF6B7280),
+                        color: context.secondaryText,
                       ),
                     ),
                   ),
@@ -168,23 +166,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: authState.isLoading ? null : _handleLogin,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFB2C5B8),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      disabledBackgroundColor: const Color(0xFFD1D5DB),
-                    ),
+                    // style 제거 - Theme의 elevatedButtonTheme 자동 적용
                     child: authState.isLoading
-                        ? const SizedBox(
+                        ? SizedBox(
                             height: 20,
                             width: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
                               valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white,
+                                context.colorScheme.onPrimary,
                               ),
                             ),
                           )
@@ -200,24 +190,27 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
                 const SizedBox(height: 24),
 
-                // 구글 로그인 버튼
+                // 구글 로그인 버튼 (브랜드 가이드라인: 흰 배경, 검은 텍스트)
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     onPressed: authState.isLoading ? null : _handleGoogleLogin,
                     style: OutlinedButton.styleFrom(
+                      backgroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      side: const BorderSide(color: Color(0xFFD1D5DB)),
+                      side: const BorderSide(color: Color(0xFFDDDDDD)),
                     ),
                     icon: Container(
                       width: 20,
                       height: 20,
                       decoration: const BoxDecoration(
                         image: DecorationImage(
-                          image: NetworkImage('https://developers.google.com/identity/images/g-logo.png'),
+                          image: NetworkImage(
+                            'https://developers.google.com/identity/images/g-logo.png',
+                          ),
                           fit: BoxFit.contain,
                         ),
                       ),
@@ -227,7 +220,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF374151),
+                        color: Color(0xFF1F1F1F),
                       ),
                     ),
                   ),
@@ -237,19 +230,19 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
                 // 또는 구분선
                 Row(
-                  children: const [
-                    Expanded(child: Divider(color: Color(0xFFD1D5DB))),
+                  children: [
+                    Expanded(child: Divider(color: context.borderSubtle)),
                     Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
                         '또는',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Color(0xFF6B7280),
+                          color: context.secondaryText,
                         ),
                       ),
                     ),
-                    Expanded(child: Divider(color: Color(0xFFD1D5DB))),
+                    Expanded(child: Divider(color: context.borderSubtle)),
                   ],
                 ),
 
@@ -260,9 +253,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   child: TextButton(
                     onPressed: () =>
                         context.push(RoutePaths.authForgotPassword),
-                    child: const Text(
+                    child: Text(
                       '비밀번호를 잊으셨나요?',
-                      style: TextStyle(fontSize: 14, color: Color(0xFFB2C5B8)),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: context.colorScheme.primary,
+                      ),
                     ),
                   ),
                 ),
@@ -274,11 +270,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text(
+                      Text(
                         '아직 계정이 없으신가요? ',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Color(0xFF6B7280),
+                          color: context.secondaryText,
                         ),
                       ),
                       TextButton(
@@ -288,11 +284,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           minimumSize: Size.zero,
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
-                        child: const Text(
+                        child: Text(
                           '회원가입',
                           style: TextStyle(
                             fontSize: 14,
-                            color: Color(0xFFB2C5B8),
+                            color: context.colorScheme.primary,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -331,9 +327,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('로그인에 실패했습니다. 다시 시도해주세요.'),
-          backgroundColor: Colors.red,
+        SnackBar(
+          content: const Text('로그인에 실패했습니다. 다시 시도해주세요.'),
+          backgroundColor: context.colorScheme.error,
         ),
       );
     }
@@ -345,14 +341,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.restore, color: Color(0xFFB2C5B8), size: 24),
-            SizedBox(width: 8),
+            Icon(Icons.restore, color: context.colorScheme.primary, size: 24),
+            const SizedBox(width: 8),
             Text(
               '계정이 복구되었습니다',
               style: TextStyle(
-                color: Color(0xFF2D3748),
+                color: context.primaryText,
                 fontWeight: FontWeight.w600,
                 fontSize: 18,
               ),
@@ -361,8 +357,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         ),
         content: Text(
           message ?? '30일 이내에 로그인하여 계정이 자동으로 복구되었습니다.\n새김과 함께 다시 시작해보세요!',
-          style: const TextStyle(
-            color: Color(0xFF4A5C54),
+          style: TextStyle(
+            color: context.secondaryText,
             height: 1.5,
             fontSize: 15,
           ),
@@ -373,10 +369,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               Navigator.of(context).pop();
               context.go(RoutePaths.home);
             },
+            // style 제거 - Theme의 textButtonTheme 또는 커스텀 스타일 사용
             style: TextButton.styleFrom(
-              backgroundColor: const Color(0xFFB2C5B8),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              backgroundColor: context.colorScheme.primary,
+              foregroundColor: context.colorScheme.onPrimary,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
             child: const Text(
@@ -404,7 +403,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(authState.errorMessage ?? '구글 로그인에 실패했습니다.'),
-          backgroundColor: Colors.red,
+          backgroundColor: context.colorScheme.error,
         ),
       );
     }

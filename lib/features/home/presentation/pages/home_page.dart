@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:saegim/core/theme/theme_extensions.dart';
 import 'package:saegim/features/calendar/data/models/diary_model.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
 
@@ -260,7 +261,10 @@ class _HomePageState extends ConsumerState<HomePage> {
   // 에러 스낵바 표시
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red),
+      SnackBar(
+        content: Text(message),
+        backgroundColor: context.colorScheme.error,
+      ),
     );
   }
 
@@ -296,8 +300,8 @@ class _HomePageState extends ConsumerState<HomePage> {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                const Color(0xFF3F764A).withOpacity(0.1),
-                const Color(0xFF3F764A).withOpacity(0.05),
+                context.colorScheme.primary.withAlpha(25),
+                context.colorScheme.primary.withAlpha(13),
               ],
             ),
           ),
@@ -389,8 +393,8 @@ class _HomePageState extends ConsumerState<HomePage> {
     return result_card.EmotionConfig(
       emoji: config.emoji,
       label: config.label,
-      backgroundColor: const Color(0xFFE8F5E8),
-      textColor: const Color(0xFF22543D),
+      backgroundColor: context.colorScheme.primaryContainer,
+      textColor: context.colorScheme.onPrimaryContainer,
     );
   }
 
@@ -499,16 +503,16 @@ class _HomePageState extends ConsumerState<HomePage> {
               });
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: const Color(0xFF3F764A),
+              backgroundColor: context.colorScheme.surface,
+              foregroundColor: context.colorScheme.primary,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
-                side: const BorderSide(color: Color(0xFF3F764A)),
+                side: BorderSide(color: context.colorScheme.primary),
               ),
               elevation: 2,
             ),
-            child: const Row(
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.add),
@@ -528,19 +532,19 @@ class _HomePageState extends ConsumerState<HomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
+          Text(
             '어떤 글을 만들어 드릴까요?',
             style: TextStyle(
               fontSize: 25,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF3F764A),
+              color: context.colorScheme.primary,
             ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             '키워드나 짧은 글을 입력하면 ai가 글을 생성해 드립니다',
-            style: TextStyle(fontSize: 13, color: Colors.grey),
+            style: TextStyle(fontSize: 13, color: context.secondaryText),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
@@ -555,21 +559,24 @@ class _HomePageState extends ConsumerState<HomePage> {
                 maxLines: 6,
                 decoration: InputDecoration(
                   hintText: '예 : 바람, 초록빛 오후, 천천히 걷는 길',
-                  hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
+                  hintStyle: TextStyle(
+                    color: context.placeholderText,
+                    fontSize: 14,
+                  ),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: context.inputBackground,
                   contentPadding: const EdgeInsets.fromLTRB(16, 20, 50, 20),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(18),
-                    borderSide: BorderSide(color: Colors.grey),
+                    borderSide: BorderSide(color: context.borderSubtle),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(18),
-                    borderSide: BorderSide(color: Colors.grey),
+                    borderSide: BorderSide(color: context.borderSubtle),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(18),
-                    borderSide: BorderSide(color: Color(0xFF3F764A)),
+                    borderSide: BorderSide(color: context.colorScheme.primary),
                   ),
                 ),
               ),
@@ -603,8 +610,8 @@ class _HomePageState extends ConsumerState<HomePage> {
           ElevatedButton(
             onPressed: createState.isGenerating ? null : _generateText,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF3F764A),
-              foregroundColor: Colors.white,
+              backgroundColor: context.colorScheme.primary,
+              foregroundColor: context.colorScheme.onPrimary,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -612,7 +619,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               elevation: 4,
             ),
             child: createState.isGenerating
-                ? const Row(
+                ? Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       SizedBox(
@@ -621,12 +628,12 @@ class _HomePageState extends ConsumerState<HomePage> {
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
                           valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.white,
+                            context.colorScheme.onPrimary,
                           ),
                         ),
                       ),
-                      SizedBox(width: 12),
-                      Text('생성 중...', style: TextStyle(fontSize: 16)),
+                      const SizedBox(width: 12),
+                      const Text('생성 중...', style: TextStyle(fontSize: 16)),
                     ],
                   )
                 : const Row(
@@ -750,9 +757,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                 children: [
                   Text(
                     '문체 선택',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.secondaryText,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   _buildStyleSelector(createState),
@@ -766,9 +773,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                 children: [
                   Text(
                     '길이 선택',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.secondaryText,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   _buildLengthSelector(createState),
@@ -794,7 +801,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         Text(
           '선택된 감정: ${emotionState.selectedEmotion != EmotionOption.none ? emotionState.getEmotionLabel(emotionState.selectedEmotion) : "감정 선택 안함"}',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: const Color(0xFF3F764A),
+            color: context.colorScheme.primary,
             fontWeight: FontWeight.w500,
           ),
           textAlign: TextAlign.center,
@@ -807,7 +814,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   Widget _buildStyleSelector(CreateState createState) {
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey[300]!),
+        border: Border.all(color: context.borderSubtle),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -819,7 +826,9 @@ class _HomePageState extends ConsumerState<HomePage> {
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  color: isSelected ? const Color(0xFF3F764A) : Colors.white,
+                  color: isSelected
+                      ? context.colorScheme.primary
+                      : context.colorScheme.surface,
                   borderRadius: style == WritingStyle.poem
                       ? const BorderRadius.only(
                           topLeft: Radius.circular(8),
@@ -834,7 +843,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                   style.label,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: isSelected ? Colors.white : Colors.black,
+                    color: isSelected
+                        ? context.colorScheme.onPrimary
+                        : context.primaryText,
                     fontWeight: isSelected
                         ? FontWeight.w600
                         : FontWeight.normal,
@@ -852,7 +863,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   Widget _buildLengthSelector(CreateState createState) {
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey[300]!),
+        border: Border.all(color: context.borderSubtle),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -864,7 +875,9 @@ class _HomePageState extends ConsumerState<HomePage> {
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  color: isSelected ? const Color(0xFF3F764A) : Colors.white,
+                  color: isSelected
+                      ? context.colorScheme.primary
+                      : context.colorScheme.surface,
                   borderRadius: length == LengthOption.short
                       ? const BorderRadius.only(
                           topLeft: Radius.circular(8),
@@ -881,7 +894,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                   length.label,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: isSelected ? Colors.white : Colors.black,
+                    color: isSelected
+                        ? context.colorScheme.onPrimary
+                        : context.primaryText,
                     fontWeight: isSelected
                         ? FontWeight.w600
                         : FontWeight.normal,
@@ -916,18 +931,18 @@ class _HomePageState extends ConsumerState<HomePage> {
                   border: Border.all(
                     color: isSelected
                         ? _getColorFromStyle(config.styles.ring)
-                        : Colors.grey[300]!,
+                        : context.borderSubtle,
                     width: isSelected ? 3 : 1,
                   ),
                   color: isSelected
                       ? _getColorFromStyle(config.styles.bg)
-                      : Colors.white,
+                      : context.colorScheme.surface,
                   boxShadow: isSelected
                       ? [
                           BoxShadow(
                             color: _getColorFromStyle(
                               config.styles.ring,
-                            ).withOpacity(0.15),
+                            ).withAlpha(38),
                             blurRadius: 6,
                             spreadRadius: 1,
                           ),
@@ -941,7 +956,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       fontSize: isSelected ? 28 : 22,
                       color: isSelected
                           ? _getColorFromStyle(config.styles.text)
-                          : Colors.black87,
+                          : context.primaryText,
                     ),
                   ),
                 ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:saegim/app/routes/route_paths.dart';
+import 'package:saegim/core/theme/theme_extensions.dart';
 
 /// 메인 앱의 공통 Scaffold (하단 네비게이션 포함)
 class MainScaffold extends StatelessWidget {
@@ -23,13 +24,13 @@ class MainScaffold extends StatelessWidget {
 
   Widget _buildBottomNavigationBar(BuildContext context) {
     final currentIndex = _getCurrentIndex();
-    
+
     return BottomNavigationBar(
       type: BottomNavigationBarType.fixed,
       currentIndex: currentIndex,
-      selectedItemColor: const Color(0xFFB2C5B8),
-      unselectedItemColor: const Color(0xFF6B7280),
-      backgroundColor: Colors.white,
+      selectedItemColor: context.colorScheme.primary,
+      unselectedItemColor: context.secondaryText,
+      // backgroundColor 제거 - Theme 자동 적용
       elevation: 8,
       onTap: (index) => _onTap(context, index),
       items: const [

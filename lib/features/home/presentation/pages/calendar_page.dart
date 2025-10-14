@@ -1,15 +1,16 @@
-import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:saegim/shared/widgets/common_app_bar.dart';
-import 'package:saegim/features/calendar/presentation/riverpod/calendar_notifier.dart';
-import 'package:saegim/features/calendar/data/models/diary_model.dart';
-import 'package:saegim/features/calendar/data/models/diary_image_model.dart';
-import 'package:saegim/features/calendar/data/services/diary_api_service.dart';
-import 'package:saegim/features/calendar/presentation/widgets/test_login_widget.dart';
+import 'package:saegim/core/theme/theme_extensions.dart';
 import 'package:saegim/features/authentication/presentation/riverpod/auth_notifier.dart';
+import 'package:saegim/features/calendar/data/models/diary_image_model.dart';
+import 'package:saegim/features/calendar/data/models/diary_model.dart';
+import 'package:saegim/features/calendar/data/services/diary_api_service.dart';
+import 'package:saegim/features/calendar/presentation/riverpod/calendar_notifier.dart';
+import 'package:saegim/features/calendar/presentation/widgets/test_login_widget.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
+import 'package:saegim/shared/widgets/common_app_bar.dart';
 
 class CalendarPage extends ConsumerStatefulWidget {
   const CalendarPage({super.key});
@@ -63,26 +64,34 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
   // 삭제 중인 다이어리 ID 목록
   final Set<String> _deletingDiaryIds = {};
 
-  // 감정 색상 매핑 (5가지 기본 감정) - 채도 조정
+  // 감정 색상 매핑 (5가지 기본 감정) - 다크 모드 대응
   Color _getEmotionColor(String emotion) {
+    final isDark = context.isDarkMode;
+
     switch (emotion.toLowerCase()) {
       case '행복':
       case 'happy':
-        return const Color(0xFFF9C74F); // 부드러운 노란색 (채도 낮춤)
+        // 노란색: 밝은 모드(부드러운 노란색), 다크 모드(더 밝은 노란색)
+        return isDark ? const Color(0xFFFFD166) : const Color(0xFFF9C74F);
       case '평온':
       case 'peaceful':
-        return const Color(0xFF90C695); // 부드러운 초록색 (채도 낮춤)
+        // 초록색: 밝은 모드(부드러운 초록색), 다크 모드(더 밝은 초록색)
+        return isDark ? const Color(0xFFA8D5A8) : const Color(0xFF90C695);
       case '불안':
       case 'unrest':
-        return const Color(0xFFB388C4); // 부드러운 보라색 (채도 낮춤)
+        // 보라색: 밝은 모드(부드러운 보라색), 다크 모드(더 밝은 보라색)
+        return isDark ? const Color(0xFFC8A2D8) : const Color(0xFFB388C4);
       case '분노':
       case 'angry':
-        return const Color(0xFFE76F51); // 주황에 빨간색 섞인 색 (채도 낮춤)
+        // 빨강-주황: 밝은 모드(주황-빨강), 다크 모드(더 밝은 주황)
+        return isDark ? const Color(0xFFFF8C69) : const Color(0xFFE76F51);
       case '슬픔':
       case 'sad':
-        return const Color(0xFF6FA8DC); // 부드러운 파란색 (채도 낮춤)
+        // 파란색: 밝은 모드(부드러운 파란색), 다크 모드(더 밝은 파란색)
+        return isDark ? const Color(0xFF8FC1E3) : const Color(0xFF6FA8DC);
       default:
-        return const Color(0xFF90C695); // 기본 색상 (평온한 초록색)
+        // 기본 색상 (평온한 초록색)
+        return isDark ? const Color(0xFFA8D5A8) : const Color(0xFF90C695);
     }
   }
 
@@ -338,19 +347,28 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     return Scaffold(
       appBar: const CommonAppBar(),
       body: calendarState.isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFF4A7C59)),
+          ? Center(
+              child: CircularProgressIndicator(
+                color: context.colorScheme.primary,
+              ),
             )
           : calendarState.errorMessage != null
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
+                  Icon(
+                    Icons.error_outline,
+                    size: 64,
+                    color: context.secondaryText,
+                  ),
                   const SizedBox(height: 16),
                   Text(
                     calendarState.errorMessage!,
-                    style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: context.secondaryText,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton(
@@ -358,8 +376,8 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                       ref.read(calendarNotifierProvider.notifier).refresh();
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF4A7C59),
-                      foregroundColor: Colors.white,
+                      backgroundColor: context.colorScheme.primary,
+                      foregroundColor: context.colorScheme.onPrimary,
                     ),
                     child: const Text('다시 시도'),
                   ),
@@ -379,12 +397,12 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           '캘린더',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF333333),
+                            color: context.primaryText,
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -392,7 +410,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                           '월간 감정 기록과 키워드 분석을 확인해보세요',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey[600],
+                            color: context.secondaryText,
                           ),
                         ),
                       ],
@@ -415,25 +433,25 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                           children: [
                             IconButton(
                               onPressed: _goToPreviousMonth,
-                              icon: const Icon(
+                              icon: Icon(
                                 Icons.chevron_left,
-                                color: Color(0xFF4A7C59),
+                                color: context.colorScheme.primary,
                               ),
                               iconSize: 22,
                             ),
                             Text(
                               '${calendarState.currentDate.year}년 ${monthNames[calendarState.currentDate.month - 1]}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                color: Color(0xFF333333),
+                                color: context.primaryText,
                               ),
                             ),
                             IconButton(
                               onPressed: _goToNextMonth,
-                              icon: const Icon(
+                              icon: Icon(
                                 Icons.chevron_right,
-                                color: Color(0xFF4A7C59),
+                                color: context.colorScheme.primary,
                               ),
                               iconSize: 22,
                             ),
@@ -442,15 +460,17 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                         // 오늘 날짜로 이동 버튼 (오른쪽)
                         Container(
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF0F4F1),
+                            color: context.inputBackground,
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                              color: const Color(0xFFB2C5B8),
+                              color: context.colorScheme.primary,
                               width: 1,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
+                                color: context.colorScheme.shadow.withValues(
+                                  alpha: 0.1,
+                                ),
                                 blurRadius: 4,
                                 offset: const Offset(0, 2),
                               ),
@@ -468,10 +488,10 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                                 ),
                                 child: Text(
                                   '${DateTime.now().day}',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.w600,
-                                    color: Color(0xFF4A7C59),
+                                    color: context.colorScheme.primary,
                                   ),
                                 ),
                               ),
@@ -488,11 +508,13 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                     width: double.infinity,
                     margin: const EdgeInsets.symmetric(horizontal: 16),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Theme.of(context).cardColor,
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
+                          color: context.colorScheme.shadow.withValues(
+                            alpha: 0.05,
+                          ),
                           blurRadius: 10,
                           offset: const Offset(0, 2),
                         ),
@@ -517,11 +539,9 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                                     style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
-                                      color: day == '일'
-                                          ? Colors.red[400]
-                                          : day == '토'
-                                          ? Colors.blue[400]
-                                          : Colors.grey[600],
+                                      color: day == '일' || day == '토'
+                                          ? context.colorScheme.primary
+                                          : context.secondaryText,
                                     ),
                                   ),
                                 ),
@@ -571,20 +591,16 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                                 child: Container(
                                   decoration: BoxDecoration(
                                     color: isToday
-                                        ? const Color.fromRGBO(
-                                            113,
-                                            162,
-                                            129,
-                                            1,
-                                          ) // 오늘 날짜는 항상 진한 초록
+                                        ? context
+                                              .colorScheme
+                                              .primary // 오늘 날짜
                                         : isSelected
-                                        ? const Color(
-                                            0xFFB2C5B8,
-                                          ) // 선택된 날짜는 연한 초록
+                                        ? context
+                                              .colorScheme
+                                              .primaryContainer // 선택된 날짜
                                         : isCurrentMonth
-                                        ? const Color(
-                                            0xFFF8F9FA,
-                                          ) // 현재 달 날짜는 연한 세이지
+                                        ? context
+                                              .inputBackground // 현재 달 날짜
                                         : Colors.transparent, // 다른 달 날짜는 투명
                                   ),
                                   child: Material(
@@ -608,16 +624,24 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                                                     ? FontWeight.bold
                                                     : FontWeight.normal,
                                                 color: isToday
-                                                    ? Colors.white
+                                                    ? context
+                                                          .colorScheme
+                                                          .onPrimary
                                                     : isSelected
-                                                    ? Colors.white
+                                                    ? context
+                                                          .colorScheme
+                                                          .onPrimaryContainer
                                                     : !isCurrentMonth
-                                                    ? Colors.grey[400]
-                                                    : weekday == 0
-                                                    ? Colors.red[400]
-                                                    : weekday == 6
-                                                    ? Colors.blue[400]
-                                                    : const Color(0xFF333333),
+                                                    ? context.secondaryText
+                                                          .withValues(
+                                                            alpha: 0.5,
+                                                          )
+                                                    : weekday == 0 ||
+                                                          weekday == 6
+                                                    ? context
+                                                          .colorScheme
+                                                          .primary
+                                                    : context.primaryText,
                                               ),
                                             ),
                                           ),
@@ -656,12 +680,15 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                                                         fontWeight:
                                                             FontWeight.w800,
                                                         color: isToday
-                                                            ? Colors.white
+                                                            ? context
+                                                                  .colorScheme
+                                                                  .onPrimary
                                                             : isSelected
-                                                            ? Colors.white
-                                                            : const Color(
-                                                                0xFF333333,
-                                                              ),
+                                                            ? context
+                                                                  .colorScheme
+                                                                  .onPrimaryContainer
+                                                            : context
+                                                                  .primaryText,
                                                       ),
                                                       overflow:
                                                           TextOverflow.ellipsis,
@@ -684,23 +711,27 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                                                 width: 16,
                                                 height: 16,
                                                 decoration: BoxDecoration(
-                                                  color: const Color(
-                                                    0xFF4A7C59,
-                                                  ),
+                                                  color: context
+                                                      .colorScheme
+                                                      .primary,
                                                   shape: BoxShape.circle,
                                                   border: Border.all(
-                                                    color: Colors.white,
+                                                    color: context
+                                                        .colorScheme
+                                                        .onPrimary,
                                                     width: 1,
                                                   ),
                                                 ),
                                                 child: Center(
                                                   child: Text(
                                                     '${_getDiariesForDate(date, calendarState.monthlyDiaries).length}',
-                                                    style: const TextStyle(
+                                                    style: TextStyle(
                                                       fontSize: 8,
                                                       fontWeight:
                                                           FontWeight.bold,
-                                                      color: Colors.white,
+                                                      color: context
+                                                          .colorScheme
+                                                          .onPrimary,
                                                     ),
                                                   ),
                                                 ),
@@ -741,11 +772,11 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                     margin: const EdgeInsets.symmetric(horizontal: 16),
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Theme.of(context).cardColor,
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
+                          color: context.colorScheme.shadow.withOpacity(0.05),
                           blurRadius: 10,
                           offset: const Offset(0, 2),
                         ),
@@ -754,12 +785,12 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           '감정 분포',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF333333),
+                            color: context.primaryText,
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -792,17 +823,17 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                                     children: [
                                       Text(
                                         '${calendarState.emotionStatistics.fold(0, (sum, emotion) => sum + emotion.count)}',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 18,
                                           fontWeight: FontWeight.bold,
-                                          color: Color(0xFF333333),
+                                          color: context.primaryText,
                                         ),
                                       ),
-                                      const Text(
+                                      Text(
                                         '총 기록',
                                         style: TextStyle(
                                           fontSize: 10,
-                                          color: Color(0xFF666666),
+                                          color: context.secondaryText,
                                         ),
                                       ),
                                     ],
@@ -831,11 +862,11 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                     margin: const EdgeInsets.symmetric(horizontal: 16),
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Theme.of(context).cardColor,
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
+                          color: context.colorScheme.shadow.withOpacity(0.05),
                           blurRadius: 10,
                           offset: const Offset(0, 2),
                         ),
@@ -847,19 +878,19 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text(
+                            Text(
                               '주요 키워드',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF333333),
+                                color: context.primaryText,
                               ),
                             ),
                             Text(
                               '총 ${calendarState.keywordStatistics.fold(0, (sum, keyword) => sum + keyword.count)}개',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Colors.grey[600],
+                                color: context.secondaryText,
                               ),
                             ),
                           ],
@@ -889,7 +920,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                                           style: TextStyle(
                                             fontSize: 12,
                                             fontWeight: FontWeight.w600,
-                                            color: Colors.grey[600],
+                                            color: context.secondaryText,
                                           ),
                                         ),
                                       ),
@@ -899,10 +930,10 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                                         width: 60,
                                         child: Text(
                                           keyword.keyword,
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontSize: 13,
                                             fontWeight: FontWeight.w600,
-                                            color: Color(0xFF333333),
+                                            color: context.primaryText,
                                           ),
                                           overflow: TextOverflow.ellipsis,
                                         ),

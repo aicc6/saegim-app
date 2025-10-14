@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:saegim/core/providers/theme_provider.dart';
+import 'package:saegim/core/theme/theme_extensions.dart';
 import 'package:saegim/shared/widgets/common_app_bar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -65,10 +66,10 @@ class _AppPreferencesPageState extends ConsumerState<AppPreferencesPage> {
           Center(
             child: Column(
               children: [
-                const Icon(
+                Icon(
                   Icons.settings_outlined,
                   size: 60,
-                  color: Color(0xFFB2C5B8),
+                  color: context.colorScheme.primary,
                 ),
                 SizedBox(height: 16),
                 Text(
@@ -209,9 +210,9 @@ class _AppPreferencesPageState extends ConsumerState<AppPreferencesPage> {
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-        leading: const Icon(
+        leading: Icon(
           Icons.palette_outlined,
-          color: Color(0xFFB2C5B8),
+          color: context.colorScheme.primary,
           size: 28,
         ),
         title: Text(
@@ -229,9 +230,9 @@ class _AppPreferencesPageState extends ConsumerState<AppPreferencesPage> {
             color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
           ),
         ),
-        trailing: const Icon(
+        trailing: Icon(
           Icons.arrow_forward_ios,
-          color: Color(0xFFB2C5B8),
+          color: context.colorScheme.primary,
           size: 16,
         ),
         onTap: () => _showThemeDialog(),
@@ -256,9 +257,9 @@ class _AppPreferencesPageState extends ConsumerState<AppPreferencesPage> {
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-        leading: const Icon(
+        leading: Icon(
           Icons.language_outlined,
-          color: Color(0xFFB2C5B8),
+          color: context.colorScheme.primary,
           size: 28,
         ),
         title: Text(
@@ -276,9 +277,9 @@ class _AppPreferencesPageState extends ConsumerState<AppPreferencesPage> {
             color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
           ),
         ),
-        trailing: const Icon(
+        trailing: Icon(
           Icons.arrow_forward_ios,
-          color: Color(0xFFB2C5B8),
+          color: context.colorScheme.primary,
           size: 16,
         ),
         onTap: () => _showLanguageDialog(),
@@ -309,7 +310,7 @@ class _AppPreferencesPageState extends ConsumerState<AppPreferencesPage> {
       ),
       child: SwitchListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-        secondary: Icon(icon, color: const Color(0xFFB2C5B8), size: 28),
+        secondary: Icon(icon, color: context.colorScheme.primary, size: 28),
         title: Text(
           title,
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
@@ -327,8 +328,8 @@ class _AppPreferencesPageState extends ConsumerState<AppPreferencesPage> {
         ),
         value: value,
         onChanged: onChanged,
-        activeThumbColor: const Color(0xFFB2C5B8),
-        activeTrackColor: const Color(0xFFB2C5B8).withValues(alpha: 0.5),
+        activeThumbColor: context.colorScheme.primary,
+        activeTrackColor: context.colorScheme.primary.withValues(alpha: 0.5),
       ),
     );
   }
@@ -396,10 +397,10 @@ class _AppPreferencesPageState extends ConsumerState<AppPreferencesPage> {
   Widget _buildThemeOption(ThemeMode theme, String title, IconData icon) {
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: Icon(icon, color: const Color(0xFFB2C5B8)),
+      leading: Icon(icon, color: context.colorScheme.primary),
       title: Text(title),
       trailing: ref.watch(themeProvider) == theme
-          ? const Icon(Icons.check, color: Color(0xFFB2C5B8))
+          ? Icon(Icons.check, color: context.colorScheme.primary)
           : null,
       onTap: () {
         _saveTheme(theme);
@@ -450,7 +451,7 @@ class _AppPreferencesPageState extends ConsumerState<AppPreferencesPage> {
       leading: Text(flag, style: const TextStyle(fontSize: 24)),
       title: Text(title),
       trailing: _currentLanguage == languageCode
-          ? const Icon(Icons.check, color: Color(0xFFB2C5B8))
+          ? Icon(Icons.check, color: context.colorScheme.primary)
           : null,
       onTap: () {
         _saveLanguage(languageCode);

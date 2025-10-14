@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:saegim/core/theme/theme_extensions.dart';
 import 'package:saegim/features/calendar/data/models/diary_image_model.dart';
 import 'package:saegim/features/calendar/data/models/diary_model.dart';
 import 'package:saegim/features/calendar/data/services/diary_api_service.dart';
@@ -125,10 +126,10 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
               const SizedBox(width: 8),
               Text(
                 emotion['label']!,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF1F2937),
+                  color: context.primaryText,
                 ),
               ),
             ],
@@ -177,9 +178,9 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                 }
                 Navigator.of(context).pop();
               },
-              child: const Text(
+              child: Text(
                 '추가',
-                style: TextStyle(color: Color(0xFF4A7C59)),
+                style: TextStyle(color: context.colorScheme.primary),
               ),
             ),
           ],
@@ -203,21 +204,21 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          title: const Text(
+          title: Text(
             '사진 추가',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF1F2937),
+              color: context.primaryText,
             ),
             textAlign: TextAlign.center,
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
+              Text(
                 '사진을 선택하는 방법을 선택해주세요.',
-                style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+                style: TextStyle(fontSize: 14, color: context.secondaryText),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
@@ -231,8 +232,6 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                     _pickImagesFromGallery();
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF4A7C59),
-                    foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -256,8 +255,8 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                     _pickImageFromCamera();
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF6B7280),
-                    foregroundColor: Colors.white,
+                    backgroundColor: context.secondaryText,
+                    foregroundColor: context.colorScheme.onPrimary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -284,10 +283,10 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                   vertical: 12,
                 ),
               ),
-              child: const Text(
+              child: Text(
                 '취소',
                 style: TextStyle(
-                  color: Color(0xFF6B7280),
+                  color: context.secondaryText,
                   fontWeight: FontWeight.w500,
                   fontSize: 16,
                 ),
@@ -316,7 +315,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
             content: Text(
               '${selectedImages.length}장의 사진이 추가되었습니다.\n저장 버튼을 눌러 업로드하세요.',
             ),
-            backgroundColor: const Color(0xFF4A7C59),
+            backgroundColor: context.colorScheme.primary,
             duration: const Duration(seconds: 3),
           ),
         );
@@ -328,9 +327,9 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         error: e,
       );
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('사진 선택 중 오류가 발생했습니다.'),
-          backgroundColor: Colors.red,
+        SnackBar(
+          content: const Text('사진 선택 중 오류가 발생했습니다.'),
+          backgroundColor: context.colorScheme.error,
         ),
       );
     }
@@ -350,10 +349,10 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('1장의 사진이 추가되었습니다.\n저장 버튼을 눌러 업로드하세요.'),
-            backgroundColor: Color(0xFF4A7C59),
-            duration: Duration(seconds: 3),
+          SnackBar(
+            content: const Text('1장의 사진이 추가되었습니다.\n저장 버튼을 눌러 업로드하세요.'),
+            backgroundColor: context.colorScheme.primary,
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -364,9 +363,9 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         error: e,
       );
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('카메라 사용 중 오류가 발생했습니다.'),
-          backgroundColor: Colors.red,
+        SnackBar(
+          content: const Text('카메라 사용 중 오류가 발생했습니다.'),
+          backgroundColor: context.colorScheme.error,
         ),
       );
     }
@@ -410,9 +409,9 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
           });
 
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('이미지가 성공적으로 삭제되었습니다.'),
-              backgroundColor: Color(0xFF4A7C59),
+            SnackBar(
+              content: const Text('이미지가 성공적으로 삭제되었습니다.'),
+              backgroundColor: context.colorScheme.primary,
             ),
           );
 
@@ -423,9 +422,9 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         } else {
           // 삭제 실패
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('이미지 삭제에 실패했습니다.\n네트워크 상태를 확인해주세요.'),
-              backgroundColor: Colors.red,
+            SnackBar(
+              content: const Text('이미지 삭제에 실패했습니다.\n네트워크 상태를 확인해주세요.'),
+              backgroundColor: context.colorScheme.error,
             ),
           );
 
@@ -444,9 +443,9 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('이미지 삭제 중 오류가 발생했습니다.'),
-            backgroundColor: Colors.red,
+          SnackBar(
+            content: const Text('이미지 삭제 중 오류가 발생했습니다.'),
+            backgroundColor: context.colorScheme.error,
           ),
         );
       }
@@ -696,11 +695,11 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFF4A7C59),
-              onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: Color(0xFF1F2937),
+            colorScheme: context.colorScheme.copyWith(
+              primary: context.colorScheme.primary,
+              onPrimary: context.colorScheme.onPrimary,
+              surface: context.colorScheme.surface,
+              onSurface: context.colorScheme.onSurface,
             ),
           ),
           child: child!,
@@ -862,7 +861,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                         ? '새 다이어리와 이미지가 성공적으로 생성되었습니다.'
                         : '새 다이어리가 성공적으로 생성되었습니다.',
                   ),
-                  backgroundColor: const Color(0xFF4A7C59),
+                  backgroundColor: context.colorScheme.primary,
                   duration: const Duration(seconds: 3),
                 ),
               );
@@ -896,7 +895,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                         ? '다이어리와 이미지가 성공적으로 수정되었습니다.'
                         : '다이어리가 성공적으로 수정되었습니다.',
                   ),
-                  backgroundColor: const Color(0xFF4A7C59),
+                  backgroundColor: context.colorScheme.primary,
                   duration: const Duration(seconds: 3),
                 ),
               );
@@ -984,9 +983,9 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
       if (mounted && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('다이어리 수정 중 오류가 발생했습니다.'),
-            backgroundColor: Colors.red,
+          SnackBar(
+            content: const Text('다이어리 수정 중 오류가 발생했습니다.'),
+            backgroundColor: context.colorScheme.error,
           ),
         );
       }
@@ -1012,9 +1011,9 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text(
+              child: Text(
                 '확인',
-                style: TextStyle(color: Color(0xFF4A7C59)),
+                style: TextStyle(color: context.colorScheme.primary),
               ),
             ),
           ],
@@ -1033,9 +1032,9 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       if (mounted) {
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('다이어리가 성공적으로 삭제되었습니다.'),
-              backgroundColor: Color(0xFF4A7C59),
+            SnackBar(
+              content: const Text('다이어리가 성공적으로 삭제되었습니다.'),
+              backgroundColor: context.colorScheme.primary,
             ),
           );
           // 삭제 후 이전 페이지로 돌아가기
@@ -1052,9 +1051,9 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('다이어리 삭제 중 오류가 발생했습니다.'),
-            backgroundColor: Colors.red,
+          SnackBar(
+            content: const Text('다이어리 삭제 중 오류가 발생했습니다.'),
+            backgroundColor: context.colorScheme.error,
           ),
         );
       }
@@ -1079,9 +1078,9 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text(
+              child: Text(
                 '확인',
-                style: TextStyle(color: Color(0xFF4A7C59)),
+                style: TextStyle(color: context.colorScheme.primary),
               ),
             ),
           ],
@@ -1093,7 +1092,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: context.primaryBackground,
       body: SafeArea(
         child: Column(
           children: [
@@ -1103,9 +1102,9 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
             // 스크롤 가능한 콘텐츠
             Expanded(
               child: isLoading
-                  ? const Center(
+                  ? Center(
                       child: CircularProgressIndicator(
-                        color: Color(0xFF4A7C59),
+                        color: context.colorScheme.primary,
                       ),
                     )
                   : errorMessage != null
@@ -1116,24 +1115,20 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                           Icon(
                             Icons.error_outline,
                             size: 64,
-                            color: Colors.grey[400],
+                            color: context.secondaryText.withOpacity(0.4),
                           ),
                           const SizedBox(height: 16),
                           Text(
                             errorMessage!,
                             style: TextStyle(
                               fontSize: 16,
-                              color: Colors.grey[600],
+                              color: context.secondaryText,
                             ),
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 16),
                           ElevatedButton(
                             onPressed: _loadDiary,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF4A7C59),
-                              foregroundColor: Colors.white,
-                            ),
                             child: const Text('다시 시도'),
                           ),
                         ],
@@ -1192,8 +1187,8 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
               Icons.arrow_back_ios,
               size: 20,
               color: currentDiaryIndex > 0
-                  ? const Color(0xFF4A7C59)
-                  : Colors.grey[400],
+                  ? context.colorScheme.primary
+                  : context.secondaryText.withOpacity(0.4),
             ),
           ),
 
@@ -1210,8 +1205,8 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: index == currentDiaryIndex
-                        ? const Color(0xFF4A7C59)
-                        : Colors.grey[300],
+                        ? context.colorScheme.primary
+                        : context.secondaryText.withOpacity(0.3),
                   ),
                 ),
               ),
@@ -1230,8 +1225,8 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
               Icons.arrow_forward_ios,
               size: 20,
               color: currentDiaryIndex < dailyDiaries.length - 1
-                  ? const Color(0xFF4A7C59)
-                  : Colors.grey[400],
+                  ? context.colorScheme.primary
+                  : context.secondaryText.withOpacity(0.4),
             ),
           ),
         ],
@@ -1284,26 +1279,28 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
   Widget _buildCustomAppBar(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Color(0xFFE9ECEF), width: 1)),
+      decoration: BoxDecoration(
+        color: context.colorScheme.surface,
+        border: Border(
+          bottom: BorderSide(color: context.borderSubtle, width: 1),
+        ),
       ),
       child: Row(
         children: [
           GestureDetector(
             onTap: () => _handleBackNavigation(context),
-            child: const Icon(
+            child: Icon(
               Icons.arrow_back_ios,
               size: 20,
-              color: Color(0xFF6B7280),
+              color: context.secondaryText,
             ),
           ),
           const SizedBox(width: 12),
-          const Text(
+          Text(
             '뒤로가기',
             style: TextStyle(
               fontSize: 16,
-              color: Color(0xFF6B7280),
+              color: context.secondaryText,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -1313,14 +1310,14 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFFE8F5E8),
+                color: context.colorScheme.primary.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
                 '${currentDiaryIndex + 1}/${dailyDiaries.length}',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
-                  color: Color(0xFF4A7C59),
+                  color: context.colorScheme.primary,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -1358,9 +1355,9 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       padding: isEditMode ? const EdgeInsets.all(16) : EdgeInsets.zero,
       decoration: isEditMode
           ? BoxDecoration(
-              color: Colors.white,
+              color: context.colorScheme.surface,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF4A7C59), width: 2),
+              border: Border.all(color: context.colorScheme.primary, width: 2),
             )
           : null,
       child: Column(
@@ -1368,11 +1365,11 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         children: [
           if (isEditMode) ...[
             // 편집 모드: 제목 입력 필드
-            const Text(
+            Text(
               '제목',
               style: TextStyle(
                 fontSize: 14,
-                color: Color(0xFF6B7280),
+                color: context.secondaryText,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -1387,20 +1384,20 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                   vertical: 8,
                 ),
               ),
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF1F2937),
+                color: context.primaryText,
               ),
             ),
             const SizedBox(height: 16),
 
             // 날짜 선택 필드
-            const Text(
+            Text(
               '📅 날짜 선택',
               style: TextStyle(
                 fontSize: 14,
-                color: Color(0xFF6B7280),
+                color: context.secondaryText,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -1414,9 +1411,9 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                   horizontal: 12,
                 ),
                 decoration: BoxDecoration(
-                  border: Border.all(color: const Color(0xFF4A7C59)),
+                  border: Border.all(color: context.colorScheme.primary),
                   borderRadius: BorderRadius.circular(8),
-                  color: const Color(0xFFF8FFFE),
+                  color: context.inputBackground,
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1429,14 +1426,14 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                         color: _selectedDate != null
-                            ? const Color(0xFF1F2937)
-                            : const Color(0xFF9CA3AF),
+                            ? context.primaryText
+                            : context.placeholderText,
                       ),
                     ),
-                    const Icon(
+                    Icon(
                       Icons.calendar_today,
                       size: 20,
-                      color: Color(0xFF4A7C59),
+                      color: context.colorScheme.primary,
                     ),
                   ],
                 ),
@@ -1448,10 +1445,10 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
               _titleController.text.isNotEmpty
                   ? _titleController.text
                   : (diary!.title ?? '$formattedDate 일기'),
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF1F2937),
+                color: context.primaryText,
               ),
             ),
           ],
@@ -1460,7 +1457,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
             _selectedDate != null
                 ? '${_selectedDate!.month}월 ${_selectedDate!.day}일'
                 : formattedDate,
-            style: const TextStyle(fontSize: 16, color: Color(0xFF6B7280)),
+            style: TextStyle(fontSize: 16, color: context.secondaryText),
           ),
         ],
       ),
@@ -1486,12 +1483,12 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.colorScheme.surface,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: isEditMode
-                    ? const Color(0xFF4A7C59)
-                    : const Color(0xFFE9ECEF),
+                    ? context.colorScheme.primary
+                    : context.borderSubtle,
                 width: isEditMode ? 2 : 1,
               ),
             ),
@@ -1500,9 +1497,12 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
               children: [
                 Row(
                   children: [
-                    const Text(
+                    Text(
                       '사용자 감정 : ',
-                      style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: context.secondaryText,
+                      ),
                     ),
                     if (isEditMode) ...[
                       // 편집 모드: 감정 선택 드롭다운
@@ -1513,10 +1513,10 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                       const SizedBox(width: 4),
                       Text(
                         userEmotion,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF1F2937),
+                          color: context.primaryText,
                         ),
                       ),
                     ],
@@ -1528,11 +1528,11 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                   // AI 분석 감정이 있는 경우에만 표시
                   Row(
                     children: [
-                      const Text(
+                      Text(
                         'AI 분석 감정 : ',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Color(0xFF6B7280),
+                          color: context.secondaryText,
                         ),
                       ),
                       Text(
@@ -1542,18 +1542,18 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                       const SizedBox(width: 4),
                       Text(
                         aiEmotion,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF1F2937),
+                          color: context.primaryText,
                         ),
                       ),
                       const SizedBox(width: 4),
-                      const Text(
+                      Text(
                         '(AI 분석)',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Color(0xFF6B7280),
+                          color: context.secondaryText,
                         ),
                       ),
                     ],
@@ -1575,10 +1575,12 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isEditMode ? const Color(0xFF4A7C59) : const Color(0xFFE9ECEF),
+          color: isEditMode
+              ? context.colorScheme.primary
+              : context.borderSubtle,
           width: isEditMode ? 2 : 1,
         ),
       ),
@@ -1587,9 +1589,9 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         children: [
           Row(
             children: [
-              const Text(
+              Text(
                 '키워드 :',
-                style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+                style: TextStyle(fontSize: 14, color: context.secondaryText),
               ),
               if (isEditMode) ...[
                 const Spacer(),
@@ -1602,8 +1604,8 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                       _showAddKeywordDialog();
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF4A7C59),
-                      foregroundColor: Colors.white,
+                      backgroundColor: context.colorScheme.primary,
+                      foregroundColor: context.colorScheme.onPrimary,
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       textStyle: const TextStyle(fontSize: 12),
                     ),
@@ -1631,9 +1633,9 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
           ] else ...[
             // 보기 모드: 키워드 칩들
             if (diary!.keywords.isEmpty) ...[
-              const Text(
+              Text(
                 '키워드가 없습니다.',
-                style: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF)),
+                style: TextStyle(fontSize: 14, color: context.placeholderText),
               ),
             ] else ...[
               Wrap(
@@ -1655,14 +1657,14 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFFE8F5E8),
+        color: context.colorScheme.primaryContainer,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Text(
         keyword,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 12,
-          color: Color(0xFF4A7C59),
+          color: context.colorScheme.primary,
           fontWeight: FontWeight.w500,
         ),
       ),
@@ -1685,10 +1687,12 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isEditMode ? const Color(0xFF4A7C59) : const Color(0xFFE9ECEF),
+          color: isEditMode
+              ? context.colorScheme.primary
+              : context.borderSubtle,
           width: isEditMode ? 2 : 1,
         ),
       ),
@@ -1697,11 +1701,11 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         children: [
           Row(
             children: [
-              const Text(
+              Text(
                 'AI 생성 글',
                 style: TextStyle(
                   fontSize: 14,
-                  color: Color(0xFF6B7280),
+                  color: context.secondaryText,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -1718,20 +1722,20 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                 border: OutlineInputBorder(),
                 contentPadding: EdgeInsets.all(16),
               ),
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
                 height: 1.6,
-                color: Color(0xFF1F2937),
+                color: context.primaryText,
               ),
             ),
           ] else ...[
             // 보기 모드: 텍스트 표시
             Text(
               displayContent,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
                 height: 1.6,
-                color: Color(0xFF1F2937),
+                color: context.primaryText,
               ),
             ),
           ],
@@ -1752,24 +1756,26 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
             width: 120,
             height: 48,
             decoration: BoxDecoration(
-              color: const Color(0xFF4A7C59),
+              color: context.colorScheme.primary,
               borderRadius: BorderRadius.circular(24),
             ),
             child: TextButton(
               onPressed: isSaving ? null : _saveChanges,
               style: TextButton.styleFrom(
-                foregroundColor: Colors.white,
+                foregroundColor: context.colorScheme.onPrimary,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(24),
                 ),
               ),
               child: isSaving
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          context.colorScheme.onPrimary,
+                        ),
                       ),
                     )
                   : const Row(
@@ -1796,13 +1802,13 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
             width: 120,
             height: 48,
             decoration: BoxDecoration(
-              color: Colors.grey[400],
+              color: context.colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(24),
             ),
             child: TextButton(
               onPressed: isSaving ? null : _cancelEditMode,
               style: TextButton.styleFrom(
-                foregroundColor: Colors.white,
+                foregroundColor: context.colorScheme.onSurface,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(24),
                 ),
@@ -1832,13 +1838,13 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
             width: 120,
             height: 48,
             decoration: BoxDecoration(
-              color: const Color(0xFFB2C5B8),
+              color: context.colorScheme.primaryContainer,
               borderRadius: BorderRadius.circular(24),
             ),
             child: TextButton(
               onPressed: _startEditMode,
               style: TextButton.styleFrom(
-                foregroundColor: Colors.white,
+                foregroundColor: context.colorScheme.onPrimaryContainer,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(24),
                 ),
@@ -1864,7 +1870,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
             width: 120,
             height: 48,
             decoration: BoxDecoration(
-              color: const Color(0xFFEF4444),
+              color: context.colorScheme.error,
               borderRadius: BorderRadius.circular(24),
             ),
             child: TextButton(
@@ -1872,7 +1878,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                 _showDeleteConfirmDialog(context);
               },
               style: TextButton.styleFrom(
-                foregroundColor: Colors.white,
+                foregroundColor: context.colorScheme.onError,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(24),
                 ),
@@ -1906,19 +1912,16 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text(
-                '취소',
-                style: TextStyle(color: Color(0xFF6B7280)),
-              ),
+              child: Text('취소', style: TextStyle(color: context.secondaryText)),
             ),
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
                 _deleteDiary();
               },
-              child: const Text(
+              child: Text(
                 '삭제',
-                style: TextStyle(color: Color(0xFFEF4444)),
+                style: TextStyle(color: context.colorScheme.error),
               ),
             ),
           ],
@@ -1935,27 +1938,27 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE9ECEF)),
+        border: Border.all(color: context.borderSubtle),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.photo_library_outlined,
                 size: 20,
-                color: Color(0xFF6B7280),
+                color: context.secondaryText,
               ),
               const SizedBox(width: 8),
-              const Text(
+              Text(
                 '이미지',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF1F2937),
+                  color: context.primaryText,
                 ),
               ),
               const Spacer(),
@@ -1966,8 +1969,8 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                   child: ElevatedButton.icon(
                     onPressed: _pickImages,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF4A7C59),
-                      foregroundColor: Colors.white,
+                      backgroundColor: context.colorScheme.primary,
+                      foregroundColor: context.colorScheme.onPrimary,
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       textStyle: const TextStyle(fontSize: 12),
                     ),
@@ -1976,13 +1979,13 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                   ),
                 ),
               ] else if (isLoadingImages) ...[
-                const SizedBox(
+                SizedBox(
                   width: 16,
                   height: 16,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
                     valueColor: AlwaysStoppedAnimation<Color>(
-                      Color(0xFF4A7C59),
+                      context.colorScheme.primary,
                     ),
                   ),
                 ),
@@ -1991,29 +1994,34 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
           ),
           const SizedBox(height: 16),
           if (isLoadingImages)
-            const Center(
+            Center(
               child: Padding(
-                padding: EdgeInsets.all(20),
+                padding: const EdgeInsets.all(20),
                 child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4A7C59)),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    context.colorScheme.primary,
+                  ),
                 ),
               ),
             )
           else if (diaryImages.isEmpty && newImages.isEmpty)
-            const Center(
+            Center(
               child: Padding(
-                padding: EdgeInsets.all(20),
+                padding: const EdgeInsets.all(20),
                 child: Column(
                   children: [
                     Icon(
                       Icons.photo_outlined,
                       size: 48,
-                      color: Color(0xFF9CA3AF),
+                      color: context.placeholderText,
                     ),
-                    SizedBox(height: 12),
+                    const SizedBox(height: 12),
                     Text(
                       '등록된 이미지가 없습니다.',
-                      style: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF)),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: context.placeholderText,
+                      ),
                     ),
                   ],
                 ),
@@ -2064,22 +2072,22 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       return Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFFE9ECEF)),
-          color: Colors.grey[100],
+          border: Border.all(color: context.borderSubtle),
+          color: context.colorScheme.surfaceContainerHighest,
         ),
-        child: const Center(
+        child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
                 Icons.broken_image_outlined,
                 size: 32,
-                color: Color(0xFF9CA3AF),
+                color: context.placeholderText,
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               Text(
                 '이미지 경로 없음',
-                style: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
+                style: TextStyle(fontSize: 12, color: context.placeholderText),
               ),
             ],
           ),
@@ -2094,7 +2102,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFFE9ECEF)),
+              border: Border.all(color: context.borderSubtle),
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
@@ -2107,7 +2115,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                   if (loadingProgress == null) return child;
 
                   return Container(
-                    color: Colors.grey[100],
+                    color: context.colorScheme.surfaceContainerHighest,
                     child: Center(
                       child: CircularProgressIndicator(
                         value: loadingProgress.expectedTotalBytes != null
@@ -2115,8 +2123,8 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                                   loadingProgress.expectedTotalBytes!
                             : null,
                         strokeWidth: 2,
-                        valueColor: const AlwaysStoppedAnimation<Color>(
-                          Color(0xFF4A7C59),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          context.colorScheme.primary,
                         ),
                       ),
                     ),
@@ -2130,22 +2138,22 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                   );
 
                   return Container(
-                    color: Colors.grey[100],
-                    child: const Center(
+                    color: context.colorScheme.surfaceContainerHighest,
+                    child: Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
                             Icons.broken_image_outlined,
                             size: 32,
-                            color: Color(0xFF9CA3AF),
+                            color: context.placeholderText,
                           ),
-                          SizedBox(height: 8),
+                          const SizedBox(height: 8),
                           Text(
                             '이미지 로드 실패',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Color(0xFF9CA3AF),
+                              color: context.placeholderText,
                             ),
                           ),
                         ],
@@ -2167,11 +2175,15 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
               child: Container(
                 width: 24,
                 height: 24,
-                decoration: const BoxDecoration(
-                  color: Colors.red,
+                decoration: BoxDecoration(
+                  color: context.colorScheme.error,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.close, color: Colors.white, size: 16),
+                child: Icon(
+                  Icons.close,
+                  color: context.colorScheme.onError,
+                  size: 16,
+                ),
               ),
             ),
           ),
@@ -2186,7 +2198,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFF4A7C59), width: 2),
+            border: Border.all(color: context.colorScheme.primary, width: 2),
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
@@ -2197,22 +2209,22 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
               height: double.infinity,
               errorBuilder: (context, error, stackTrace) {
                 return Container(
-                  color: Colors.grey[100],
-                  child: const Center(
+                  color: context.colorScheme.surfaceContainerHighest,
+                  child: Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
                           Icons.broken_image_outlined,
                           size: 32,
-                          color: Color(0xFF9CA3AF),
+                          color: context.placeholderText,
                         ),
-                        SizedBox(height: 8),
+                        const SizedBox(height: 8),
                         Text(
                           '이미지 로드 실패',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Color(0xFF9CA3AF),
+                            color: context.placeholderText,
                           ),
                         ),
                       ],
@@ -2230,13 +2242,13 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
-              color: const Color(0xFF4A7C59),
+              color: context.colorScheme.primary,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Text(
+            child: Text(
               'NEW',
               style: TextStyle(
-                color: Colors.white,
+                color: context.colorScheme.onPrimary,
                 fontSize: 10,
                 fontWeight: FontWeight.bold,
               ),
@@ -2252,11 +2264,15 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
             child: Container(
               width: 24,
               height: 24,
-              decoration: const BoxDecoration(
-                color: Colors.red,
+              decoration: BoxDecoration(
+                color: context.colorScheme.error,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.close, color: Colors.white, size: 16),
+              child: Icon(
+                Icons.close,
+                color: context.colorScheme.onError,
+                size: 16,
+              ),
             ),
           ),
         ),
@@ -2269,7 +2285,9 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
     showDialog(
       context: context,
       builder: (context) => Dialog.fullscreen(
-        backgroundColor: Colors.black,
+        backgroundColor: context.isDarkMode
+            ? context.colorScheme.surface
+            : Colors.black,
         child: Stack(
           children: [
             // 이미지 페이지뷰
@@ -2281,19 +2299,22 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                 final imageUrl = currentImage.fullImageUrl;
 
                 if (imageUrl.isEmpty) {
-                  return const Center(
+                  return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
                           Icons.broken_image_outlined,
                           size: 64,
-                          color: Colors.white54,
+                          color: context.placeholderText,
                         ),
-                        SizedBox(height: 16),
+                        const SizedBox(height: 16),
                         Text(
                           '이미지 경로가 없습니다',
-                          style: TextStyle(color: Colors.white54, fontSize: 16),
+                          style: TextStyle(
+                            color: context.placeholderText,
+                            fontSize: 16,
+                          ),
                         ),
                       ],
                     ),
@@ -2308,29 +2329,29 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                       loadingBuilder: (context, child, loadingProgress) {
                         if (loadingProgress == null) return child;
 
-                        return const Center(
+                        return Center(
                           child: CircularProgressIndicator(
                             valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
+                              context.colorScheme.primary,
                             ),
                           ),
                         );
                       },
                       errorBuilder: (context, error, stackTrace) {
-                        return const Center(
+                        return Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(
                                 Icons.broken_image_outlined,
                                 size: 64,
-                                color: Colors.white54,
+                                color: context.placeholderText,
                               ),
-                              SizedBox(height: 16),
+                              const SizedBox(height: 16),
                               Text(
                                 '이미지를 불러올 수 없습니다',
                                 style: TextStyle(
-                                  color: Colors.white54,
+                                  color: context.placeholderText,
                                   fontSize: 16,
                                 ),
                               ),
@@ -2349,7 +2370,11 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
               right: 20,
               child: IconButton(
                 onPressed: () => Navigator.of(context).pop(),
-                icon: const Icon(Icons.close, color: Colors.white, size: 32),
+                icon: Icon(
+                  Icons.close,
+                  color: context.colorScheme.onSurface,
+                  size: 32,
+                ),
               ),
             ),
             // 이미지 정보
@@ -2365,12 +2390,16 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.black54,
+                      color: context.colorScheme.surfaceContainerHighest
+                          .withOpacity(0.7),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
                       '${initialIndex + 1} / ${diaryImages.length}',
-                      style: const TextStyle(color: Colors.white, fontSize: 14),
+                      style: TextStyle(
+                        color: context.primaryText,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
                 ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:saegim/app/routes/route_paths.dart';
+import 'package:saegim/core/theme/theme_extensions.dart';
 
 /// 공통 앱바 위젯 - 브랜드 통일형
 class CommonAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -18,33 +19,27 @@ class CommonAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      backgroundColor: Colors.white,
+      // backgroundColor 제거 - Theme가 자동으로 적용
       elevation: 0,
       centerTitle: false,
       leading: showBackButton
           ? IconButton(
               onPressed: () => context.pop(),
-              icon: const Icon(
-                Icons.arrow_back,
-                color: Color(0xFFB2C5B8),
-              ),
+              icon: Icon(Icons.arrow_back, color: context.colorScheme.primary),
             )
           : null,
       title: Text(
         title ?? '새김',
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 24,
           fontWeight: FontWeight.bold,
-          color: Color(0xFFB2C5B8),
+          color: context.colorScheme.primary,
         ),
       ),
       actions: showMenuButton
           ? [
               PopupMenuButton<String>(
-                icon: const Icon(
-                  Icons.menu,
-                  color: Color(0xFFB2C5B8),
-                ),
+                icon: Icon(Icons.menu, color: context.colorScheme.primary),
                 onSelected: (value) {
                   switch (value) {
                     case 'profile':

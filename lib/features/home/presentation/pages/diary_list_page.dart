@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:saegim/core/theme/theme_extensions.dart';
 import 'package:saegim/features/calendar/data/models/diary_image_model.dart';
 import 'package:saegim/features/calendar/data/models/diary_model.dart';
 import 'package:saegim/features/calendar/data/services/diary_api_service.dart';
@@ -251,7 +252,10 @@ class _DiaryListPageState extends State<DiaryListPage> {
             controller: _searchController,
             decoration: InputDecoration(
               hintText: '제목이나 내용으로 검색하세요',
-              prefixIcon: const Icon(Icons.search, color: Color(0xFFB2C5B8)),
+              prefixIcon: Icon(
+                Icons.search,
+                color: context.colorScheme.primary,
+              ),
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
                       icon: Icon(
@@ -594,7 +598,7 @@ class _DiaryListPageState extends State<DiaryListPage> {
       backgroundColor:
           Theme.of(context).chipTheme.backgroundColor ??
           Theme.of(context).colorScheme.surfaceContainerHighest,
-      deleteIconColor: const Color(0xFFB2C5B8),
+      deleteIconColor: context.colorScheme.primary,
     );
   }
 
@@ -638,8 +642,8 @@ class _DiaryListPageState extends State<DiaryListPage> {
               _applyFilters();
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFB2C5B8),
-              foregroundColor: Colors.white,
+              backgroundColor: context.colorScheme.primary,
+              foregroundColor: context.colorScheme.onPrimary,
             ),
             child: const Text('필터 초기화'),
           ),
@@ -666,8 +670,8 @@ class _DiaryListPageState extends State<DiaryListPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       alignment: Alignment.center,
-      child: const CircularProgressIndicator(
-        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB2C5B8)),
+      child: CircularProgressIndicator(
+        valueColor: AlwaysStoppedAnimation<Color>(context.colorScheme.primary),
       ),
     );
   }
@@ -742,13 +746,13 @@ class _DiaryListPageState extends State<DiaryListPage> {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.7),
+                        color: context.primaryText.withAlpha(180),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         dateString,
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: context.colorScheme.onPrimary,
                           fontSize: 12,
                         ),
                       ),
@@ -811,7 +815,7 @@ class _DiaryListPageState extends State<DiaryListPage> {
                                 ).colorScheme.surfaceContainerHighest,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: const Color(0xFFB2C5B8),
+                              color: context.colorScheme.primary,
                               width: 1,
                             ),
                           ),
@@ -853,13 +857,15 @@ class _DiaryListPageState extends State<DiaryListPage> {
         width: double.infinity,
         height: double.infinity,
         color: Theme.of(context).colorScheme.surface,
-        child: const Center(
+        child: Center(
           child: SizedBox(
             width: 24,
             height: 24,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB2C5B8)),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                context.colorScheme.primary,
+              ),
             ),
           ),
         ),
@@ -881,11 +887,11 @@ class _DiaryListPageState extends State<DiaryListPage> {
             loadingBuilder: (context, child, loadingProgress) {
               if (loadingProgress == null) return child;
               return Container(
-                color: Colors.grey[300],
-                child: const Center(
+                color: context.borderSubtle,
+                child: Center(
                   child: CircularProgressIndicator(
                     valueColor: AlwaysStoppedAnimation<Color>(
-                      Color(0xFFB2C5B8),
+                      context.colorScheme.primary,
                     ),
                   ),
                 ),
