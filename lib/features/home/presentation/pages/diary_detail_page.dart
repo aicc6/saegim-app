@@ -37,6 +37,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
   late TextEditingController _keywordsController;
   late TextEditingController _aiGeneratedTextController;
   String? _selectedEmotion;
+  DateTime? _selectedDate;
 
   // 이미지 관련 변수들
   List<DiaryImage> diaryImages = [];
@@ -487,9 +488,8 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         });
 
         // tempEntry에서 이미지 경로가 있으면 newImages에 추가
-        if (widget.tempEntry?.imagePaths != null &&
-            widget.tempEntry!.imagePaths!.isNotEmpty) {
-          final imageFiles = widget.tempEntry!.imagePaths!
+        if (widget.tempEntry != null && widget.tempEntry!.images.isNotEmpty) {
+          final imageFiles = widget.tempEntry!.images
               .map((path) => XFile(path))
               .toList();
           setState(() {
@@ -552,6 +552,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
     try {
       final diaryDate = diary!.diaryDate;
+      if (diaryDate == null) return;
 
       // 월간 다이어리 목록을 가져와서 같은 날짜로 필터링
       final monthlyDiaries = await DiaryApiService.instance.getMonthlyDiaries(
@@ -563,7 +564,8 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         // 같은 날짜의 일기들만 필터링
         final sameDateDiaries = monthlyDiaries.where((d) {
           final entryDate = d.diaryDate;
-          return entryDate.year == diaryDate.year &&
+          return entryDate != null &&
+              entryDate.year == diaryDate.year &&
               entryDate.month == diaryDate.month &&
               entryDate.day == diaryDate.day;
         }).toList();
@@ -671,10 +673,46 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
   void _initializeEditControllers() {
     if (diary == null) return;
 
-    _titleController.text = diary!.title ?? '';
+    // 새 다이어리인 경우 제목을 빈 문자열로 초기화 (사용자가 입력할 수 있도록)
+    if (widget.diaryId == 'new' || diary!.id.startsWith('temp_')) {
+      _titleController.text = ''; // 새 다이어리는 빈 제목으로 시작
+    } else {
+      _titleController.text = diary!.title ?? '';
+    }
+
     _keywordsController.text = diary!.keywords.join(', ');
     _aiGeneratedTextController.text = diary!.aiGeneratedText ?? '';
     _selectedEmotion = diary!.emotion ?? _emotions.first['value'] as String;
+    _selectedDate = diary!.diaryDate; // 날짜 초기화
+  }
+
+  /// 날짜 선택 다이얼로그
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF4A7C59),
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: Color(0xFF1F2937),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+      });
+    }
   }
 
   /// 편집 모드 시작
@@ -716,12 +754,19 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       // 새 다이어리인 경우 (diaryId가 "new"로 시작)
       if (widget.diaryId == 'new' || diary!.id.startsWith('temp_')) {
         // 다이어리 생성
-        final date = diary!.diaryDate;
+        final date = _selectedDate ?? diary!.diaryDate;
+        if (date == null) {
+          throw Exception('Diary date is required');
+        }
         final dateString =
             '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
+        final titleText = _titleController.text.trim();
+
+        // 새 다이어리 생성 시 편집 모드에서 입력한 데이터 사용
         final createdDiary = await DiaryApiService.instance.createDiary(
-          content: diary!.content, // 필수
+          content: diary!.content, // 필수 - 원본 콘텐츠 사용
+          title: titleText.isNotEmpty ? titleText : null, // 편집 모드에서 입력한 제목 사용
           aiGeneratedText: _aiGeneratedTextController.text.trim().isEmpty
               ? null
               : _aiGeneratedTextController.text.trim(),
@@ -735,42 +780,23 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         success = createdDiary != null;
 
         if (success) {
-          // 저장 성공 시 로딩 상태 해제 후 페이지 이동
-          if (mounted) {
-            setState(() {
-              isSaving = false;
-              isEditMode = false;
-            });
-          }
-
-          if (mounted && context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('새 다이어리가 성공적으로 생성되었습니다.'),
-                backgroundColor: Color(0xFF4A7C59),
-              ),
-            );
-
-            // 약간의 지연 후 페이지 이동
-            await Future.delayed(const Duration(milliseconds: 500));
-            if (mounted && context.mounted) {
-              context.go('/diary/${createdDiary.id}');
-            }
-          }
-          return;
+          // 새 다이어리 생성 성공 - diary 객체 업데이트
+          diary = createdDiary;
         }
       } else {
         // 기존 다이어리 업데이트
+        final titleText = _titleController.text.trim();
+
+        // 제목이 비어있지 않으면 항상 전달 (빈 문자열도 포함)
         success = await DiaryApiService.instance.updateDiary(
           diaryId: diary!.id,
-          title: _titleController.text.trim().isEmpty
-              ? null
-              : _titleController.text.trim(),
+          title: titleText, // null 대신 빈 문자열도 허용
           emotion: _selectedEmotion,
           keywords: keywordsList,
           aiGeneratedText: _aiGeneratedTextController.text.trim().isEmpty
               ? null
               : _aiGeneratedTextController.text.trim(),
+          diaryDate: _selectedDate, // 선택된 날짜 전달
         );
       }
 
@@ -824,21 +850,57 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
             });
           }
 
-          await _loadDiary();
-
-          if (mounted && context.mounted) {
-            final hadImages = newImages.isNotEmpty;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  hadImages
-                      ? '다이어리와 이미지가 성공적으로 저장되었습니다.'
-                      : '다이어리가 성공적으로 수정되었습니다.',
+          // 새 다이어리 생성인 경우 페이지 이동
+          if (widget.diaryId == 'new' ||
+              (diary?.id.startsWith('temp_') ?? false)) {
+            if (mounted && context.mounted) {
+              final hadImages = newImages.isNotEmpty;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    hadImages
+                        ? '새 다이어리와 이미지가 성공적으로 생성되었습니다.'
+                        : '새 다이어리가 성공적으로 생성되었습니다.',
+                  ),
+                  backgroundColor: const Color(0xFF4A7C59),
+                  duration: const Duration(seconds: 3),
                 ),
-                backgroundColor: const Color(0xFF4A7C59),
-                duration: const Duration(seconds: 3),
-              ),
-            );
+              );
+
+              // 약간의 지연 후 페이지 이동
+              await Future.delayed(const Duration(milliseconds: 500));
+              if (mounted && context.mounted) {
+                context.go('/diary/${diary!.id}');
+              }
+            }
+          } else {
+            // 기존 다이어리 수정인 경우
+            // 선택된 날짜를 임시로 저장
+            final savedSelectedDate = _selectedDate;
+
+            await _loadDiary();
+
+            // 로드 후 선택된 날짜를 다시 설정
+            if (savedSelectedDate != null && diary != null) {
+              setState(() {
+                diary = diary!.copyWith(diaryDate: savedSelectedDate);
+              });
+            }
+
+            if (mounted && context.mounted) {
+              final hadImages = newImages.isNotEmpty;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    hadImages
+                        ? '다이어리와 이미지가 성공적으로 수정되었습니다.'
+                        : '다이어리가 성공적으로 수정되었습니다.',
+                  ),
+                  backgroundColor: const Color(0xFF4A7C59),
+                  duration: const Duration(seconds: 3),
+                ),
+              );
+            }
           }
         } else {
           // 다이어리는 성공했지만 이미지 업로드 실패
@@ -849,18 +911,51 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
             });
           }
 
-          await _loadDiary();
-
-          if (mounted && context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  '다이어리는 저장되었지만 이미지 업로드에 실패했습니다.\n네트워크 상태를 확인해주세요.',
+          // 새 다이어리 생성인 경우 페이지 이동
+          if (widget.diaryId == 'new' ||
+              (diary?.id.startsWith('temp_') ?? false)) {
+            if (mounted && context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    '새 다이어리는 생성되었지만 이미지 업로드에 실패했습니다.\n네트워크 상태를 확인해주세요.',
+                  ),
+                  backgroundColor: Colors.orange,
+                  duration: Duration(seconds: 4),
                 ),
-                backgroundColor: Colors.orange,
-                duration: Duration(seconds: 4),
-              ),
-            );
+              );
+
+              // 약간의 지연 후 페이지 이동
+              await Future.delayed(const Duration(milliseconds: 500));
+              if (mounted && context.mounted) {
+                context.go('/diary/${diary!.id}');
+              }
+            }
+          } else {
+            // 기존 다이어리 수정인 경우
+            // 선택된 날짜를 임시로 저장
+            final savedSelectedDate = _selectedDate;
+
+            await _loadDiary();
+
+            // 로드 후 선택된 날짜를 다시 설정
+            if (savedSelectedDate != null && diary != null) {
+              setState(() {
+                diary = diary!.copyWith(diaryDate: savedSelectedDate);
+              });
+            }
+
+            if (mounted && context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    '다이어리는 저장되었지만 이미지 업로드에 실패했습니다.\n네트워크 상태를 확인해주세요.',
+                  ),
+                  backgroundColor: Colors.orange,
+                  duration: Duration(seconds: 4),
+                ),
+              );
+            }
           }
         }
       } else {
@@ -1255,7 +1350,9 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
     if (diary == null) return const SizedBox.shrink();
 
     final diaryDate = diary!.diaryDate;
-    final formattedDate = '${diaryDate.month}월 ${diaryDate.day}일';
+    final formattedDate = diaryDate != null
+        ? '${diaryDate.month}월 ${diaryDate.day}일'
+        : '날짜 미정';
 
     return Container(
       padding: isEditMode ? const EdgeInsets.all(16) : EdgeInsets.zero,
@@ -1283,7 +1380,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
             TextField(
               controller: _titleController,
               decoration: const InputDecoration(
-                hintText: '제목을 입력하세요',
+                hintText: '제목을 입력하세요 (예: 오늘의 일기)',
                 border: OutlineInputBorder(),
                 contentPadding: EdgeInsets.symmetric(
                   horizontal: 12,
@@ -1294,6 +1391,55 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF1F2937),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // 날짜 선택 필드
+            const Text(
+              '📅 날짜 선택',
+              style: TextStyle(
+                fontSize: 14,
+                color: Color(0xFF6B7280),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: () => _selectDate(context),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  vertical: 12,
+                  horizontal: 12,
+                ),
+                decoration: BoxDecoration(
+                  border: Border.all(color: const Color(0xFF4A7C59)),
+                  borderRadius: BorderRadius.circular(8),
+                  color: const Color(0xFFF8FFFE),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      _selectedDate != null
+                          ? '${_selectedDate!.month}월 ${_selectedDate!.day}일'
+                          : '날짜를 선택하세요',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: _selectedDate != null
+                            ? const Color(0xFF1F2937)
+                            : const Color(0xFF9CA3AF),
+                      ),
+                    ),
+                    const Icon(
+                      Icons.calendar_today,
+                      size: 20,
+                      color: Color(0xFF4A7C59),
+                    ),
+                  ],
+                ),
               ),
             ),
           ] else ...[
@@ -1311,7 +1457,9 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
           ],
           const SizedBox(height: 8),
           Text(
-            formattedDate,
+            _selectedDate != null
+                ? '${_selectedDate!.month}월 ${_selectedDate!.day}일'
+                : formattedDate,
             style: const TextStyle(fontSize: 16, color: Color(0xFF6B7280)),
           ),
         ],

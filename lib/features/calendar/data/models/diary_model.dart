@@ -26,8 +26,10 @@ class DiaryEntry {
   @JsonKey(name: 'keywords')
   final List<String> keywords;
 
-  @JsonKey(name: 'diary_date')
-  final DateTime diaryDate;
+  @JsonKey(name: 'diary_date', toJson: _diaryDateToJson)
+  final DateTime? diaryDate;
+
+  static String? _diaryDateToJson(DateTime? date) => date?.toIso8601String();
 
   @JsonKey(name: 'created_at')
   final DateTime createdAt;
@@ -35,9 +37,26 @@ class DiaryEntry {
   @JsonKey(name: 'is_public')
   final bool? isPublic;
 
-  // 이미지 파일 경로 목록 (임시 저장용, 서버 전송 시에는 사용하지 않음)
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  final List<String>? imagePaths;
+  @JsonKey(name: 'images', fromJson: _imagesFromJson)
+  final List<String> images;
+
+  static List<String> _imagesFromJson(dynamic json) {
+    if (json == null) return [];
+    if (json is! List) return [];
+
+    return json
+        .map((item) {
+          // item이 String이면 그대로 사용
+          if (item is String) return item;
+          // item이 Map이면 file_path 추출
+          if (item is Map) {
+            return (item['file_path'] ?? item['url'] ?? '') as String;
+          }
+          return '';
+        })
+        .where((url) => url.isNotEmpty)
+        .toList();
+  }
 
   const DiaryEntry({
     required this.id,
@@ -47,10 +66,10 @@ class DiaryEntry {
     this.emotion,
     this.aiEmotion,
     required this.keywords,
-    required this.diaryDate,
+    this.diaryDate,
     required this.createdAt,
     this.isPublic,
-    this.imagePaths,
+    this.images = const [],
   });
 
   // 감정 이모티콘 매핑 (5가지 기본 감정) - AI 분석 감정 우선
@@ -93,7 +112,7 @@ class DiaryEntry {
     DateTime? diaryDate,
     DateTime? createdAt,
     bool? isPublic,
-    List<String>? imagePaths,
+    List<String>? images,
   }) {
     return DiaryEntry(
       id: id ?? this.id,
@@ -105,7 +124,7 @@ class DiaryEntry {
       diaryDate: diaryDate ?? this.diaryDate,
       createdAt: createdAt ?? this.createdAt,
       isPublic: isPublic ?? this.isPublic,
-      imagePaths: imagePaths ?? this.imagePaths,
+      images: images ?? this.images,
     );
   }
 }

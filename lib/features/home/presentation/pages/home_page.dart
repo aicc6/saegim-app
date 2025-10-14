@@ -463,7 +463,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                 diaryDate: now,
                 createdAt: now,
                 isPublic: false,
-                imagePaths: imagePaths.isNotEmpty ? imagePaths : null,
+                images: imagePaths, // 변경: imagePaths → images
               );
 
               // DiaryDetailPage로 이동 (새 다이어리 모드)
