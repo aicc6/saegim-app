@@ -117,14 +117,53 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
     }
   }
 
+  /// 감정을 한글->영문 코드로 변환
+  String _toEnglishEmotion(String? emotion) {
+    if (emotion == null) return '';
+    switch (emotion.trim()) {
+      case '행복':
+        return 'happy';
+      case '평온':
+        return 'peaceful';
+      case '불안':
+        return 'unrest';
+      case '분노':
+        return 'angry';
+      case '슬픔':
+        return 'sad';
+      default:
+        return emotion.trim().toLowerCase();
+    }
+  }
+
   /// 감정 선택 드롭다운 위젯
   Widget _buildEmotionDropdown() {
+    // 현재 선택된 값이 없으면 다이어리의 저장된 감정(한글일 수 있음)을 영문 코드로 변환해 사용
+    final String? resolvedSelected =
+        _selectedEmotion ?? _toEnglishEmotion(diary?.emotion);
+
+    String? normalizedSelected = resolvedSelected?.toLowerCase().trim();
+
     // 선택된 감정이 유효한지 확인, 기본값 설정하지 않음
     final validEmotion =
-        _selectedEmotion != null &&
-            _emotions.any((emotion) => emotion['value'] == _selectedEmotion)
-        ? _selectedEmotion
+        (normalizedSelected != null &&
+            _emotions.any(
+              (emotion) =>
+                  (emotion['value'] ?? '').toLowerCase().trim() ==
+                  normalizedSelected,
+            ))
+        ? _emotions.firstWhere(
+            (emotion) =>
+                (emotion['value'] ?? '').toLowerCase().trim() ==
+                normalizedSelected,
+          )['value']
         : null;
+
+    AppLogger.info(
+      '🧭 Emotion dropdown resolve - _selected: '
+          '$_selectedEmotion, diary(raw): ${diary?.emotion}, resolved: $resolvedSelected, final: $validEmotion',
+      'DiaryDetailPage',
+    );
 
     return DropdownButton<String>(
       value: validEmotion,
@@ -707,11 +746,12 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
     _keywordsController.text = diary!.keywords.join(', ');
     _aiGeneratedTextController.text = diary!.aiGeneratedText ?? '';
-    // 사용자 감정 초기화 - 유효한 감정만 설정, 기본값 설정하지 않음
-    final diaryEmotion = diary!.emotion;
-    if (diaryEmotion != null &&
-        diaryEmotion.isNotEmpty &&
-        _emotions.any((emotion) => emotion['value'] == diaryEmotion)) {
+
+    // 사용자 감정 초기화 - 한글일 수 있으므로 영문 코드로 치환 후 검증
+    final diaryEmotionRaw = diary!.emotion;
+    final diaryEmotion = _toEnglishEmotion(diaryEmotionRaw);
+    if (diaryEmotion.isNotEmpty &&
+        _emotions.any((e) => e['value'] == diaryEmotion)) {
       _selectedEmotion = diaryEmotion;
     } else {
       _selectedEmotion = null; // 기본값 설정하지 않음
