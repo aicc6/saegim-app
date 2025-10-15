@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:saegim/core/theme/theme_extensions.dart';
 import 'package:saegim/features/calendar/data/models/diary_model.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
+import 'package:saegim/shared/widgets/common_app_bar.dart';
 
 import '../riverpod/create_notifier.dart';
 import '../riverpod/emotions_notifier.dart';
@@ -292,11 +293,12 @@ class _HomePageState extends ConsumerState<HomePage> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
+      appBar: const CommonAppBar(showBackButton: false, showMenuButton: true),
       body: SafeArea(
         child: Container(
           width: double.infinity,
           height: double.infinity,
-          padding: const EdgeInsets.fromLTRB(30, 60, 30, 10),
+          padding: const EdgeInsets.fromLTRB(30, 10, 30, 10),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
@@ -569,18 +571,20 @@ class _HomePageState extends ConsumerState<HomePage> {
                   ),
                   filled: true,
                   fillColor: context.inputBackground,
-                  contentPadding: const EdgeInsets.fromLTRB(16, 20, 50, 20),
+                  contentPadding: const EdgeInsets.fromLTRB(16, 20, 20, 20),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(18),
-                    borderSide: BorderSide(color: context.borderSubtle),
+                    borderSide: BorderSide(color: context.colorScheme.primary),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(18),
-                    borderSide: BorderSide(color: context.borderSubtle),
+                    borderSide: BorderSide(color: context.colorScheme.primary),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(18),
-                    borderSide: BorderSide(color: context.colorScheme.primary),
+                    borderSide: BorderSide(
+                      color: Color.fromARGB(255, 65, 119, 68),
+                    ),
                   ),
                 ),
               ),
@@ -934,7 +938,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   shape: BoxShape.circle,
                   border: Border.all(
                     color: isSelected
-                        ? _getColorFromStyle(config.styles.ring)
+                        ? context.colorScheme.primary
                         : context.borderSubtle,
                     width: isSelected ? 3 : 1,
                   ),
@@ -944,10 +948,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                   boxShadow: isSelected
                       ? [
                           BoxShadow(
-                            color: _getColorFromStyle(
-                              config.styles.ring,
-                            ).withAlpha(38),
-                            blurRadius: 6,
+                            color: context.colorScheme.primary.withAlpha(38),
+                            blurRadius: 3,
                             spreadRadius: 1,
                           ),
                         ]
@@ -991,15 +993,15 @@ class _HomePageState extends ConsumerState<HomePage> {
 
     switch (color) {
       case 'yellow':
-        return Colors.yellow[shade] ?? Colors.yellow;
-      case 'blue':
-        return Colors.blue[shade] ?? Colors.blue;
-      case 'red':
-        return Colors.red[shade] ?? Colors.red;
+        return const Color.fromARGB(255, 255, 250, 203);
+      case 'sky':
+        return const Color.fromARGB(255, 227, 247, 255);
       case 'green':
         return Colors.green[shade] ?? Colors.green;
       case 'orange':
-        return Colors.orange[shade] ?? Colors.orange;
+        return const Color.fromARGB(255, 255, 221, 169);
+      case 'purple':
+        return const Color.fromARGB(162, 247, 206, 255);
       default:
         return Colors.grey[shade] ?? Colors.grey;
     }
