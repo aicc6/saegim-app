@@ -11,6 +11,7 @@ import 'package:saegim/features/calendar/data/models/diary_model.dart';
 import 'package:saegim/features/home/presentation/pages/calendar_page.dart';
 import 'package:saegim/features/home/presentation/pages/diary_detail_page.dart';
 import 'package:saegim/features/home/presentation/pages/diary_list_page.dart';
+import 'package:saegim/features/home/presentation/pages/handwriting_diary_page.dart';
 import 'package:saegim/features/home/presentation/pages/home_page.dart';
 import 'package:saegim/features/home/presentation/pages/notifications_page.dart';
 import 'package:saegim/features/home/presentation/pages/settings_page.dart';
@@ -106,7 +107,13 @@ class AppRouter {
                   builder: (context, state) {
                     final id = state.pathParameters['id']!;
                     final tempEntry = state.extra as DiaryEntry?;
-                    return DiaryDetailPage(diaryId: id, tempEntry: tempEntry);
+                    final startInEditMode =
+                        tempEntry != null; // 임시 엔트리가 있으면 편집 모드로 시작
+                    return DiaryDetailPage(
+                      diaryId: id,
+                      tempEntry: tempEntry,
+                      startInEditMode: startInEditMode,
+                    );
                   },
                 ),
               ],
@@ -116,6 +123,12 @@ class AppRouter {
             GoRoute(
               path: RoutePaths.calendar,
               builder: (context, state) => const CalendarPage(),
+            ),
+
+            // 손글씨 다이어리
+            GoRoute(
+              path: RoutePaths.handwritingDiary,
+              builder: (context, state) => const HandwritingDiaryPage(),
             ),
           ],
         ),

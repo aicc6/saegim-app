@@ -456,7 +456,7 @@ class _ViewPostPageState extends ConsumerState<ViewPostPage> {
         if (mounted) {
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(const SnackBar(content: Text('다이어리가 성공적으로 수정되었습니다.')));
+          ).showSnackBar(const SnackBar(content: Text('다이어리가 성공적으로 저장되었습니다.')));
         }
       } catch (e) {
         if (mounted) {
