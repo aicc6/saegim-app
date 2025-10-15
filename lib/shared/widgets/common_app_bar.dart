@@ -24,7 +24,16 @@ class CommonAppBar extends StatelessWidget implements PreferredSizeWidget {
       centerTitle: false,
       leading: showBackButton
           ? IconButton(
-              onPressed: () => context.pop(),
+              onPressed: () {
+                // 현재 페이지가 손글씨 다이어리 페이지인 경우 홈으로 이동
+                if (GoRouterState.of(context).matchedLocation ==
+                    '/handwriting-diary') {
+                  context.go(RoutePaths.home);
+                } else {
+                  // 다른 페이지는 기본 뒤로가기
+                  context.pop();
+                }
+              },
               icon: Icon(Icons.arrow_back, color: context.colorScheme.primary),
             )
           : null,

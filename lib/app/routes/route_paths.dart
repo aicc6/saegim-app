@@ -16,6 +16,7 @@ class RoutePaths {
   static const String home = '/';
   static const String chat = '/chat';
   static const String calendar = '/calendar';
+  static const String handwritingDiary = '/handwriting-diary';
 
   // 다이어리
   static const String diaryList = '/diary';

@@ -143,7 +143,7 @@ class _DiaryEditPageState extends State<DiaryEditPage> {
         if (mounted && context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('다이어리가 성공적으로 수정되었습니다.'),
+              content: Text('다이어리가 성공적으로 저장되었습니다.'),
               backgroundColor: Color(0xFF4A7C59),
             ),
           );

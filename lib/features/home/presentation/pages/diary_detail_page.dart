@@ -12,8 +12,14 @@ import 'package:saegim/shared/utils/app_logger.dart';
 class DiaryDetailPage extends StatefulWidget {
   final String diaryId;
   final DiaryEntry? tempEntry; // 새 다이어리용 임시 데이터
+  final bool startInEditMode; // 편집 모드로 시작할지 여부
 
-  const DiaryDetailPage({super.key, required this.diaryId, this.tempEntry});
+  const DiaryDetailPage({
+    super.key,
+    required this.diaryId,
+    this.tempEntry,
+    this.startInEditMode = false,
+  });
 
   @override
   State<DiaryDetailPage> createState() => _DiaryDetailPageState();
@@ -113,8 +119,15 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
   /// 감정 선택 드롭다운 위젯
   Widget _buildEmotionDropdown() {
+    // 선택된 감정이 유효한지 확인, 기본값 설정하지 않음
+    final validEmotion =
+        _selectedEmotion != null &&
+            _emotions.any((emotion) => emotion['value'] == _selectedEmotion)
+        ? _selectedEmotion
+        : null;
+
     return DropdownButton<String>(
-      value: _selectedEmotion,
+      value: validEmotion,
       isExpanded: true,
       underline: Container(),
       items: _emotions.map((emotion) {
@@ -458,6 +471,12 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
     _titleController = TextEditingController();
     _keywordsController = TextEditingController();
     _aiGeneratedTextController = TextEditingController();
+
+    // 편집 모드로 시작하는 경우 설정
+    if (widget.startInEditMode) {
+      isEditMode = true;
+    }
+
     _loadDiary();
   }
 
@@ -483,20 +502,27 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         setState(() {
           diary = widget.tempEntry;
           isLoading = false;
-          isEditMode = true; // 새 다이어리는 편집 모드로 시작
+          // startInEditMode가 true인 경우에만 편집 모드로 시작
+          isEditMode = widget.startInEditMode;
         });
 
-        // tempEntry에서 이미지 경로가 있으면 newImages에 추가
+        // tempEntry에서 이미지 URL들을 DiaryImage 객체로 변환
         if (widget.tempEntry != null && widget.tempEntry!.images.isNotEmpty) {
-          final imageFiles = widget.tempEntry!.images
-              .map((path) => XFile(path))
+          final convertedImages = widget.tempEntry!.images
+              .map(
+                (imageUrl) => DiaryImage(
+                  filePath: imageUrl,
+                  id: 'temp_${DateTime.now().millisecondsSinceEpoch}_${widget.tempEntry!.images.indexOf(imageUrl)}',
+                ),
+              )
               .toList();
+
           setState(() {
-            newImages = imageFiles;
+            diaryImages = convertedImages;
           });
 
           AppLogger.info(
-            'Loaded ${imageFiles.length} images from tempEntry',
+            'Loaded ${convertedImages.length} images from tempEntry as DiaryImage objects',
             'DiaryDetailPage',
           );
         }
@@ -681,7 +707,22 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
     _keywordsController.text = diary!.keywords.join(', ');
     _aiGeneratedTextController.text = diary!.aiGeneratedText ?? '';
-    _selectedEmotion = diary!.emotion ?? _emotions.first['value'] as String;
+    // 사용자 감정 초기화 - 유효한 감정만 설정, 기본값 설정하지 않음
+    final diaryEmotion = diary!.emotion;
+    if (diaryEmotion != null &&
+        diaryEmotion.isNotEmpty &&
+        _emotions.any((emotion) => emotion['value'] == diaryEmotion)) {
+      _selectedEmotion = diaryEmotion;
+    } else {
+      _selectedEmotion = null; // 기본값 설정하지 않음
+    }
+
+    // AI 감정 디버깅 로그 추가
+    AppLogger.info(
+      '🔍 AI Emotion Debug - Raw aiEmotion: ${diary!.aiEmotion}, IsEmpty: ${diary!.aiEmotion?.isEmpty ?? true}',
+      'DiaryDetailPage',
+    );
+
     _selectedDate = diary!.diaryDate; // 날짜 초기화
   }
 
@@ -762,6 +803,21 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
         final titleText = _titleController.text.trim();
 
+        // 손글씨 이미지가 있다면 uploadedImages 형태로 변환
+        List<Map<String, dynamic>>? uploadedImages;
+        if (diary!.images.isNotEmpty) {
+          uploadedImages = diary!.images
+              .map(
+                (imageUrl) => {
+                  'original_url': imageUrl,
+                  'thumbnail_url': null,
+                  'mime_type': null,
+                  'file_size': null,
+                },
+              )
+              .toList();
+        }
+
         // 새 다이어리 생성 시 편집 모드에서 입력한 데이터 사용
         final createdDiary = await DiaryApiService.instance.createDiary(
           content: diary!.content, // 필수 - 원본 콘텐츠 사용
@@ -774,6 +830,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
           aiEmotionConfidence: 0.8,
           keywords: keywordsList.isNotEmpty ? keywordsList : null,
           diaryDate: dateString,
+          uploadedImages: uploadedImages,
         );
 
         success = createdDiary != null;
@@ -830,10 +887,10 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
           });
           imageUploadSuccess = true;
         } else {
-          // 업로드 실패
-          imageUploadSuccess = false;
+          // 업로드 실패 - 하지만 다이어리 저장은 성공으로 처리
+          imageUploadSuccess = true;
           AppLogger.warning(
-            'Image upload failed for all attempted endpoints',
+            'Image upload failed for all attempted endpoints - continuing with diary save',
             'DiaryDetailPage',
           );
         }
@@ -866,9 +923,10 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                 ),
               );
 
-              // 약간의 지연 후 페이지 이동
+              // 약간의 지연 후 페이지 이동 (편집 모드 해제된 상태로)
               await Future.delayed(const Duration(milliseconds: 500));
               if (mounted && context.mounted) {
+                // 편집 모드를 해제한 상태로 다이어리 상세 페이지로 이동
                 context.go('/diary/${diary!.id}');
               }
             }
@@ -879,10 +937,16 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
             await _loadDiary();
 
-            // 로드 후 선택된 날짜를 다시 설정
+            // 로드 후 선택된 날짜를 다시 설정하고 편집 모드 확실히 해제
             if (savedSelectedDate != null && diary != null) {
               setState(() {
                 diary = diary!.copyWith(diaryDate: savedSelectedDate);
+                isEditMode = false; // 편집 모드 확실히 해제
+              });
+            } else {
+              // 날짜가 없는 경우에도 편집 모드 해제
+              setState(() {
+                isEditMode = false; // 편집 모드 확실히 해제
               });
             }
 
@@ -892,8 +956,8 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                 SnackBar(
                   content: Text(
                     hadImages
-                        ? '다이어리와 이미지가 성공적으로 수정되었습니다.'
-                        : '다이어리가 성공적으로 수정되었습니다.',
+                        ? '다이어리와 이미지가 성공적으로 저장되었습니다.'
+                        : '다이어리가 성공적으로 저장되었습니다.',
                   ),
                   backgroundColor: context.colorScheme.primary,
                   duration: const Duration(seconds: 3),
@@ -924,9 +988,10 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                 ),
               );
 
-              // 약간의 지연 후 페이지 이동
+              // 약간의 지연 후 페이지 이동 (편집 모드 해제된 상태로)
               await Future.delayed(const Duration(milliseconds: 500));
               if (mounted && context.mounted) {
+                // 편집 모드를 해제한 상태로 다이어리 상세 페이지로 이동
                 context.go('/diary/${diary!.id}');
               }
             }
@@ -937,10 +1002,16 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
             await _loadDiary();
 
-            // 로드 후 선택된 날짜를 다시 설정
+            // 로드 후 선택된 날짜를 다시 설정하고 편집 모드 확실히 해제
             if (savedSelectedDate != null && diary != null) {
               setState(() {
                 diary = diary!.copyWith(diaryDate: savedSelectedDate);
+                isEditMode = false; // 편집 모드 확실히 해제
+              });
+            } else {
+              // 날짜가 없는 경우에도 편집 모드 해제
+              setState(() {
+                isEditMode = false; // 편집 모드 확실히 해제
               });
             }
 
@@ -1246,12 +1317,12 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
           const SizedBox(height: 24),
 
-          // 감정 분석 섹션
+          // 감정 분석 섹션 (사용자 vs AI 감정 비교)
           _buildEmotionAnalysisSection(),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
 
-          // 키워드 섹션
+          // 키워드 섹션 (AI 추출 키워드 표시)
           _buildKeywordSection(),
 
           const SizedBox(height: 24),
@@ -1476,92 +1547,144 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       isEditMode ? _selectedEmotion : diary!.emotion,
     );
 
-    return Row(
+    // AI 감정 디버깅 로그
+    AppLogger.info(
+      '🔍 AI Emotion Debug - Raw: ${diary!.aiEmotion}, Korean: $aiEmotion, IsEmpty: ${diary!.aiEmotion?.isEmpty ?? true}',
+      'DiaryDetailPage',
+    );
+
+    return Column(
       children: [
-        // 사용자 감정
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: context.colorScheme.surface,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: isEditMode
-                    ? context.colorScheme.primary
-                    : context.borderSubtle,
-                width: isEditMode ? 2 : 1,
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+        // 감정 비교 섹션
+        Row(
+          children: [
+            // 사용자 감정
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: context.colorScheme.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isEditMode
+                        ? context.colorScheme.primary
+                        : context.borderSubtle,
+                    width: isEditMode ? 2 : 1,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '사용자 감정 : ',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: context.secondaryText,
-                      ),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.person,
+                          size: 16,
+                          color: context.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '사용자 감정',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: context.colorScheme.primary,
+                          ),
+                        ),
+                      ],
                     ),
+                    const SizedBox(height: 8),
                     if (isEditMode) ...[
                       // 편집 모드: 감정 선택 드롭다운
-                      Expanded(child: _buildEmotionDropdown()),
+                      _buildEmotionDropdown(),
                     ] else ...[
                       // 보기 모드: 현재 감정 표시
-                      Text(currentEmoji, style: const TextStyle(fontSize: 20)),
-                      const SizedBox(width: 4),
-                      Text(
-                        userEmotion,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: context.primaryText,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            currentEmoji,
+                            style: const TextStyle(fontSize: 24),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            userEmotion,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: context.primaryText,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ],
                 ),
-                const SizedBox(height: 12),
-                if (diary!.aiEmotion != null &&
-                    diary!.aiEmotion!.isNotEmpty) ...[
-                  // AI 분석 감정이 있는 경우에만 표시
-                  Row(
-                    children: [
-                      Text(
-                        'AI 분석 감정 : ',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: context.secondaryText,
-                        ),
-                      ),
-                      Text(
-                        _getEmotionEmoji(diary!.aiEmotion),
-                        style: const TextStyle(fontSize: 20),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        aiEmotion,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: context.primaryText,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '(AI 분석)',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: context.secondaryText,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ],
+              ),
             ),
-          ),
+            const SizedBox(width: 12),
+            // AI 분석 감정
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: context.colorScheme.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: context.colorScheme.secondary.withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.psychology,
+                          size: 16,
+                          color: context.colorScheme.secondary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'AI 분석 감정',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: context.colorScheme.secondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Text(
+                          _getEmotionEmoji(diary!.aiEmotion),
+                          style: const TextStyle(fontSize: 24),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            aiEmotion.isNotEmpty ? aiEmotion : '분석 결과 없음',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: aiEmotion.isNotEmpty
+                                  ? context.primaryText
+                                  : context.secondaryText,
+                              fontStyle: aiEmotion.isEmpty
+                                  ? FontStyle.italic
+                                  : FontStyle.normal,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -1589,9 +1712,15 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         children: [
           Row(
             children: [
+              Icon(Icons.label, size: 16, color: context.colorScheme.primary),
+              const SizedBox(width: 6),
               Text(
-                '키워드 :',
-                style: TextStyle(fontSize: 14, color: context.secondaryText),
+                '키워드',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: context.colorScheme.primary,
+                ),
               ),
               if (isEditMode) ...[
                 const Spacer(),
@@ -1631,19 +1760,44 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
               style: const TextStyle(fontSize: 14),
             ),
           ] else ...[
-            // 보기 모드: 키워드 칩들
-            if (diary!.keywords.isEmpty) ...[
-              Text(
-                '키워드가 없습니다.',
-                style: TextStyle(fontSize: 14, color: context.placeholderText),
-              ),
-            ] else ...[
+            // 보기 모드: 키워드 표시
+            if (diary!.keywords.isNotEmpty) ...[
               Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: 6,
+                runSpacing: 6,
                 children: diary!.keywords
                     .map((keyword) => _buildKeywordChip('#$keyword'))
                     .toList(),
+              ),
+            ] else ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: context.colorScheme.surfaceVariant.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: context.colorScheme.outline.withOpacity(0.2),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: 16,
+                      color: context.secondaryText,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '키워드가 추출되지 않았습니다.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: context.secondaryText,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ],

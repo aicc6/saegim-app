@@ -44,7 +44,7 @@ class DioClient {
       baseUrl: EnvironmentConfig.apiBaseUrl,
       connectTimeout: const Duration(seconds: 10),
       sendTimeout: const Duration(seconds: 10),
-      receiveTimeout: const Duration(seconds: 20),
+      receiveTimeout: const Duration(seconds: 60), // 장문 생성 시간을 고려하여 60초로 증가
       responseType: ResponseType.json,
       contentType: Headers.jsonContentType,
     );
@@ -197,7 +197,7 @@ class DioClient {
           // 토큰 갱신 실패 또는 리프레시 토큰 없음 - 인증 데이터 정리
           await AuthStorageService.instance.clearAllAuthData();
           AppLogger.warning(
-            'Cleared authentication data due to 401 error',
+            'Cleared authentication data due to 401 error - user needs to re-login',
             'DioClient',
           );
         }

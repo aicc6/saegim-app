@@ -16,6 +16,24 @@ class DiaryApiService {
   /// 중앙화된 Dio 인스턴스 사용 (CookieManager가 자동으로 쿠키 기반 인증 처리)
   Dio get dio => DioClient.instance.dio;
 
+  /// 한국어 감정을 영어로 변환
+  String _convertKoreanEmotionToEnglish(String koreanEmotion) {
+    switch (koreanEmotion) {
+      case '행복':
+        return 'happy';
+      case '평온':
+        return 'peaceful';
+      case '불안':
+        return 'unrest';
+      case '분노':
+        return 'angry';
+      case '슬픔':
+        return 'sad';
+      default:
+        return 'peaceful'; // 기본값
+    }
+  }
+
   /// 필터링 조건으로 다이어리 목록 조회 (페이지네이션 지원)
   ///
   /// [page]: 페이지 번호 (1부터 시작)
@@ -569,6 +587,7 @@ class DiaryApiService {
     double? aiEmotionConfidence,
     List<String>? keywords,
     String? diaryDate,
+    List<Map<String, dynamic>>? uploadedImages,
   }) async {
     try {
       AppLogger.info('Creating new diary', 'DiaryApiService');
@@ -588,11 +607,11 @@ class DiaryApiService {
       }
 
       if (userEmotion != null && userEmotion.isNotEmpty) {
-        diaryData['user_emotion'] = userEmotion;
+        diaryData['user_emotion'] = _convertKoreanEmotionToEnglish(userEmotion);
       }
 
       if (aiEmotion != null && aiEmotion.isNotEmpty) {
-        diaryData['ai_emotion'] = aiEmotion;
+        diaryData['ai_emotion'] = _convertKoreanEmotionToEnglish(aiEmotion);
       }
 
       if (aiEmotionConfidence != null) {
@@ -607,10 +626,28 @@ class DiaryApiService {
         diaryData['diary_date'] = diaryDate;
       }
 
+      if (uploadedImages != null && uploadedImages.isNotEmpty) {
+        diaryData['uploaded_images'] = uploadedImages;
+      }
+
       AppLogger.info(
         'Create diary request data: $diaryData',
         'DiaryApiService',
       );
+
+      // 감정 변환 로깅
+      if (userEmotion != null && userEmotion.isNotEmpty) {
+        AppLogger.info(
+          'Emotion conversion - user_emotion: $userEmotion -> ${_convertKoreanEmotionToEnglish(userEmotion)}',
+          'DiaryApiService',
+        );
+      }
+      if (aiEmotion != null && aiEmotion.isNotEmpty) {
+        AppLogger.info(
+          'Emotion conversion - ai_emotion: $aiEmotion -> ${_convertKoreanEmotionToEnglish(aiEmotion)}',
+          'DiaryApiService',
+        );
+      }
 
       final response = await dio.post('/api/diary', data: diaryData);
 
@@ -1168,9 +1205,19 @@ class DiaryApiService {
           'DiaryApiService',
         );
 
-        // 이미지 파일 존재 여부 사전 확인
+        // 이미지 파일 존재 여부 사전 확인 (URL은 건너뛰기)
         final validImagePaths = <String>[];
         for (final imagePath in imagePaths) {
+          // URL인 경우 (이미 업로드된 이미지)는 건너뛰기
+          if (imagePath.startsWith('http://') ||
+              imagePath.startsWith('https://')) {
+            AppLogger.info(
+              '⏭️ Skipping already uploaded image URL: ${imagePath.split('/').last}',
+              'DiaryApiService',
+            );
+            continue;
+          }
+
           final file = File(imagePath);
           if (await file.exists()) {
             validImagePaths.add(imagePath);

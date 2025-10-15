@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:saegim/core/config/environment.dart';
 import 'package:saegim/core/services/auth_storage_service.dart';
+import 'package:saegim/features/calendar/data/models/diary_model.dart';
 import 'package:saegim/features/calendar/data/services/diary_api_service.dart';
+import 'package:saegim/shared/utils/app_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // 타입 정의
@@ -161,6 +163,7 @@ class CreateState {
   final bool wasJustGenerated;
   final List<String> generationHistory;
   final int currentHistoryIndex;
+  final String? handwritingImageUrl; // 손글씨 이미지 URL
 
   const CreateState({
     required this.config,
@@ -177,6 +180,7 @@ class CreateState {
     required this.wasJustGenerated,
     this.generationHistory = const [],
     this.currentHistoryIndex = 0,
+    this.handwritingImageUrl,
   });
 
   CreateState copyWith({
@@ -194,6 +198,7 @@ class CreateState {
     bool? wasJustGenerated,
     List<String>? generationHistory,
     int? currentHistoryIndex,
+    String? handwritingImageUrl,
     bool clearError = false,
     bool clearGeneratedText = false,
   }) {
@@ -216,6 +221,7 @@ class CreateState {
       wasJustGenerated: wasJustGenerated ?? this.wasJustGenerated,
       generationHistory: generationHistory ?? this.generationHistory,
       currentHistoryIndex: currentHistoryIndex ?? this.currentHistoryIndex,
+      handwritingImageUrl: handwritingImageUrl ?? this.handwritingImageUrl,
     );
   }
 
@@ -757,11 +763,11 @@ class CreateNotifier extends StateNotifier<CreateState> {
   }
 
   // 생성된 글을 다이어리에 저장
-  Future<bool> saveToDiary({String? title, String? diaryDate}) async {
+  Future<String?> saveToDiary({String? title, String? diaryDate}) async {
     if (state.generatedText?.isEmpty ?? true) {
-      if (!mounted) return false;
+      if (!mounted) return null;
       state = state.copyWith(error: '저장할 글이 없습니다.');
-      return false;
+      return null;
     }
 
     try {
@@ -800,16 +806,74 @@ class CreateNotifier extends StateNotifier<CreateState> {
       if (result != null) {
         // 저장 성공 시 생성된 글 상태 초기화
         clearGeneratedText();
-        return true;
+        return result.id;
       } else {
-        if (!mounted) return false;
+        if (!mounted) return null;
         state = state.copyWith(error: '다이어리 저장에 실패했습니다.');
-        return false;
+        return null;
       }
     } catch (e) {
-      if (!mounted) return false;
+      if (!mounted) return null;
       state = state.copyWith(error: '다이어리 저장 중 오류가 발생했습니다: ${e.toString()}');
-      return false;
+      return null;
+    }
+  }
+
+  /// 임시 다이어리 엔트리 생성 (저장하지 않고)
+  DiaryEntry? createTempDiaryEntry({
+    String? title,
+    String? diaryDate,
+    String? aiEmotion,
+    String? userEmotion,
+  }) {
+    if (state.generatedText?.isEmpty ?? true) {
+      return null;
+    }
+
+    try {
+      // 날짜 형식 변환 (YYYY-MM-DD)
+      String? formattedDate;
+      if (diaryDate != null) {
+        try {
+          final date = DateTime.parse(diaryDate);
+          formattedDate =
+              '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+        } catch (e) {
+          // 날짜 파싱 실패 시 현재 날짜 사용
+          final now = DateTime.now();
+          formattedDate =
+              '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+        }
+      } else {
+        // 날짜가 제공되지 않으면 현재 날짜 사용
+        final now = DateTime.now();
+        formattedDate =
+            '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      }
+
+      // 임시 다이어리 엔트리 생성
+      return DiaryEntry(
+        id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+        title: title ?? '손글씨 다이어리',
+        content: state.generatedText!,
+        aiGeneratedText: state.generatedText!,
+        emotion: userEmotion ?? state.emotion, // 사용자가 선택한 감정 우선
+        aiEmotion: aiEmotion ?? state.emotion,
+        keywords: state.generatedKeywords ?? [],
+        createdAt: DateTime.now(),
+        diaryDate: DateTime.parse(formattedDate),
+        // 손글씨 이미지 URL을 images 리스트에 추가
+        images: state.handwritingImageUrl != null
+            ? [state.handwritingImageUrl!]
+            : [],
+      );
+    } catch (e) {
+      AppLogger.error(
+        'Failed to create temp diary entry',
+        tag: 'CreateNotifier',
+        error: e,
+      );
+      return null;
     }
   }
 }

@@ -551,6 +551,10 @@ class _HomePageState extends ConsumerState<HomePage> {
 
           const SizedBox(height: 16),
 
+          // 손글씨 다이어리 버튼
+          _buildHandwritingDiaryButton(),
+          const SizedBox(height: 16),
+
           // 텍스트 입력 필드 + 이미지 아이콘
           Stack(
             children: [
@@ -999,5 +1003,74 @@ class _HomePageState extends ConsumerState<HomePage> {
       default:
         return Colors.grey[shade] ?? Colors.grey;
     }
+  }
+
+  /// 손글씨 다이어리 버튼 위젯
+  Widget _buildHandwritingDiaryButton() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            context.colorScheme.primary.withOpacity(0.1),
+            context.colorScheme.primary.withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: context.colorScheme.primary.withOpacity(0.2)),
+      ),
+      child: InkWell(
+        onTap: () => context.go('/handwriting-diary'),
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: context.colorScheme.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.edit_outlined,
+                  color: context.colorScheme.primary,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '손글씨 다이어리',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: context.colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '손글씨 이미지를 업로드하면 AI가 텍스트를 추출하고 다이어리로 변환해드립니다',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: context.secondaryText,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios,
+                color: context.colorScheme.primary.withOpacity(0.6),
+                size: 16,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
