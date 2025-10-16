@@ -45,7 +45,7 @@ class AppColors {
   static const emotionSad = Color(0xFF6B8AC7); // Calm Blue
   static const emotionAngry = Color(0xFFD67D5C); // Warm Orange
   static const emotionPeaceful = Color(0xFF7DB87D); // Natural Green
-  static const emotionWorried = Color(0xFFE6B366); // Gentle Orange
+  static const emotionWorried = Color(0xFF8977AD); // Gentle Orange
 
   // 감정별 보조 색상
   static const emotionHappySecondary = Color(0xFFF5F0DB);
