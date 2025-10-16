@@ -64,7 +64,7 @@ class HandwritingDiaryState {
       selectedImage: selectedImage ?? this.selectedImage,
       style: style ?? this.style,
       length: length ?? this.length,
-      emotion: emotion ?? this.emotion,
+      emotion: emotion, // null 값을 명시적으로 허용
       isProcessing: isProcessing ?? this.isProcessing,
       isConverting: isConverting ?? this.isConverting,
       error: clearError ? null : (error ?? this.error),
