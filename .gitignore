@@ -67,6 +67,8 @@ android/app/google-services.json
 ios/Runner/GoogleService-Info.plist
 lib/firebase_options.dart
 firebase.json
+# Local copies of Firebase credentials
+google-login/
 
 # Keystore files (Android signing)
 **/keystore/

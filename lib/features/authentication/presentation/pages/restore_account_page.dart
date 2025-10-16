@@ -59,7 +59,7 @@ class _RestoreAccountPageState extends ConsumerState<RestoreAccountPage> {
     try {
       final success = await ref
           .read(authNotifierProvider.notifier)
-          .sendVerificationEmail(widget.email);
+          .sendRestoreEmail(widget.email);
 
       if (mounted && success) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -104,7 +104,7 @@ class _RestoreAccountPageState extends ConsumerState<RestoreAccountPage> {
       // verify code, then check status
       final verified = await ref
           .read(authNotifierProvider.notifier)
-          .verifyEmail(widget.email, code);
+          .verifyRestoreCode(widget.email, code);
 
       if (!verified) {
         throw Exception('인증 코드가 올바르지 않습니다.');
