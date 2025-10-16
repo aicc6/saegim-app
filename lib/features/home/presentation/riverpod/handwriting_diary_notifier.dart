@@ -23,6 +23,7 @@ class HandwritingDiaryState {
   final bool isEditMode;
   final String? editedOcrText;
   final String? editedAiText;
+  final int? regenerationCount; // AI 재생성 횟수 (null 허용, 기본 0)
 
   const HandwritingDiaryState({
     this.selectedImage,
@@ -39,6 +40,7 @@ class HandwritingDiaryState {
     this.isEditMode = false,
     this.editedOcrText,
     this.editedAiText,
+    this.regenerationCount = 0,
   });
 
   HandwritingDiaryState copyWith({
@@ -56,6 +58,7 @@ class HandwritingDiaryState {
     bool? isEditMode,
     String? editedOcrText,
     String? editedAiText,
+    int? regenerationCount,
     bool clearError = false,
     bool clearResult = false,
     bool clearExtractedText = false,
@@ -80,6 +83,7 @@ class HandwritingDiaryState {
       isEditMode: isEditMode ?? this.isEditMode,
       editedOcrText: editedOcrText ?? this.editedOcrText,
       editedAiText: editedAiText ?? this.editedAiText,
+      regenerationCount: regenerationCount ?? this.regenerationCount,
     );
   }
 
@@ -115,6 +119,7 @@ class HandwritingDiaryNotifier extends StateNotifier<HandwritingDiaryState> {
           length: LengthOption.short,
           isProcessing: false,
           isConverting: false,
+          regenerationCount: 0,
         ),
       );
 
@@ -137,6 +142,74 @@ class HandwritingDiaryNotifier extends StateNotifier<HandwritingDiaryState> {
       clearResult: true,
       clearExtractedText: true,
     );
+  }
+
+  /// OCR 텍스트를 기반으로 AI 다이어리만 재생성 (최대 5회)
+  Future<void> regenerateAiFromOcrOnly() async {
+    if (!state.hasResult) return;
+
+    if ((state.regenerationCount ?? 0) >= 5) {
+      state = state.copyWith(error: 'AI 재생성은 최대 5회까지 가능합니다.');
+      return;
+    }
+
+    final baseText = state.editedOcrText?.trim().isNotEmpty == true
+        ? state.editedOcrText!
+        : (state.result?.extractedText ?? '');
+
+    if (baseText.isEmpty) {
+      state = state.copyWith(error: 'OCR 텍스트가 없습니다. 먼저 텍스트를 추출해주세요.');
+      return;
+    }
+
+    state = state.copyWith(
+      isConverting: true,
+      clearError: true,
+      conversionStep: 'AI 다이어리 재생성 중...',
+    );
+
+    try {
+      final result = await _handwritingService.generateDiaryFromText(
+        extractedText: baseText,
+        style: state.style,
+        length: state.length,
+        emotion: state.emotion,
+      );
+
+      if (result != null) {
+        // 기존 extractedText는 유지하되, AI 생성 결과만 업데이트
+        final updated = HandwritingDiaryResult(
+          extractedText: baseText,
+          aiGeneratedText: result.aiGeneratedText,
+          aiEmotion: result.aiEmotion,
+          userEmotion: state.emotion ?? result.userEmotion,
+          aiEmotionConfidence: result.aiEmotionConfidence,
+          keywords: result.keywords,
+          tokensUsed: result.tokensUsed,
+          sessionId: result.sessionId,
+          imageUrl: state.result?.imageUrl ?? '',
+        );
+
+        state = state.copyWith(
+          result: updated,
+          isConverting: false,
+          conversionStep: '완료',
+          regenerationCount: (state.regenerationCount ?? 0) + 1,
+        );
+      } else {
+        state = state.copyWith(
+          isConverting: false,
+          conversionStep: null,
+          error: 'AI 다이어리 생성에 실패했습니다.',
+        );
+      }
+    } catch (e) {
+      state = state.copyWith(
+        isConverting: false,
+        conversionStep: null,
+        error: 'AI 다이어리 생성 중 오류가 발생했습니다.',
+      );
+    }
   }
 
   /// 스타일 변경

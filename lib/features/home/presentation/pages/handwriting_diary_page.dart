@@ -726,29 +726,14 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
                   : const Color(0xFFE9ECEF),
             ),
           ),
-          child: state.isEditMode
-              ? TextField(
-                  controller: notifier.aiTextController,
-                  maxLines: null,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: context.colorScheme.onSurface,
-                    height: 1.5,
-                  ),
-                  onChanged: (value) => notifier.updateAiText(value),
-                  decoration: const InputDecoration(
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                )
-              : Text(
-                  displayText,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: context.colorScheme.onSurface,
-                    height: 1.5,
-                  ),
-                ),
+          child: Text(
+            displayText,
+            style: TextStyle(
+              fontSize: 14,
+              color: context.colorScheme.onSurface,
+              height: 1.5,
+            ),
+          ),
         ),
       ],
     );
@@ -980,31 +965,66 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
         ],
       );
     } else {
-      // 일반 모드일 때: 편집하기/다이어리 저장 버튼
-      return Row(
+      // 일반 모드일 때: 편집하기/저장하기 + AI 재생성/작업 취소 버튼
+      return Column(
         children: [
-          Expanded(
-            child: ElevatedButton.icon(
-              onPressed: () => _toggleEditMode(notifier),
-              icon: const Icon(Icons.edit, size: 18),
-              label: const Text('편집하기'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: context.colorScheme.primary,
-                foregroundColor: Colors.white,
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => _toggleEditMode(notifier),
+                  icon: const Icon(Icons.edit, size: 18),
+                  label: const Text('편집하기'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: context.colorScheme.primary,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _goToEditMode(),
+                  icon: const Icon(Icons.save_alt, size: 18),
+                  label: const Text('저장하기'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: context.colorScheme.primary,
+                    side: BorderSide(color: context.colorScheme.primary),
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: () => _goToEditMode(),
-              icon: const Icon(Icons.edit, size: 18),
-              label: const Text('저장하기'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: context.colorScheme.primary,
-                side: BorderSide(color: context.colorScheme.primary),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: state.hasResult && !state.isConverting
+                      ? () => notifier.regenerateAiFromOcrOnly()
+                      : null,
+                  icon: const Icon(Icons.auto_awesome, size: 18),
+                  label: Text(
+                    (state.regenerationCount ?? 0) >= 5
+                        ? 'AI 재생성(제한됨)'
+                        : 'AI 재생성',
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: context.colorScheme.secondary,
+                    side: BorderSide(color: context.colorScheme.secondary),
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextButton.icon(
+                  onPressed: () => _cancelAndGoHome(),
+                  icon: const Icon(Icons.cancel, size: 18),
+                  label: const Text('작업 취소'),
+                  style: TextButton.styleFrom(foregroundColor: Colors.red),
+                ),
+              ),
+            ],
           ),
         ],
       );
@@ -1108,5 +1128,11 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
         );
       }
     }
+  }
+
+  /// 작업 전체 취소하고 홈으로 이동
+  void _cancelAndGoHome() {
+    ref.read(handwritingDiaryProvider.notifier).reset();
+    context.go(RoutePaths.home);
   }
 }
