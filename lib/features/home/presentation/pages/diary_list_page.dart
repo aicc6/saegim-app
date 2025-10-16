@@ -37,11 +37,69 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
   final Map<String, List<DiaryImage>> _diaryImagesCache = {};
   final Set<String> _loadingImages = {};
 
+  // 초기 로드 완료 플래그
+  bool _isInitialLoadComplete = false;
+
   @override
   void initState() {
     super.initState();
     _loadInitialData();
     _scrollController.addListener(_scrollListener);
+
+    // 쿼리 파라미터에서 새로고침 요청 확인 (안전한 방법)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final uri = GoRouter.of(context).routeInformationProvider.value.uri;
+        final refreshParam = uri.queryParameters['refresh'];
+        AppLogger.info('Current URI: ${uri.toString()}', 'DiaryListPage');
+        AppLogger.info('Refresh parameter: $refreshParam', 'DiaryListPage');
+
+        if (refreshParam != null) {
+          AppLogger.info(
+            'Refresh parameter detected: $refreshParam - executing refresh',
+            'DiaryListPage',
+          );
+          // 약간의 지연 후 새로고침 실행
+          Future.delayed(const Duration(milliseconds: 100), () {
+            if (mounted) {
+              AppLogger.info('Executing _refreshData() now', 'DiaryListPage');
+              _refreshData();
+            }
+          });
+        } else {
+          AppLogger.info('No refresh parameter found', 'DiaryListPage');
+        }
+      }
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // 초기 로드 완료 후에만 새로고침 (다른 페이지에서 돌아올 때)
+    if (_isInitialLoadComplete) {
+      // 쿼리 파라미터에서 새로고침 요청 확인
+      final uri = GoRouter.of(context).routeInformationProvider.value.uri;
+      final refreshParam = uri.queryParameters['refresh'];
+
+      if (refreshParam != null) {
+        AppLogger.info(
+          'didChangeDependencies - Refresh parameter detected: $refreshParam',
+          'DiaryListPage',
+        );
+        // 약간의 지연 후 새로고침 실행
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted) {
+            AppLogger.info(
+              'didChangeDependencies - Executing refresh',
+              'DiaryListPage',
+            );
+            _refreshData();
+          }
+        });
+      }
+    }
   }
 
   @override
@@ -58,6 +116,13 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
     }
   }
 
+  /// 데이터 새로고침 (캘린더 페이지와 동일한 방식)
+  Future<void> _refreshData() async {
+    AppLogger.info('_refreshData() called - starting refresh', 'DiaryListPage');
+    await _loadInitialData();
+    AppLogger.info('_refreshData() completed', 'DiaryListPage');
+  }
+
   /// 초기 데이터 로드
   Future<void> _loadInitialData() async {
     setState(() {
@@ -65,9 +130,15 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
       _currentPage = 1;
       _hasMore = true;
       _displayedDiaries.clear();
+      // 새로고침 시 캐시 클리어 (캘린더 페이지와 동일)
+      _diaryImagesCache.clear();
+      _loadingImages.clear();
     });
 
     await _loadDiariesFromAPI();
+
+    // 초기 로드 완료 플래그 설정
+    _isInitialLoadComplete = true;
   }
 
   /// API에서 다이어리 데이터 로드
@@ -732,34 +803,10 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
                         ).colorScheme.surface.withOpacity(0.9),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Builder(
-                        builder: (context) {
-                          // 감정 값 디버깅
-                          final emotionValue =
-                              diary.aiEmotion ?? diary.emotion ?? 'peaceful';
-
-                          // 디버깅 로그 (눈에 잘 띄게)
-                          if (diary.id.isNotEmpty) {
-                            print('\n');
-                            print('🎯🎯🎯 EMOTION DEBUG 🎯🎯🎯');
-                            print('📌 Diary ID: ${diary.id}');
-                            print(
-                              '📌 AI Emotion: ${diary.aiEmotion ?? "NULL"}',
-                            );
-                            print(
-                              '📌 User Emotion: ${diary.emotion ?? "NULL"}',
-                            );
-                            print('📌 Using Emotion: $emotionValue');
-                            print('🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯');
-                            print('\n');
-                          }
-
-                          return EmotionEmojiWidget(
-                            emotion: emotionValue,
-                            size: 20,
-                            imageScale: 1.3,
-                          );
-                        },
+                      child: EmotionEmojiWidget(
+                        emotion: diary.aiEmotion ?? diary.emotion ?? 'peaceful',
+                        size: 20,
+                        imageScale: 1.3,
                       ),
                     ),
                   ),

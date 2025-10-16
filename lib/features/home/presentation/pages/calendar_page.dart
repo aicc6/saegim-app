@@ -598,9 +598,14 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                                               .colorScheme
                                               .primary // 오늘 날짜
                                         : isSelected
-                                        ? context
-                                              .colorScheme
-                                              .primaryContainer // 선택된 날짜
+                                        ? context.isDarkMode
+                                              ? context.colorScheme.primary
+                                                    .withOpacity(
+                                                      0.35,
+                                                    ) // 다크모드에서 선택된 날짜 (더 밝게)
+                                              : context
+                                                    .colorScheme
+                                                    .primaryContainer // 라이트모드에서 선택된 날짜
                                         : isCurrentMonth
                                         ? context
                                               .inputBackground // 현재 달 날짜
@@ -631,9 +636,13 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                                                           .colorScheme
                                                           .onPrimary
                                                     : isSelected
-                                                    ? context
-                                                          .colorScheme
-                                                          .onPrimaryContainer
+                                                    ? context.isDarkMode
+                                                          ? context
+                                                                .colorScheme
+                                                                .primary // 다크모드에서 선택된 날짜 텍스트
+                                                          : context
+                                                                .colorScheme
+                                                                .onPrimaryContainer // 라이트모드에서 선택된 날짜 텍스트
                                                     : !isCurrentMonth
                                                     ? context.secondaryText
                                                           .withValues(
@@ -686,9 +695,13 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                                                                   .colorScheme
                                                                   .onPrimary
                                                             : isSelected
-                                                            ? context
-                                                                  .colorScheme
-                                                                  .onPrimaryContainer
+                                                            ? context.isDarkMode
+                                                                  ? context
+                                                                        .colorScheme
+                                                                        .primary // 다크모드에서 선택된 날짜 키워드
+                                                                  : context
+                                                                        .colorScheme
+                                                                        .onPrimaryContainer // 라이트모드에서 선택된 날짜 키워드
                                                             : context
                                                                   .primaryText,
                                                       ),
@@ -1189,41 +1202,6 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     // 여러 다이어리 목록을 개별 컨테이너로 표시
     return Column(
       children: [
-        // 헤더 (날짜와 전체 닫기 버튼)
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.grey[50],
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey[200]!),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')} 기록',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF333333),
-                ),
-              ),
-              IconButton(
-                onPressed: () {
-                  _hiddenDiaryIds.clear();
-                  ref.read(calendarNotifierProvider.notifier).selectDate(null);
-                },
-                icon: Icon(Icons.close, color: Colors.grey[400], size: 18),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 12),
-
         // 각 다이어리를 개별 컨테이너로 표시
         ...dailyDiaries.asMap().entries.map((entry) {
           final index = entry.key;
@@ -1249,11 +1227,13 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.cardBackground,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: context.isDarkMode
+                ? Colors.black.withOpacity(0.3)
+                : Colors.black.withOpacity(0.08),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -1265,13 +1245,20 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.grey[50],
+              color: context.isDarkMode
+                  ? context.colorScheme.surfaceContainerHighest
+                  : Colors.grey[50],
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(16),
                 topRight: Radius.circular(16),
               ),
               border: Border(
-                bottom: BorderSide(color: Colors.grey[200]!, width: 1),
+                bottom: BorderSide(
+                  color: context.isDarkMode
+                      ? context.borderSubtle
+                      : Colors.grey[200]!,
+                  width: 1,
+                ),
               ),
             ),
             child: Row(
@@ -1285,7 +1272,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                   }(),
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.grey[600],
+                    color: context.secondaryText,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -1307,7 +1294,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                         },
                         icon: Icon(
                           Icons.close,
-                          color: Colors.grey[400],
+                          color: context.secondaryText,
                           size: 18,
                         ),
                         padding: EdgeInsets.zero,
@@ -1347,10 +1334,10 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                   Text(
                     diary.title ??
                         '${selectedDate.month}월 ${selectedDate.day}일의 일기',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF333333),
+                      color: context.primaryText,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -1358,7 +1345,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                     diary.aiGeneratedText ?? diary.content,
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.grey[700],
+                      color: context.secondaryText,
                       height: 1.4,
                     ),
                     maxLines: 3,
@@ -1423,15 +1410,22 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8F9FA),
+                  color: context.isDarkMode
+                      ? context.colorScheme.surfaceContainerHighest
+                      : const Color(0xFFF8F9FA),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE9ECEF), width: 1),
+                  border: Border.all(
+                    color: context.isDarkMode
+                        ? context.borderSubtle
+                        : const Color(0xFFE9ECEF),
+                    width: 1,
+                  ),
                 ),
                 child: Text(
                   '#$keyword',
                   style: TextStyle(
                     fontSize: 11,
-                    color: Colors.grey[700],
+                    color: context.secondaryText,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -1455,8 +1449,8 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
               context.go('/diary/${diary.id}?from=calendar');
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF4A7C59),
-              foregroundColor: Colors.white,
+              backgroundColor: context.colorScheme.primary,
+              foregroundColor: context.colorScheme.onPrimary,
               padding: const EdgeInsets.symmetric(vertical: 12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -1500,11 +1494,13 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
       padding: const EdgeInsets.all(20),
       margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.cardBackground,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: context.isDarkMode
+                ? Colors.black.withOpacity(0.3)
+                : Colors.black.withOpacity(0.08),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -1515,16 +1511,20 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
         children: [
           Row(
             children: [
-              const Text(
+              Text(
                 '이달의 요약',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF333333),
+                  color: context.primaryText,
                 ),
               ),
               const Spacer(),
-              Icon(Icons.analytics_outlined, color: Colors.grey[400], size: 20),
+              Icon(
+                Icons.analytics_outlined,
+                color: context.secondaryText,
+                size: 20,
+              ),
             ],
           ),
           const SizedBox(height: 20),
@@ -1536,10 +1536,14 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF8F9FA),
+                    color: context.isDarkMode
+                        ? context.colorScheme.surfaceContainerHighest
+                        : const Color(0xFFF8F9FA),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: const Color(0xFFE9ECEF),
+                      color: context.isDarkMode
+                          ? context.borderSubtle
+                          : const Color(0xFFE9ECEF),
                       width: 1,
                     ),
                   ),
@@ -1550,17 +1554,17 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                         '총 기록 수',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey[600],
+                          color: context.secondaryText,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         '${calendarState.monthlyDiaries.length}개',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF333333),
+                          color: context.primaryText,
                         ),
                       ),
                     ],
@@ -1575,10 +1579,14 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF8F9FA),
+                    color: context.isDarkMode
+                        ? context.colorScheme.surfaceContainerHighest
+                        : const Color(0xFFF8F9FA),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: const Color(0xFFE9ECEF),
+                      color: context.isDarkMode
+                          ? context.borderSubtle
+                          : const Color(0xFFE9ECEF),
                       width: 1,
                     ),
                   ),
@@ -1589,7 +1597,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                         '가장 많은 감정',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey[600],
+                          color: context.secondaryText,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -1612,7 +1620,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                               '${topEmotion.count}회',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Colors.grey[600],
+                                color: context.secondaryText,
                               ),
                             ),
                           ],
@@ -1623,7 +1631,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color: Colors.grey[400],
+                            color: context.placeholderText,
                           ),
                         ),
                       ],
@@ -1641,9 +1649,16 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8F9FA),
+              color: context.isDarkMode
+                  ? context.colorScheme.surfaceContainerHighest
+                  : const Color(0xFFF8F9FA),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE9ECEF), width: 1),
+              border: Border.all(
+                color: context.isDarkMode
+                    ? context.borderSubtle
+                    : const Color(0xFFE9ECEF),
+                width: 1,
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1652,7 +1667,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                   '주요 키워드',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.grey[600],
+                    color: context.secondaryText,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -1663,22 +1678,28 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                     children: [
                       Text(
                         topKeyword.keyword,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF333333),
+                          color: context.primaryText,
                         ),
                       ),
                       Text(
                         '${topKeyword.count}회',
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: context.secondaryText,
+                        ),
                       ),
                     ],
                   ),
                 ] else ...[
                   Text(
                     '-',
-                    style: TextStyle(fontSize: 16, color: Colors.grey[400]),
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: context.placeholderText,
+                    ),
                   ),
                 ],
               ],
@@ -1733,16 +1754,20 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
           Container(
             height: 80,
             decoration: BoxDecoration(
-              color: Colors.grey[100],
+              color: context.isDarkMode
+                  ? context.colorScheme.surfaceContainerHighest
+                  : Colors.grey[100],
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Center(
+            child: Center(
               child: SizedBox(
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4A7C59)),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    context.colorScheme.primary,
+                  ),
                 ),
               ),
             ),
@@ -1777,13 +1802,19 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
         width: 80,
         height: 80,
         decoration: BoxDecoration(
-          color: Colors.grey[200],
+          color: context.isDarkMode
+              ? context.colorScheme.surfaceContainerHighest
+              : Colors.grey[200],
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFFE9ECEF)),
+          border: Border.all(
+            color: context.isDarkMode
+                ? context.borderSubtle
+                : const Color(0xFFE9ECEF),
+          ),
         ),
-        child: const Icon(
+        child: Icon(
           Icons.broken_image_outlined,
-          color: Color(0xFF9CA3AF),
+          color: context.placeholderText,
           size: 24,
         ),
       );
@@ -1796,7 +1827,11 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
         height: 80,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFFE9ECEF)),
+          border: Border.all(
+            color: context.isDarkMode
+                ? context.borderSubtle
+                : const Color(0xFFE9ECEF),
+          ),
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(8),
@@ -1807,15 +1842,17 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
               if (loadingProgress == null) return child;
 
               return Container(
-                color: Colors.grey[100],
-                child: const Center(
+                color: context.isDarkMode
+                    ? context.colorScheme.surfaceContainerHighest
+                    : Colors.grey[100],
+                child: Center(
                   child: SizedBox(
                     width: 16,
                     height: 16,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
                       valueColor: AlwaysStoppedAnimation<Color>(
-                        Color(0xFF4A7C59),
+                        context.colorScheme.primary,
                       ),
                     ),
                   ),
@@ -1824,10 +1861,12 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
             },
             errorBuilder: (context, error, stackTrace) {
               return Container(
-                color: Colors.grey[100],
-                child: const Icon(
+                color: context.isDarkMode
+                    ? context.colorScheme.surfaceContainerHighest
+                    : Colors.grey[100],
+                child: Icon(
                   Icons.broken_image_outlined,
-                  color: Color(0xFF9CA3AF),
+                  color: context.placeholderText,
                   size: 24,
                 ),
               );

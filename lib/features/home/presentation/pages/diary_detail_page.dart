@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:saegim/app/routes/route_paths.dart';
 import 'package:saegim/core/theme/theme_extensions.dart';
 import 'package:saegim/features/calendar/data/models/diary_image_model.dart';
 import 'package:saegim/features/calendar/data/models/diary_model.dart';
@@ -67,7 +68,7 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
 
   /// 감정을 한글로 변환
   String _getKoreanEmotion(String? emotion) {
-    if (emotion == null || emotion.isEmpty) return '설정되지 않음';
+    if (emotion == null || emotion.isEmpty) return '미선택';
 
     switch (emotion.toLowerCase()) {
       case 'happy':
@@ -92,13 +93,45 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
     }
   }
 
+  /// 감정을 한글->영문 코드로 변환
+  String _toEnglishEmotion(String? emotion) {
+    if (emotion == null) return '';
+    switch (emotion.trim()) {
+      case '행복':
+        return 'happy';
+      case '평온':
+        return 'peaceful';
+      case '불안':
+        return 'unrest';
+      case '분노':
+        return 'angry';
+      case '슬픔':
+        return 'sad';
+      default:
+        return emotion.trim().toLowerCase();
+    }
+  }
+
   /// 감정 선택 드롭다운 위젯
   Widget _buildEmotionDropdown() {
+    // 현재 선택된 값이 없으면 다이어리의 저장된 감정(한글일 수 있음)을 영문 코드로 변환해 사용
+    final String resolvedSelected =
+        _selectedEmotion ?? _toEnglishEmotion(diary?.emotion);
+
+    String? normalizedSelected = resolvedSelected.toLowerCase().trim();
+
     // 선택된 감정이 유효한지 확인, 기본값 설정하지 않음
     final validEmotion =
-        _selectedEmotion != null &&
-            _emotions.any((emotion) => emotion['value'] == _selectedEmotion)
-        ? _selectedEmotion
+        (_emotions.any(
+          (emotion) =>
+              (emotion['value'] ?? '').toLowerCase().trim() ==
+              normalizedSelected,
+        ))
+        ? _emotions.firstWhere(
+            (emotion) =>
+                (emotion['value'] ?? '').toLowerCase().trim() ==
+                normalizedSelected,
+          )['value']
         : null;
 
     return DropdownButton<String>(
@@ -162,11 +195,7 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
               onPressed: () {
                 final newKeyword = keywordController.text.trim();
                 if (newKeyword.isNotEmpty) {
-                  final currentKeywords = _keywordsController.text;
-                  final updatedKeywords = currentKeywords.isEmpty
-                      ? newKeyword
-                      : '$currentKeywords, $newKeyword';
-                  _keywordsController.text = updatedKeywords;
+                  _addKeyword(newKeyword);
                 }
                 Navigator.of(context).pop();
               },
@@ -179,6 +208,34 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
         );
       },
     );
+  }
+
+  /// 키워드 추가
+  void _addKeyword(String keyword) {
+    final currentKeywords = _keywordsController.text
+        .split(',')
+        .map((k) => k.trim())
+        .where((k) => k.isNotEmpty)
+        .toList();
+
+    if (!currentKeywords.contains(keyword)) {
+      currentKeywords.add(keyword);
+      _keywordsController.text = currentKeywords.join(', ');
+      setState(() {});
+    }
+  }
+
+  /// 키워드 삭제
+  void _removeKeyword(String keyword) {
+    final currentKeywords = _keywordsController.text
+        .split(',')
+        .map((k) => k.trim())
+        .where((k) => k.isNotEmpty)
+        .toList();
+
+    currentKeywords.remove(keyword);
+    _keywordsController.text = currentKeywords.join(', ');
+    setState(() {});
   }
 
   /// 이미지 선택 기능
@@ -687,27 +744,16 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
     _keywordsController.text = diary!.keywords.join(', ');
     _aiGeneratedTextController.text = diary!.aiGeneratedText ?? '';
 
-    // 사용자 감정 초기화 - AI 감정 우선, 그 다음 사용자 감정
-    final diaryEmotion = diary!.emotion ?? diary!.aiEmotion;
+    // 사용자 감정 초기화 - 한글일 수 있으므로 영문 코드로 치환 후 검증
+    final diaryEmotionRaw = diary!.emotion ?? diary!.aiEmotion;
+    final diaryEmotion = _toEnglishEmotion(diaryEmotionRaw);
 
-    print('\n');
-    print('🔧🔧🔧 EDIT CONTROLLER INIT 🔧🔧🔧');
-    print('📝 Diary ID: ${diary!.id}');
-    print('📝 diary.emotion: ${diary!.emotion ?? "NULL"}');
-    print('📝 diary.aiEmotion: ${diary!.aiEmotion ?? "NULL"}');
-    print('📝 Selected emotion: $diaryEmotion');
-
-    if (diaryEmotion != null &&
-        diaryEmotion.isNotEmpty &&
-        _emotions.any((emotion) => emotion['value'] == diaryEmotion)) {
+    if (diaryEmotion.isNotEmpty &&
+        _emotions.any((e) => e['value'] == diaryEmotion)) {
       _selectedEmotion = diaryEmotion;
-      print('✅ _selectedEmotion SET TO: $_selectedEmotion');
     } else {
       _selectedEmotion = null;
-      print('❌ _selectedEmotion SET TO NULL (no valid emotion found)');
     }
-    print('🔧🔧🔧🔧🔧🔧🔧🔧🔧🔧🔧🔧🔧');
-    print('\n');
 
     _selectedDate = diary!.diaryDate; // 날짜 초기화
   }
@@ -750,13 +796,23 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
 
   /// 편집 모드 취소
   void _cancelEditMode() {
-    setState(() {
-      isEditMode = false;
-      // 새로 추가된 이미지들 초기화
-      newImages.clear();
-    });
-    // 원래 값으로 되돌리기
-    _initializeEditControllers();
+    // 진입 경로에 따라 다른 동작 수행
+    final uri = GoRouter.of(context).routeInformationProvider.value.uri;
+    final from = uri.queryParameters['from'];
+
+    if (from == 'handwriting') {
+      // 1. 손글씨 다이어리 페이지에서 온 경우 - 해당 페이지로 돌아가기
+      context.go(RoutePaths.handwritingDiary);
+    } else {
+      // 2. 일반적인 경로에서 온 경우 - 보기 모드로 전환
+      setState(() {
+        isEditMode = false;
+        // 새로 추가된 이미지들 초기화
+        newImages.clear();
+      });
+      // 원래 값으로 되돌리기
+      _initializeEditControllers();
+    }
   }
 
   /// 변경사항 저장
@@ -805,15 +861,6 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
         }
 
         // 새 다이어리 생성 시 편집 모드에서 입력한 데이터 사용
-        print('\n');
-        print('💾💾💾 SAVING TO BACKEND 💾💾💾');
-        print('📤 userEmotion: ${_selectedEmotion ?? "NULL"}');
-        print('📤 aiEmotion: ${diary!.aiEmotion ?? "NULL"}');
-        print('📤 title: ${titleText.isNotEmpty ? titleText : "NULL"}');
-        print('📤 keywords: $keywordsList');
-        print('💾💾💾💾💾💾💾💾💾💾💾💾💾💾💾💾');
-        print('\n');
-
         final createdDiary = await DiaryApiService.instance.createDiary(
           content: diary!.content, // 필수 - 원본 콘텐츠 사용
           title: titleText.isNotEmpty ? titleText : null, // 편집 모드에서 입력한 제목 사용
@@ -902,8 +949,19 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
           }
 
           // 새 다이어리 생성인 경우 페이지 이동
+          AppLogger.info(
+            'Checking new diary condition - widget.diaryId: ${widget.diaryId}, diary.id: ${diary?.id}',
+            'DiaryDetailPage',
+          );
+
           if (widget.diaryId == 'new' ||
+              widget.diaryId.startsWith('temp_') ||
               (diary?.id.startsWith('temp_') ?? false)) {
+            AppLogger.info(
+              'New diary creation detected - preparing navigation',
+              'DiaryDetailPage',
+            );
+
             if (mounted && context.mounted) {
               final hadImages = newImages.isNotEmpty;
               ScaffoldMessenger.of(context).showSnackBar(
@@ -918,12 +976,33 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
                 ),
               );
 
-              // 약간의 지연 후 페이지 이동 (편집 모드 해제된 상태로)
+              AppLogger.info(
+                'Success message shown - waiting before navigation',
+                'DiaryDetailPage',
+              );
+
+              // 약간의 지연 후 목록 페이지로 이동 (새 다이어리 생성 후)
               await Future.delayed(const Duration(milliseconds: 500));
+
               if (mounted && context.mounted) {
-                // 편집 모드를 해제한 상태로 다이어리 상세 페이지로 이동
-                context.go('/diary/${diary!.id}');
+                // 새 다이어리 생성 후 목록 페이지로 이동하여 새로고침 트리거
+                final timestamp = DateTime.now().millisecondsSinceEpoch;
+                AppLogger.info(
+                  'Navigating to diary list after creation with refresh parameter: $timestamp',
+                  'DiaryDetailPage',
+                );
+                context.pushReplacement('/diary?refresh=$timestamp');
+              } else {
+                AppLogger.warning(
+                  'Widget not mounted during creation navigation',
+                  'DiaryDetailPage',
+                );
               }
+            } else {
+              AppLogger.warning(
+                'Widget not mounted during creation flow',
+                'DiaryDetailPage',
+              );
             }
           } else {
             // 기존 다이어리 수정인 경우
@@ -970,8 +1049,19 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
           }
 
           // 새 다이어리 생성인 경우 페이지 이동
+          AppLogger.info(
+            'Checking new diary condition (image failure) - widget.diaryId: ${widget.diaryId}, diary.id: ${diary?.id}',
+            'DiaryDetailPage',
+          );
+
           if (widget.diaryId == 'new' ||
+              widget.diaryId.startsWith('temp_') ||
               (diary?.id.startsWith('temp_') ?? false)) {
+            AppLogger.info(
+              'New diary creation detected (with image upload failure) - preparing navigation',
+              'DiaryDetailPage',
+            );
+
             if (mounted && context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
@@ -983,12 +1073,33 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
                 ),
               );
 
-              // 약간의 지연 후 페이지 이동 (편집 모드 해제된 상태로)
+              AppLogger.info(
+                'Warning message shown - waiting before navigation',
+                'DiaryDetailPage',
+              );
+
+              // 약간의 지연 후 목록 페이지로 이동 (이미지 업로드 실패 시에도)
               await Future.delayed(const Duration(milliseconds: 500));
+
               if (mounted && context.mounted) {
-                // 편집 모드를 해제한 상태로 다이어리 상세 페이지로 이동
-                context.go('/diary/${diary!.id}');
+                // 새 다이어리 생성 후 목록 페이지로 이동하여 새로고침 트리거
+                final timestamp = DateTime.now().millisecondsSinceEpoch;
+                AppLogger.info(
+                  'Navigating to diary list after creation (with image upload failure) with refresh parameter: $timestamp',
+                  'DiaryDetailPage',
+                );
+                context.pushReplacement('/diary?refresh=$timestamp');
+              } else {
+                AppLogger.warning(
+                  'Widget not mounted during creation navigation (image failure)',
+                  'DiaryDetailPage',
+                );
               }
+            } else {
+              AppLogger.warning(
+                'Widget not mounted during creation flow (image failure)',
+                'DiaryDetailPage',
+              );
             }
           } else {
             // 기존 다이어리 수정인 경우
@@ -1103,8 +1214,27 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
               backgroundColor: context.colorScheme.primary,
             ),
           );
-          // 삭제 후 이전 페이지로 돌아가기
-          _handleBackNavigation(context);
+
+          AppLogger.info(
+            'Diary deletion successful - preparing navigation',
+            'DiaryDetailPage',
+          );
+
+          // 삭제 후 약간의 지연을 두고 네비게이션 (안전한 방식)
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) {
+              AppLogger.info(
+                'About to call _handleBackNavigation',
+                'DiaryDetailPage',
+              );
+              _handleBackNavigation(context);
+            } else {
+              AppLogger.warning(
+                'Widget not mounted - skipping navigation',
+                'DiaryDetailPage',
+              );
+            }
+          });
         } else {
           _showDeleteNotAvailableDialog(context);
         }
@@ -1402,9 +1532,18 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
     if (from == 'calendar') {
       // 캘린더에서 왔다면 캘린더로 돌아가기
       context.go('/calendar');
+    } else if (from == 'handwriting') {
+      // 손글씨 변환 페이지에서 왔다면 그 페이지로 돌아가기
+      context.go(RoutePaths.handwritingDiary);
     } else {
-      // 그 외의 경우는 기본 pop 동작 (다이어리 목록으로)
-      context.pop();
+      // 그 외의 경우는 목록 페이지로 강제 새로고침과 함께 이동
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      AppLogger.info(
+        'Navigating to diary list with refresh parameter: $timestamp',
+        'DiaryDetailPage',
+      );
+      // 페이지를 완전히 새로 생성하여 새로고침 보장
+      context.pushReplacement('/diary?refresh=$timestamp');
     }
   }
 
@@ -1434,8 +1573,8 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
             Text(
               '제목',
               style: TextStyle(
-                fontSize: 14,
-                color: context.secondaryText,
+                fontSize: 15,
+                color: context.colorScheme.secondary,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -1460,10 +1599,10 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
 
             // 날짜 선택 필드
             Text(
-              '📅 날짜 선택',
+              '날짜 선택',
               style: TextStyle(
                 fontSize: 14,
-                color: context.secondaryText,
+                color: context.colorScheme.secondary,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -1518,13 +1657,16 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
               ),
             ),
           ],
-          const SizedBox(height: 8),
-          Text(
-            _selectedDate != null
-                ? '${_selectedDate!.month}월 ${_selectedDate!.day}일'
-                : formattedDate,
-            style: TextStyle(fontSize: 16, color: context.secondaryText),
-          ),
+          // 편집 모드가 아닐 때만 날짜 표시
+          if (!isEditMode) ...[
+            const SizedBox(height: 8),
+            Text(
+              _selectedDate != null
+                  ? '${_selectedDate!.month}월 ${_selectedDate!.day}일'
+                  : formattedDate,
+              style: TextStyle(fontSize: 16, color: context.secondaryText),
+            ),
+          ],
         ],
       ),
     );
@@ -1539,12 +1681,6 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
     );
     final aiEmotion = _getKoreanEmotion(diary!.aiEmotion);
 
-    // AI 감정 디버깅 로그
-    AppLogger.info(
-      '🔍 AI Emotion Debug - Raw: ${diary!.aiEmotion}, Korean: $aiEmotion, IsEmpty: ${diary!.aiEmotion?.isEmpty ?? true}',
-      'DiaryDetailPage',
-    );
-
     return Column(
       children: [
         // 감정 비교 섹션
@@ -1553,6 +1689,7 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
             // 사용자 감정
             Expanded(
               child: Container(
+                height: 120, // 고정 높이 설정
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: context.colorScheme.surface,
@@ -1572,7 +1709,7 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
                         Icon(
                           Icons.person,
                           size: 16,
-                          color: context.colorScheme.primary,
+                          color: context.colorScheme.secondary,
                         ),
                         const SizedBox(width: 6),
                         Text(
@@ -1580,7 +1717,7 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: context.colorScheme.primary,
+                            color: context.colorScheme.secondary,
                           ),
                         ),
                       ],
@@ -1588,7 +1725,7 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
                     const SizedBox(height: 8),
                     if (isEditMode) ...[
                       // 편집 모드: 감정 선택 드롭다운
-                      _buildEmotionDropdown(),
+                      Expanded(child: _buildEmotionDropdown()),
                     ] else ...[
                       // 보기 모드: 현재 감정 표시
                       Row(
@@ -1602,12 +1739,14 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
                             imageScale: 1.4,
                           ),
                           const SizedBox(width: 8),
-                          Text(
-                            userEmotion,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: context.primaryText,
+                          Expanded(
+                            child: Text(
+                              userEmotion,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: context.primaryText,
+                              ),
                             ),
                           ),
                         ],
@@ -1621,13 +1760,16 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
             // AI 분석 감정
             Expanded(
               child: Container(
+                height: 120, // 고정 높이 설정
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: context.colorScheme.surface,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: context.colorScheme.secondary.withOpacity(0.3),
-                    width: 1,
+                    color: isEditMode
+                        ? context.colorScheme.primary
+                        : context.borderSubtle,
+                    width: isEditMode ? 2 : 1,
                   ),
                 ),
                 child: Column(
@@ -1691,6 +1833,15 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
   Widget _buildKeywordSection() {
     if (diary == null) return const SizedBox.shrink();
 
+    // 편집 모드에서 현재 키워드 목록 가져오기
+    final currentKeywords = isEditMode
+        ? _keywordsController.text
+              .split(',')
+              .map((keyword) => keyword.trim())
+              .where((keyword) => keyword.isNotEmpty)
+              .toList()
+        : diary!.keywords;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -1714,9 +1865,9 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
               Text(
                 '키워드',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: context.colorScheme.primary,
+                  color: context.colorScheme.secondary,
                 ),
               ),
               if (isEditMode) ...[
@@ -1742,62 +1893,56 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
             ],
           ),
           const SizedBox(height: 12),
-          if (isEditMode) ...[
-            // 편집 모드: 텍스트 필드
-            TextField(
-              controller: _keywordsController,
-              decoration: const InputDecoration(
-                hintText: '새 키워드 입력',
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-              ),
-              style: const TextStyle(fontSize: 14),
+          if (currentKeywords.isNotEmpty) ...[
+            // 키워드 태그들 표시 (편집/보기 모드 공통)
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: currentKeywords
+                  .map(
+                    (keyword) => _buildKeywordChip(
+                      '#$keyword',
+                      isEditMode: isEditMode,
+                      onDelete: isEditMode
+                          ? () => _removeKeyword(keyword)
+                          : null,
+                    ),
+                  )
+                  .toList(),
             ),
           ] else ...[
-            // 보기 모드: 키워드 표시
-            if (diary!.keywords.isNotEmpty) ...[
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: diary!.keywords
-                    .map((keyword) => _buildKeywordChip('#$keyword'))
-                    .toList(),
+            // 키워드가 없는 경우
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: context.colorScheme.surfaceContainerHighest.withOpacity(
+                  0.3,
+                ),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: context.colorScheme.outline.withOpacity(0.2),
+                  width: 1,
+                ),
               ),
-            ] else ...[
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: context.colorScheme.surfaceContainerHighest
-                      .withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: context.colorScheme.outline.withOpacity(0.2),
-                    width: 1,
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    size: 16,
+                    color: context.secondaryText,
                   ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      size: 16,
+                  const SizedBox(width: 8),
+                  Text(
+                    '키워드가 추출되지 않았습니다.',
+                    style: TextStyle(
+                      fontSize: 12,
                       color: context.secondaryText,
+                      fontStyle: FontStyle.italic,
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '키워드가 추출되지 않았습니다.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: context.secondaryText,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ],
         ],
       ),
@@ -1805,20 +1950,48 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
   }
 
   // 키워드 칩
-  Widget _buildKeywordChip(String keyword) {
+  Widget _buildKeywordChip(
+    String keyword, {
+    bool isEditMode = false,
+    VoidCallback? onDelete,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: context.colorScheme.primaryContainer,
+        color: context.colorScheme.primary.withOpacity(0.15),
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Text(
-        keyword,
-        style: TextStyle(
-          fontSize: 12,
-          color: context.colorScheme.primary,
-          fontWeight: FontWeight.w500,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            keyword,
+            style: TextStyle(
+              fontSize: 12,
+              color: context.colorScheme.primary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          if (isEditMode && onDelete != null) ...[
+            const SizedBox(width: 6),
+            GestureDetector(
+              onTap: onDelete,
+              child: Container(
+                width: 16,
+                height: 16,
+                decoration: BoxDecoration(
+                  color: context.colorScheme.error,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.close,
+                  color: context.colorScheme.onError,
+                  size: 10,
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -1856,8 +2029,8 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
               Text(
                 'AI 생성 글',
                 style: TextStyle(
-                  fontSize: 14,
-                  color: context.secondaryText,
+                  fontSize: 15,
+                  color: context.colorScheme.secondary,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -1949,7 +2122,7 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
 
           const SizedBox(width: 12),
 
-          // 취소 버튼
+          // 취소 버튼 → 상단 뒤로가기와 동일 동작
           Container(
             width: 120,
             height: 48,
@@ -2092,7 +2265,12 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
       decoration: BoxDecoration(
         color: context.colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: context.borderSubtle),
+        border: Border.all(
+          color: isEditMode
+              ? context.colorScheme.primary
+              : context.borderSubtle,
+          width: isEditMode ? 2 : 1,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2108,9 +2286,9 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
               Text(
                 '이미지',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: context.primaryText,
+                  color: context.colorScheme.secondary,
                 ),
               ),
               const Spacer(),
@@ -2254,7 +2432,7 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: context.borderSubtle),
+              border: Border.all(color: context.borderSubtle, width: 1),
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
@@ -2350,7 +2528,7 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
         Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: context.colorScheme.primary, width: 2),
+            border: Border.all(color: context.colorScheme.primary, width: 1),
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),

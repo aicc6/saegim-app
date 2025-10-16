@@ -432,10 +432,6 @@ class _HomePageState extends ConsumerState<HomePage> {
               // 임시 DiaryEntry 생성하여 DiaryDetailPage로 전달
               final now = DateTime.now();
 
-              print('\n');
-              print('📝📝📝 MOVE TO DIARY 📝📝📝');
-              print('📥 Received emotion: "${emotion ?? "NULL"}"');
-
               // 한글 감정을 영어로 변환
               String? convertedEmotion;
               if (emotion != null && emotion.isNotEmpty) {
@@ -453,12 +449,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   'sad': 'sad',
                 };
                 convertedEmotion = emotionMap[emotion.trim()] ?? emotion;
-                print('✅ Converted emotion: "$convertedEmotion"');
-              } else {
-                print('❌ Emotion is empty or null, will be saved as NULL');
               }
-              print('📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝');
-              print('\n');
 
               final userInput = _promptController.text.trim();
               final contentText = userInput.isNotEmpty ? userInput : content;

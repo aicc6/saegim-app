@@ -147,7 +147,7 @@ class WithdrawAccountRequest {
   final String? detailedReason;
 
   const WithdrawAccountRequest({
-    required this.password,
+    this.password = '',
     this.reason = '기타',
     this.detailedReason,
   });

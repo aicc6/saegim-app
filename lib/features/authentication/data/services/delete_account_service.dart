@@ -16,7 +16,7 @@ class DeleteAccountService {
   /// Returns [bool] 계정 탈퇴 성공 여부
   /// Throws [DioException] API 호출 실패 시
   static Future<bool> deleteAccount({
-    required String password,
+    String? password,
     String? reason,
   }) async {
     try {
@@ -25,7 +25,7 @@ class DeleteAccountService {
       final response = await _dio.delete(
         '$_baseUrl/delete-account',
         data: {
-          'password': password,
+          if (password != null && password.isNotEmpty) 'password': password,
           if (reason != null && reason.isNotEmpty) 'reason': reason,
         },
       );

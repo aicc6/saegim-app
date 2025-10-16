@@ -260,7 +260,7 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
   }
 
   Future<bool> withdrawAccount({
-    required String password,
+    String password = '',
     String reason = '기타',
     String? detailedReason,
   }) async {

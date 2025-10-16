@@ -16,44 +16,6 @@ class DiaryApiService {
   /// 중앙화된 Dio 인스턴스 사용 (CookieManager가 자동으로 쿠키 기반 인증 처리)
   Dio get dio => DioClient.instance.dio;
 
-  /// 한국어 또는 영어 감정을 영어로 변환
-  String _convertKoreanEmotionToEnglish(String emotion) {
-    final emotionLower = emotion.trim().toLowerCase();
-
-    switch (emotionLower) {
-      // 한글
-      case '행복':
-      case '기쁨':
-        return 'happy';
-      case '평온':
-        return 'peaceful';
-      case '불안':
-        return 'unrest';
-      case '분노':
-      case '화남':
-        return 'angry';
-      case '슬픔':
-        return 'sad';
-      // 영어 (이미 영어인 경우 그대로 반환)
-      case 'happy':
-        return 'happy';
-      case 'peaceful':
-        return 'peaceful';
-      case 'unrest':
-      case 'anxious':
-        return 'unrest';
-      case 'angry':
-        return 'angry';
-      case 'sad':
-        return 'sad';
-      default:
-        print(
-          '⚠️ DiaryApiService: Unknown emotion "$emotion", using "peaceful"',
-        );
-        return 'peaceful'; // 기본값
-    }
-  }
-
   /// 필터링 조건으로 다이어리 목록 조회 (페이지네이션 지원)
   ///
   /// [page]: 페이지 번호 (1부터 시작)
@@ -652,13 +614,10 @@ class DiaryApiService {
         diaryData['uploaded_images'] = uploadedImages;
       }
 
-      print('\n');
-      print('🚀🚀🚀 CREATE DIARY API CALL 🚀🚀🚀');
-      print('📤 user_emotion: ${diaryData['user_emotion'] ?? "NOT SET"}');
-      print('📤 ai_emotion: ${diaryData['ai_emotion'] ?? "NOT SET"}');
-      print('📤 Full data: $diaryData');
-      print('🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀');
-      print('\n');
+      AppLogger.info(
+        'Creating diary with user_emotion: ${diaryData['user_emotion']}, ai_emotion: ${diaryData['ai_emotion']}',
+        'DiaryApiService',
+      );
 
       final response = await dio.post('/api/diary', data: diaryData);
 
@@ -683,14 +642,6 @@ class DiaryApiService {
             responseData = responseMap;
           }
         }
-
-        print('\n');
-        print('📥📥📥 BACKEND RESPONSE 📥📥📥');
-        print('🔙 user_emotion: ${responseData['user_emotion'] ?? "NULL"}');
-        print('🔙 ai_emotion: ${responseData['ai_emotion'] ?? "NULL"}');
-        print('🔙 Full response: $responseData');
-        print('📥📥📥📥📥📥📥📥📥📥📥📥📥📥📥📥📥');
-        print('\n');
 
         if (responseData.isNotEmpty) {
           return DiaryEntry.fromJson(responseData);

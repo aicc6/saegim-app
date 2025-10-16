@@ -40,7 +40,7 @@ void main() {
 
       final result = await authNotifier.login('test@example.com', 'password123');
 
-      expect(result, true);
+      expect(result.isSuccess, true);
 
       final authState = container.read(authNotifierProvider);
       expect(authState.isAuthenticated, true);

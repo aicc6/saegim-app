@@ -9,7 +9,6 @@ import 'package:saegim/core/theme/theme_extensions.dart';
 import 'package:saegim/features/home/data/services/handwriting_diary_service.dart';
 import 'package:saegim/features/home/presentation/riverpod/create_notifier.dart';
 import 'package:saegim/features/home/presentation/riverpod/handwriting_diary_notifier.dart';
-import 'package:saegim/shared/utils/app_logger.dart';
 import 'package:saegim/shared/widgets/common_app_bar.dart';
 
 /// 손글씨 이미지를 AI 다이어리로 변환하는 페이지
@@ -55,15 +54,15 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
               ),
               const SizedBox(height: 24),
 
-              // 감정 선택 섹션 (선택사항)
-              _buildEmotionSelectionSection(
+              // 길이 선택 섹션 (먼저 표시)
+              _buildLengthSelectionSection(
                 handwritingState,
                 handwritingNotifier,
               ),
               const SizedBox(height: 24),
 
-              // 길이 선택 섹션
-              _buildLengthSelectionSection(
+              // 감정 선택 섹션 (선택사항)
+              _buildEmotionSelectionSection(
                 handwritingState,
                 handwritingNotifier,
               ),
@@ -158,43 +157,45 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
   Widget _buildImagePickerButton(HandwritingDiaryNotifier notifier) {
     return InkWell(
       onTap: () => _showImageSourceDialog(notifier),
-      child: Container(
-        height: 200,
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: context.colorScheme.primary.withOpacity(0.3),
-            width: 2,
-            style: BorderStyle.solid,
-          ),
-          borderRadius: BorderRadius.circular(12),
-          color: context.colorScheme.primary.withOpacity(0.05),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.add_photo_alternate_outlined,
-              size: 48,
-              color: context.colorScheme.primary,
+      child: AspectRatio(
+        aspectRatio: 16 / 9, // 가로세로 비율을 16:9로 설정
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: context.colorScheme.primary.withOpacity(0.3),
+              width: 2,
+              style: BorderStyle.solid,
             ),
-            const SizedBox(height: 12),
-            Text(
-              '손글씨 이미지 선택',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
+            borderRadius: BorderRadius.circular(12),
+            color: context.colorScheme.primary.withOpacity(0.05),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.add_photo_alternate_outlined,
+                size: 48,
                 color: context.colorScheme.primary,
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '카메라로 촬영하거나 갤러리에서 선택',
-              style: TextStyle(
-                fontSize: 12,
-                color: context.colorScheme.onSurface.withOpacity(0.6),
+              const SizedBox(height: 12),
+              Text(
+                '손글씨 이미지 선택',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: context.colorScheme.primary,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 4),
+              Text(
+                '카메라로 촬영하거나 갤러리에서 선택',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: context.colorScheme.onSurface.withOpacity(0.6),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -206,17 +207,23 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
   ) {
     return Column(
       children: [
-        Container(
-          height: 200,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: context.colorScheme.primary.withOpacity(0.3),
+        AspectRatio(
+          aspectRatio: 16 / 9, // 가로세로 비율을 16:9로 설정
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: context.colorScheme.primary.withOpacity(0.3),
+              ),
             ),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.file(image, fit: BoxFit.cover, width: double.infinity),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.file(
+                image,
+                fit: BoxFit.cover,
+                width: double.infinity,
+              ),
+            ),
           ),
         ),
         const SizedBox(height: 12),
@@ -237,7 +244,7 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
             const SizedBox(width: 12),
             Expanded(
               child: ElevatedButton.icon(
-                onPressed: () => notifier.clearResult(),
+                onPressed: () => notifier.clearSelectedImage(),
                 icon: const Icon(Icons.close, size: 18),
                 label: const Text('제거'),
                 style: ElevatedButton.styleFrom(
@@ -320,8 +327,9 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
     HandwritingDiaryState state,
     HandwritingDiaryNotifier notifier,
   ) {
-    final emotions = ['', '행복', '평온', '불안', '분노', '슬픔'];
-    final emotionLabels = ['자동 분석', '행복', '평온', '불안', '분노', '슬픔'];
+    // '자동 분석' 제거
+    final emotions = ['행복', '평온', '불안', '분노', '슬픔'];
+    final emotionLabels = ['행복', '평온', '불안', '분노', '슬픔'];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -342,23 +350,6 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
             color: context.colorScheme.onSurface.withOpacity(0.6),
           ),
         ),
-        const SizedBox(height: 4),
-        Text(
-          '현재 선택된 감정: ${state.emotion ?? "없음"}',
-          style: TextStyle(
-            fontSize: 10,
-            color: context.colorScheme.primary,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        Text(
-          '디버그 - state.emotion: "${state.emotion}", 평온 isSelected: ${state.emotion == '평온'}',
-          style: TextStyle(
-            fontSize: 8,
-            color: Colors.red,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
         const SizedBox(height: 12),
         Wrap(
           spacing: 8,
@@ -367,19 +358,15 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
             final emotion = entry.value;
             final label = emotionLabels[entry.key];
             final isSelected = state.emotion == emotion;
-            AppLogger.info(
-              'Emotion button: $emotion, state.emotion: ${state.emotion}, isSelected: $isSelected',
-              'HandwritingDiaryPage',
-            );
 
             return InkWell(
               onTap: () {
-                final selectedEmotion = emotion.isEmpty ? null : emotion;
-                AppLogger.info(
-                  'Emotion button tapped: $selectedEmotion (label: $label), current state.emotion: ${state.emotion}',
-                  'HandwritingDiaryPage',
-                );
-                notifier.setEmotion(selectedEmotion);
+                // 이미 선택된 감정을 다시 클릭하면 선택 취소
+                if (isSelected) {
+                  notifier.setEmotion(null);
+                } else {
+                  notifier.setEmotion(emotion);
+                }
               },
               child: Container(
                 padding: const EdgeInsets.symmetric(
@@ -759,8 +746,6 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
                     color: context.colorScheme.onSurface,
                     height: 1.5,
                   ),
-                  maxLines: 5,
-                  overflow: TextOverflow.ellipsis,
                 ),
         ),
       ],
@@ -1010,9 +995,9 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
           const SizedBox(width: 12),
           Expanded(
             child: OutlinedButton.icon(
-              onPressed: () => _saveAsDiary(),
-              icon: const Icon(Icons.save, size: 18),
-              label: const Text('다이어리로 이동'),
+              onPressed: () => _goToEditMode(),
+              icon: const Icon(Icons.edit, size: 18),
+              label: const Text('저장하기'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: context.colorScheme.primary,
                 side: BorderSide(color: context.colorScheme.primary),
@@ -1062,7 +1047,8 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
     );
   }
 
-  Future<void> _saveAsDiary() async {
+  /// 편집 모드로 이동 (실제 저장은 하지 않음)
+  Future<void> _goToEditMode() async {
     final state = ref.read(handwritingDiaryProvider);
     if (!state.hasResult) return;
 
@@ -1085,14 +1071,14 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
       if (mounted) {
         if (tempEntry != null) {
           // 다이어리 상세 페이지로 이동 (편집 모드로 시작)
-          context.go(
-            RoutePaths.diaryDetailPath(tempEntry.id),
-            extra: tempEntry,
-          );
+          // 실제 저장은 diary_detail_page에서 편집 모드로만 가능
+          final targetPath =
+              '${RoutePaths.diaryDetailPath(tempEntry.id)}?from=handwriting';
+          context.go(targetPath, extra: tempEntry);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('다이어리 생성에 실패했습니다. 다시 시도해주세요.'),
+              content: Text('편집 모드로 이동할 수 없습니다. 다시 시도해주세요.'),
               backgroundColor: Colors.red,
             ),
           );
