@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:saegim/app/routes/route_paths.dart';
+import 'package:saegim/core/theme/app_colors.dart';
 import 'package:saegim/core/theme/theme_extensions.dart';
 import 'package:saegim/features/home/data/services/handwriting_diary_service.dart';
 import 'package:saegim/features/home/presentation/riverpod/create_notifier.dart';
@@ -36,10 +37,6 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 상단 설명
-              _buildHeader(),
-              const SizedBox(height: 24),
-
               // 이미지 선택 섹션
               _buildImageSelectionSection(
                 handwritingState,
@@ -47,22 +44,8 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
               ),
               const SizedBox(height: 24),
 
-              // 스타일 및 길이 선택 섹션
-              _buildStyleSelectionSection(
-                handwritingState,
-                handwritingNotifier,
-              ),
-              const SizedBox(height: 24),
-
-              // 길이 선택 섹션 (먼저 표시)
-              _buildLengthSelectionSection(
-                handwritingState,
-                handwritingNotifier,
-              ),
-              const SizedBox(height: 24),
-
-              // 감정 선택 섹션 (선택사항)
-              _buildEmotionSelectionSection(
+              // 통합된 선택 섹션 (첫 번째 사진 구조)
+              _buildUnifiedSelectionSection(
                 handwritingState,
                 handwritingNotifier,
               ),
@@ -86,50 +69,6 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
     );
   }
 
-  Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: context.isDarkMode
-            ? const Color(0xFF2A2A2A)
-            : const Color(0xFFF8F9FA),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: context.isDarkMode
-              ? const Color(0xFF404040)
-              : const Color(0xFFE9ECEF),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.edit, color: context.colorScheme.primary, size: 24),
-              const SizedBox(width: 8),
-              Text(
-                '손글씨 다이어리 변환',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: context.colorScheme.onSurface,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '손글씨 이미지를 업로드하면 AI가 텍스트를 추출하고 다이어리로 변환해드립니다.',
-            style: TextStyle(
-              fontSize: 14,
-              color: context.colorScheme.onSurface.withOpacity(0.7),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildImageSelectionSection(
     HandwritingDiaryState state,
     HandwritingDiaryNotifier notifier,
@@ -141,8 +80,8 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
           '손글씨 이미지',
           style: TextStyle(
             fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: context.colorScheme.onSurface,
+            fontWeight: FontWeight.w500,
+            color: context.colorScheme.primary,
           ),
         ),
         const SizedBox(height: 12),
@@ -155,11 +94,12 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
   }
 
   Widget _buildImagePickerButton(HandwritingDiaryNotifier notifier) {
-    return InkWell(
-      onTap: () => _showImageSourceDialog(notifier),
-      child: AspectRatio(
-        aspectRatio: 16 / 9, // 가로세로 비율을 16:9로 설정
+    return Center(
+      child: InkWell(
+        onTap: () => _showImageSourceDialog(notifier),
         child: Container(
+          height: 150, // 고정 높이로 크기 직접 제한
+          width: 250,
           decoration: BoxDecoration(
             border: Border.all(
               color: context.colorScheme.primary.withOpacity(0.3),
@@ -174,14 +114,14 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
             children: [
               Icon(
                 Icons.add_photo_alternate_outlined,
-                size: 48,
+                size: 36, // 아이콘 크기 줄임 (48 -> 36)
                 color: context.colorScheme.primary,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8), // 간격 줄임 (12 -> 8)
               Text(
                 '손글씨 이미지 선택',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 14, // 텍스트 크기 줄임 (16 -> 14)
                   fontWeight: FontWeight.w500,
                   color: context.colorScheme.primary,
                 ),
@@ -207,9 +147,10 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
   ) {
     return Column(
       children: [
-        AspectRatio(
-          aspectRatio: 16 / 9, // 가로세로 비율을 16:9로 설정
+        Center(
           child: Container(
+            height: 150, // 고정 높이로 크기 직접 제한
+            width: 250,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
@@ -260,7 +201,30 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
     );
   }
 
-  Widget _buildStyleSelectionSection(
+  Widget _buildUnifiedSelectionSection(
+    HandwritingDiaryState state,
+    HandwritingDiaryNotifier notifier,
+  ) {
+    return Column(
+      children: [
+        // 첫 번째 행: 문체 선택과 길이 선택
+        Row(
+          children: [
+            // 문체 선택
+            Expanded(child: _buildStyleSelection(state, notifier)),
+            const SizedBox(width: 16),
+            // 길이 선택
+            Expanded(child: _buildLengthSelection(state, notifier)),
+          ],
+        ),
+        const SizedBox(height: 24),
+        // 두 번째 행: 감정 선택
+        _buildEmotionSelection(state, notifier),
+      ],
+    );
+  }
+
+  Widget _buildStyleSelection(
     HandwritingDiaryState state,
     HandwritingDiaryNotifier notifier,
   ) {
@@ -268,49 +232,57 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '작성 스타일',
+          '문체 선택',
           style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: context.colorScheme.onSurface,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: context.isDarkMode
+                ? AppColors.darkTextSecondary
+                : AppColors.textSecondary,
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         Row(
           children: WritingStyle.values.map((style) {
             final isSelected = state.style == style;
             return Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 2),
                 child: InkWell(
                   onTap: () => notifier.setStyle(style),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 12,
-                      horizontal: 8,
-                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? context.colorScheme.primary
+                          ? (context.isDarkMode
+                                ? AppColors.darkInteractivePrimary
+                                : AppColors.sage50)
                           : (context.isDarkMode
-                                ? const Color(0xFF2A2A2A)
-                                : Colors.grey.shade100),
+                                ? AppColors.darkBackgroundSecondary
+                                : Colors.white),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
                         color: isSelected
-                            ? context.colorScheme.primary
-                            : Colors.grey.shade300,
+                            ? (context.isDarkMode
+                                  ? AppColors.darkInteractivePrimary
+                                  : AppColors.sage50)
+                            : (context.isDarkMode
+                                  ? AppColors.darkBorderStrong
+                                  : AppColors.borderStrong),
+                        width: 1,
                       ),
                     ),
                     child: Text(
                       style.label,
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 13,
                         fontWeight: FontWeight.w500,
                         color: isSelected
                             ? Colors.white
-                            : context.colorScheme.onSurface,
+                            : (context.isDarkMode
+                                  ? AppColors.darkTextPrimary
+                                  : AppColors.textPrimary),
                       ),
                     ),
                   ),
@@ -323,154 +295,184 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
     );
   }
 
-  Widget _buildEmotionSelectionSection(
+  Widget _buildLengthSelection(
     HandwritingDiaryState state,
     HandwritingDiaryNotifier notifier,
   ) {
-    // '자동 분석' 제거
-    final emotions = ['행복', '평온', '불안', '분노', '슬픔'];
-    final emotionLabels = ['행복', '평온', '불안', '분노', '슬픔'];
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '감정 (선택사항)',
+          '길이 선택',
           style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: context.colorScheme.onSurface,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: context.isDarkMode
+                ? AppColors.darkTextSecondary
+                : AppColors.textSecondary,
           ),
         ),
         const SizedBox(height: 8),
-        Text(
-          '선택하지 않으면 AI가 자동으로 감정을 분석합니다.',
-          style: TextStyle(
-            fontSize: 12,
-            color: context.colorScheme.onSurface.withOpacity(0.6),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: emotions.asMap().entries.map((entry) {
-            final emotion = entry.value;
-            final label = emotionLabels[entry.key];
-            final isSelected = state.emotion == emotion;
-
-            return InkWell(
-              onTap: () {
-                // 이미 선택된 감정을 다시 클릭하면 선택 취소
-                if (isSelected) {
-                  notifier.setEmotion(null);
-                } else {
-                  notifier.setEmotion(emotion);
-                }
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 8,
-                  horizontal: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? context.colorScheme.primary
-                      : (context.isDarkMode
-                            ? const Color(0xFF2A2A2A)
-                            : Colors.grey.shade100),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: isSelected
-                        ? context.colorScheme.primary
-                        : Colors.grey.shade300,
-                  ),
-                ),
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: isSelected
-                        ? Colors.white
-                        : context.colorScheme.onSurface,
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLengthSelectionSection(
-    HandwritingDiaryState state,
-    HandwritingDiaryNotifier notifier,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '글의 길이',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: context.colorScheme.onSurface,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          decoration: BoxDecoration(
-            color: context.isDarkMode
-                ? const Color(0xFF2A2A2A)
-                : Colors.grey.shade100,
-            border: Border.all(color: context.borderSubtle),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            children: LengthOption.values.map((length) {
-              final isSelected = state.length == length;
-              return Expanded(
+        Row(
+          children: LengthOption.values.map((length) {
+            final isSelected = state.length == length;
+            return Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2),
                 child: InkWell(
                   onTap: () => notifier.setLength(length),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? context.colorScheme.primary
-                          : context.colorScheme.surface,
-                      borderRadius: length == LengthOption.short
-                          ? const BorderRadius.only(
-                              topLeft: Radius.circular(8),
-                              bottomLeft: Radius.circular(8),
-                            )
-                          : length == LengthOption.long
-                          ? const BorderRadius.only(
-                              topRight: Radius.circular(8),
-                              bottomRight: Radius.circular(8),
-                            )
-                          : null,
+                          ? (context.isDarkMode
+                                ? AppColors.darkInteractivePrimary
+                                : AppColors.sage50)
+                          : (context.isDarkMode
+                                ? AppColors.darkBackgroundSecondary
+                                : Colors.white),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isSelected
+                            ? (context.isDarkMode
+                                  ? AppColors.darkInteractivePrimary
+                                  : AppColors.sage50)
+                            : (context.isDarkMode
+                                  ? AppColors.darkBorderStrong
+                                  : AppColors.borderStrong),
+                        width: 1,
+                      ),
                     ),
                     child: Text(
                       length.label,
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 13,
                         fontWeight: FontWeight.w500,
                         color: isSelected
                             ? Colors.white
-                            : context.colorScheme.onSurface,
+                            : (context.isDarkMode
+                                  ? AppColors.darkTextPrimary
+                                  : AppColors.textPrimary),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmotionSelection(
+    HandwritingDiaryState state,
+    HandwritingDiaryNotifier notifier,
+  ) {
+    final emotions = ['행복', '평온', '불안', '분노', '슬픔'];
+    final emotionEmojis = ['😊', '😌', '😨', '😠', '😢'];
+
+    // home_page와 동일한 감정별 배경색 사용
+    final emotionColors = {
+      '행복': const Color.fromARGB(255, 255, 250, 203), // yellow
+      '평온': const Color.fromARGB(255, 189, 217, 184), // green
+      '불안': const Color.fromARGB(162, 247, 206, 255), // purple
+      '분노': const Color.fromARGB(255, 255, 221, 169), // orange
+      '슬픔': const Color.fromARGB(255, 227, 247, 255), // sky
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '감정을 선택해주세요 (선택 사항)',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: context.isDarkMode
+                ? AppColors.darkTextSecondary
+                : AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(emotions.length, (index) {
+              final emotion = emotions[index];
+              final isSelected = state.emotion == emotion;
+              final backgroundColor =
+                  emotionColors[emotion] ?? AppColors.borderStrong;
+
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: GestureDetector(
+                  onTap: () => notifier.setEmotion(emotion),
+                  child: Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isSelected
+                            ? context.colorScheme.primary
+                            : context.borderSubtle,
+                        width: isSelected ? 3 : 1,
+                      ),
+                      color: isSelected
+                          ? backgroundColor
+                          : context.colorScheme.surface,
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: context.colorScheme.primary.withAlpha(
+                                  38,
+                                ),
+                                blurRadius: 3,
+                                spreadRadius: 1,
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Center(
+                      child: Text(
+                        emotionEmojis[index],
+                        style: TextStyle(
+                          fontSize: isSelected ? 28 : 22,
+                          color: isSelected
+                              ? _getColorFromStyle(emotion)
+                              : context.primaryText,
+                        ),
                       ),
                     ),
                   ),
                 ),
               );
-            }).toList(),
+            }),
           ),
         ),
       ],
     );
+  }
+
+  /// 감정에 따른 텍스트 색상 반환
+  Color _getColorFromStyle(String emotion) {
+    switch (emotion) {
+      case '행복':
+        return const Color.fromARGB(255, 255, 250, 203);
+      case '평온':
+        return const Color.fromARGB(255, 227, 247, 255);
+      case '불안':
+        return const Color.fromARGB(255, 255, 221, 169);
+      case '분노':
+        return const Color.fromARGB(162, 247, 206, 255);
+      case '슬픔':
+        return const Color.fromARGB(255, 227, 247, 255);
+      default:
+        return Colors.grey;
+    }
   }
 
   String _getLoadingMessage(HandwritingDiaryState state) {
