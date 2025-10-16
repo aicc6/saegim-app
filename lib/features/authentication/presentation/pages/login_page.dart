@@ -309,13 +309,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final success = await ref
+    final result = await ref
         .read(authNotifierProvider.notifier)
         .login(_emailController.text.trim(), _passwordController.text);
 
     if (!mounted) return;
 
-    if (success) {
+    if (result.isSuccess) {
       final authState = ref.read(authNotifierProvider);
 
       // 계정 복구 알림 표시
@@ -325,10 +325,24 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         // 로그인 후 글쓰기 페이지(홈페이지)로 이동
         context.go(RoutePaths.home);
       }
+    } else if (result.isAccountDeleted) {
+      final email = result.email ?? _emailController.text.trim();
+      _showAccountRestoreDialog(email);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result.errorMessage ??
+                '해당 계정은 탈퇴된 상태입니다. 계정 복구를 진행해주세요.',
+          ),
+          backgroundColor: context.colorScheme.error,
+        ),
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('로그인에 실패했습니다. 다시 시도해주세요.'),
+          content: Text(
+            result.errorMessage ?? '로그인에 실패했습니다. 다시 시도해주세요.',
+          ),
           backgroundColor: context.colorScheme.error,
         ),
       );
@@ -389,23 +403,67 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   Future<void> _handleGoogleLogin() async {
-    final success = await ref
+    final result = await ref
         .read(authNotifierProvider.notifier)
         .loginWithGoogle();
 
     if (!mounted) return;
 
-    if (success) {
+    if (result.isSuccess) {
       // 로그인 후 홈페이지로 이동
       context.go(RoutePaths.home);
+    } else if (result.isAccountDeleted) {
+      // 계정이 탈퇴된 상태인 경우 복구 동의 다이얼로그 표시
+      _showAccountRestoreDialog(result.userEmail ?? '');
     } else {
-      final authState = ref.read(authNotifierProvider);
+      // 일반적인 로그인 실패
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(authState.errorMessage ?? '구글 로그인에 실패했습니다.'),
+          content: Text(result.errorMessage ?? '구글 로그인에 실패했습니다.'),
           backgroundColor: context.colorScheme.error,
         ),
       );
     }
+  }
+
+  /// 계정 복구 동의 다이얼로그 표시
+  void _showAccountRestoreDialog(String email) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('계정 복구'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('이 계정($email)은 탈퇴된 상태입니다.'),
+            const SizedBox(height: 12),
+            const Text('30일 이내에 로그인하면 계정을 다시 복구할 수 있습니다.'),
+            const SizedBox(height: 12),
+            const Text(
+              '• "복구하기"를 선택하면 인증 메일이 발송됩니다\n'
+              '• 이메일에서 6자리 복구 코드를 입력하면 계정이 복구됩니다\n'
+              '• 복구 완료 후 다시 로그인하실 수 있습니다',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // 이메일 인증 기반 복구 플로우로 이동
+              context.go('${RoutePaths.authRestoreAccount}?email=$email');
+            },
+            child: const Text('복구하기'),
+          ),
+        ],
+      ),
+    );
   }
 }

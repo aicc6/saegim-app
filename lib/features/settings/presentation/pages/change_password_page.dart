@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:saegim/app/routes/route_paths.dart';
 import 'package:saegim/core/services/auth_storage_service.dart';
 import 'package:saegim/features/authentication/data/services/change_password_service.dart';
+import 'package:saegim/features/authentication/presentation/riverpod/auth_notifier.dart';
 import 'package:saegim/shared/widgets/common_app_bar.dart';
 
 class ChangePasswordPage extends ConsumerStatefulWidget {
@@ -60,13 +63,19 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
       );
 
       if (success && mounted) {
+        // 보안을 위해 비밀번호 변경 후 즉시 로그아웃 처리
+        await ref.read(authNotifierProvider.notifier).logout();
+
+        if (!mounted) return;
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('비밀번호가 성공적으로 변경되었습니다.'),
+            content: Text('비밀번호가 변경되어 다시 로그인해주세요.'),
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.of(context).pop();
+
+        context.go(RoutePaths.authLogin);
       }
     } on ChangePasswordException catch (e) {
       if (mounted) {

@@ -964,33 +964,44 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
                   const SizedBox(height: 12),
 
-                  // Password input - more compact
-                  TextField(
-                    controller: _withdrawPasswordController,
-                    obscureText: true,
-                    style: const TextStyle(fontSize: 13),
-                    decoration: InputDecoration(
-                      labelText: '현재 비밀번호',
-                      labelStyle: const TextStyle(fontSize: 12),
-                      hintText: '비밀번호 입력',
-                      hintStyle: const TextStyle(fontSize: 12),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 8,
-                      ),
-                      prefixIcon: Icon(
-                        Icons.lock_outline,
-                        size: 16,
+                  if (_isGoogleUser) ...[
+                    Text(
+                      '소셜 로그인 계정은 비밀번호 입력 없이 탈퇴할 수 있어요.',
+                      style: TextStyle(
+                        fontSize: 12,
                         color: context.secondaryText,
                       ),
-                      isDense: true,
+                      textAlign: TextAlign.center,
                     ),
-                  ),
-
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 16),
+                  ] else ...[
+                    // Password input - more compact
+                    TextField(
+                      controller: _withdrawPasswordController,
+                      obscureText: true,
+                      style: const TextStyle(fontSize: 13),
+                      decoration: InputDecoration(
+                        labelText: '현재 비밀번호',
+                        labelStyle: const TextStyle(fontSize: 12),
+                        hintText: '비밀번호 입력',
+                        hintStyle: const TextStyle(fontSize: 12),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        prefixIcon: Icon(
+                          Icons.lock_outline,
+                          size: 16,
+                          color: context.secondaryText,
+                        ),
+                        isDense: true,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
 
                   // Action buttons - more compact
                   Row(
@@ -1014,9 +1025,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       Expanded(
                         child: FilledButton(
                           onPressed: () async {
-                            final password = _withdrawPasswordController.text
-                                .trim();
-                            if (password.isEmpty) {
+                            final isGoogleUser = _isGoogleUser;
+                            final password = isGoogleUser
+                                ? ''
+                                : _withdrawPasswordController.text.trim();
+
+                            if (!isGoogleUser && password.isEmpty) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: const Text('비밀번호를 입력해주세요.'),

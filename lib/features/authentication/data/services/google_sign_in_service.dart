@@ -14,9 +14,7 @@ class GoogleSignInService {
     _dio = DioClient.instance.dio;
     final clientId = dotenv.env['GOOGLE_ANDROID_CLIENT_ID'];
     AppLogger.info('Google Client ID: ${clientId?.substring(0, 10)}...', _tag);
-    _googleSignIn = GoogleSignIn(
-      scopes: ['email', 'profile'],
-    );
+    _googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
   }
 
   static GoogleSignInService get instance => _instance;
@@ -42,10 +40,7 @@ class GoogleSignInService {
 
       if (googleUser == null) {
         AppLogger.info('사용자가 Google 로그인을 취소했습니다', _tag);
-        return GoogleSignInResult(
-          success: false,
-          message: '로그인이 취소되었습니다.',
-        );
+        return GoogleSignInResult(success: false, message: '로그인이 취소되었습니다.');
       }
 
       // Google 인증 정보 가져오기
@@ -74,6 +69,17 @@ class GoogleSignInService {
       } else {
         // 서버 인증 실패 시 Google에서 로그아웃
         await _googleSignIn.signOut();
+
+        // 계정이 탈퇴된 상태인지 확인
+        if (serverResponse.isAccountDeleted == true) {
+          return GoogleSignInResult(
+            success: false,
+            message: '계정이 탈퇴된 상태입니다.',
+            isAccountDeleted: true,
+            userEmail: googleUser.email,
+          );
+        }
+
         return serverResponse;
       }
     } catch (e, stackTrace) {
@@ -101,8 +107,9 @@ class GoogleSignInService {
   /// 서버에 Google 토큰으로 인증 요청
   Future<GoogleSignInResult> _authenticateWithServer(
     String idToken,
-    GoogleSignInAccount googleUser,
-  ) async {
+    GoogleSignInAccount googleUser, {
+    bool isRestore = false,
+  }) async {
     try {
       AppLogger.info('서버에 Google 토큰으로 인증 요청', _tag);
 
@@ -113,6 +120,7 @@ class GoogleSignInService {
           'email': googleUser.email,
           'display_name': googleUser.displayName,
           'photo_url': googleUser.photoUrl,
+          'is_restore': isRestore, // 복구 모드 플래그 추가
         },
       );
 
@@ -185,9 +193,8 @@ class GoogleSignInService {
 
           // FCM 토큰 서버 등록
           try {
-            final fcmRegistered = await FCMMessageService.instance.registerTokenOnLogin(
-              userId: userId,
-            );
+            final fcmRegistered = await FCMMessageService.instance
+                .registerTokenOnLogin(userId: userId);
             AppLogger.info('FCM 토큰 등록 결과: $fcmRegistered', _tag);
           } catch (e) {
             AppLogger.error('FCM 토큰 등록 실패', error: e, tag: _tag);
@@ -196,11 +203,22 @@ class GoogleSignInService {
 
           AppLogger.info('Google 로그인 완료: ${googleUser.email}', _tag);
 
+          // AuthState 생성
+          final authState = AuthState(
+            userId: userId ?? '',
+            userEmail: userEmail ?? '',
+            accessToken: serverAccessToken,
+            refreshToken: refreshToken,
+          );
+
           return GoogleSignInResult(
             success: true,
-            message: '구글 로그인이 완료되었습니다.',
+            message: isRestore
+                ? 'Google 계정이 성공적으로 복구되었습니다.'
+                : '구글 로그인이 완료되었습니다.',
             userId: userId,
             userEmail: userEmail,
+            authState: authState,
           );
         } else {
           AppLogger.error(
@@ -215,34 +233,77 @@ class GoogleSignInService {
         }
       } else {
         AppLogger.error('서버 인증 실패: ${response.statusCode}', tag: _tag);
+
+        // 서버 응답에서 계정 상태 확인
+        final responseData = response.data;
+        final isAccountDeleted =
+            responseData is Map<String, dynamic> &&
+            responseData['is_account_deleted'] == true;
+
         return GoogleSignInResult(
           success: false,
           message: '서버 인증에 실패했습니다.',
+          isAccountDeleted: isAccountDeleted,
         );
       }
     } on DioException catch (e) {
       AppLogger.error('서버 인증 중 네트워크 오류: ${e.message}', tag: _tag);
 
       String errorMessage = '서버 인증 중 오류가 발생했습니다.';
-      if (e.response?.statusCode == 401) {
+      bool isAccountDeleted = false;
+
+      final statusCode = e.response?.statusCode;
+      final responseData = e.response?.data;
+
+      if (statusCode == 401) {
         errorMessage = '구글 인증이 유효하지 않습니다.';
-      } else if (e.response?.statusCode == 400) {
+      } else if (statusCode == 400) {
         errorMessage = '잘못된 요청입니다.';
+      } else if (statusCode == 403) {
+        // 소셜 계정이 탈퇴된 상태에서 로그인 시도하면 403으로 내려오는 경우가 있음
+        errorMessage = '계정이 탈퇴된 상태입니다.';
+      } else if (statusCode == 410) {
+        errorMessage = '계정이 탈퇴된 상태입니다.';
+        isAccountDeleted = true;
       } else if (e.type == DioExceptionType.connectionTimeout ||
-                 e.type == DioExceptionType.receiveTimeout) {
+          e.type == DioExceptionType.receiveTimeout) {
         errorMessage = '서버 연결 시간이 초과되었습니다.';
+      }
+
+      if (responseData != null) {
+        AppLogger.warning('Google 로그인 실패 응답: $responseData', _tag);
+      }
+
+      // 서버 응답에서 계정 상태 확인
+      if (responseData is Map<String, dynamic>) {
+        final map = responseData;
+        final detail = map['detail']?.toString();
+        final code = map['code']?.toString();
+        final message = map['message']?.toString();
+
+        final deletedFlag = map['is_account_deleted'] == true ||
+            (code != null && code.contains('DELETED')) ||
+            (detail != null &&
+                (detail.contains('탈퇴') || detail.contains('deleted')));
+
+        if (deletedFlag) {
+          isAccountDeleted = true;
+          if (message != null && message.isNotEmpty) {
+            errorMessage = message;
+          } else if (detail != null && detail.isNotEmpty) {
+            errorMessage = detail;
+          }
+        }
       }
 
       return GoogleSignInResult(
         success: false,
         message: errorMessage,
+        isAccountDeleted: isAccountDeleted,
       );
     } catch (e) {
       AppLogger.error('서버 인증 중 알 수 없는 오류: $e', tag: _tag);
-      return GoogleSignInResult(
-        success: false,
-        message: '알 수 없는 오류가 발생했습니다.',
-      );
+      return GoogleSignInResult(success: false, message: '알 수 없는 오류가 발생했습니다.');
     }
   }
 
@@ -287,6 +348,7 @@ class GoogleSignInService {
       return null;
     }
   }
+
 }
 
 /// Google 로그인 결과 클래스
@@ -295,16 +357,40 @@ class GoogleSignInResult {
   final String message;
   final String? userId;
   final String? userEmail;
+  final AuthState? authState; // 인증 상태 정보 추가
+  final bool isAccountDeleted; // 계정이 탈퇴된 상태인지 여부
 
   const GoogleSignInResult({
     required this.success,
     required this.message,
     this.userId,
     this.userEmail,
+    this.authState,
+    this.isAccountDeleted = false,
   });
 
   @override
   String toString() {
-    return 'GoogleSignInResult(success: $success, message: $message, userId: $userId, userEmail: $userEmail)';
+    return 'GoogleSignInResult(success: $success, message: $message, userId: $userId, userEmail: $userEmail, authState: $authState, isAccountDeleted: $isAccountDeleted)';
+  }
+}
+
+/// 인증 상태 정보 클래스
+class AuthState {
+  final String userId;
+  final String userEmail;
+  final String? accessToken;
+  final String? refreshToken;
+
+  const AuthState({
+    required this.userId,
+    required this.userEmail,
+    this.accessToken,
+    this.refreshToken,
+  });
+
+  @override
+  String toString() {
+    return 'AuthState(userId: $userId, userEmail: $userEmail, hasAccessToken: ${accessToken != null}, hasRefreshToken: ${refreshToken != null})';
   }
 }

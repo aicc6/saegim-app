@@ -40,11 +40,11 @@ class _TestLoginWidgetState extends ConsumerState<TestLoginWidget> {
 
       AppLogger.info('Attempting test login with: $email', 'TestLoginWidget');
 
-      final success = await ref
+      final result = await ref
           .read(authNotifierProvider.notifier)
           .login(email, password);
 
-      if (success) {
+      if (result.isSuccess) {
         AppLogger.info('Test login successful!', 'TestLoginWidget');
 
         // 로그인 성공 후 캘린더 데이터 새로고침 (토큰 저장 완료 대기)
@@ -64,11 +64,28 @@ class _TestLoginWidgetState extends ConsumerState<TestLoginWidget> {
             );
           }
         }
+      } else if (result.isAccountDeleted) {
+        AppLogger.warning('Account is deleted, cannot login', 'TestLoginWidget');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                result.errorMessage ?? '탈퇴된 계정이라 로그인할 수 없습니다.',
+              ),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
       } else {
         AppLogger.warning('Test login failed', 'TestLoginWidget');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('로그인 실패'), backgroundColor: Colors.red),
+            SnackBar(
+              content: Text(
+                result.errorMessage ?? '로그인 실패',
+              ),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       }

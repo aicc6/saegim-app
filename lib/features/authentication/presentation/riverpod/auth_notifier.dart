@@ -3,11 +3,86 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:saegim/core/network/dio_client.dart';
 import 'package:saegim/core/services/auth_storage_service.dart';
 import 'package:saegim/core/services/fcm_message_service.dart';
+import 'package:saegim/features/authentication/data/services/forgot_password_service.dart';
 import 'package:saegim/features/authentication/data/services/google_sign_in_service.dart';
 import 'package:saegim/features/home/presentation/riverpod/create_notifier.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
 
 part 'auth_notifier.g.dart';
+
+/// 이메일 로그인 결과 클래스
+class EmailLoginResult {
+  final bool isSuccess;
+  final bool isAccountDeleted;
+  final String? errorMessage;
+  final String? email;
+
+  const EmailLoginResult._({
+    required this.isSuccess,
+    required this.isAccountDeleted,
+    this.errorMessage,
+    this.email,
+  });
+
+  factory EmailLoginResult.success() {
+    return const EmailLoginResult._(
+      isSuccess: true,
+      isAccountDeleted: false,
+    );
+  }
+
+  factory EmailLoginResult.accountDeleted({String? email, String? message}) {
+    return EmailLoginResult._(
+      isSuccess: false,
+      isAccountDeleted: true,
+      email: email,
+      errorMessage: message,
+    );
+  }
+
+  factory EmailLoginResult.failure(String message) {
+    return EmailLoginResult._(
+      isSuccess: false,
+      isAccountDeleted: false,
+      errorMessage: message,
+    );
+  }
+}
+
+/// Google 로그인 결과 클래스
+class GoogleLoginResult {
+  final bool isSuccess;
+  final bool isAccountDeleted;
+  final String? userEmail;
+  final String? errorMessage;
+
+  const GoogleLoginResult._({
+    required this.isSuccess,
+    required this.isAccountDeleted,
+    this.userEmail,
+    this.errorMessage,
+  });
+
+  factory GoogleLoginResult.success() {
+    return const GoogleLoginResult._(isSuccess: true, isAccountDeleted: false);
+  }
+
+  factory GoogleLoginResult.accountDeleted(String email) {
+    return GoogleLoginResult._(
+      isSuccess: false,
+      isAccountDeleted: true,
+      userEmail: email,
+    );
+  }
+
+  factory GoogleLoginResult.failure(String message) {
+    return GoogleLoginResult._(
+      isSuccess: false,
+      isAccountDeleted: false,
+      errorMessage: message,
+    );
+  }
+}
 
 /// 인증 상태 모델
 class AuthState {
@@ -126,8 +201,8 @@ class AuthNotifier extends _$AuthNotifier {
     }
   }
 
-  /// 로그인
-  Future<bool> login(String email, String password) async {
+  /// 로그인 (이메일 계정)
+  Future<EmailLoginResult> login(String email, String password) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {
@@ -268,7 +343,7 @@ class AuthNotifier extends _$AuthNotifier {
             }
           }
 
-          return true;
+          return EmailLoginResult.success();
         } else {
           AppLogger.error(
             'No access_token found in Set-Cookie headers!',
@@ -285,23 +360,82 @@ class AuthNotifier extends _$AuthNotifier {
             errorMessage: '백엔드 서버에서 인증 토큰을 반환하지 않았습니다.',
           );
 
-          return false;
+          return EmailLoginResult.failure(
+            '백엔드 서버에서 인증 토큰을 반환하지 않았습니다.',
+          );
         }
       } else {
         throw Exception('로그인에 실패했습니다.');
       }
-    } catch (e) {
-      AppLogger.error('Login failed for user: $email', error: e);
+    } on DioException catch (e, stackTrace) {
+      AppLogger.error(
+        'Login failed for user: $email',
+        error: e,
+        stackTrace: stackTrace,
+        tag: 'AuthNotifier',
+      );
 
-      String errorMessage = '로그인에 실패했습니다.';
-      if (e.toString().contains('401') || e.toString().contains('invalid')) {
+      final statusCode = e.response?.statusCode;
+      final responseData = e.response?.data;
+
+      String? detailMessage;
+      if (responseData is Map<String, dynamic>) {
+        detailMessage = responseData['message']?.toString() ??
+            responseData['detail']?.toString() ??
+            responseData['error']?.toString();
+      } else if (responseData is String) {
+        detailMessage = responseData;
+      }
+
+      bool isAccountDeleted = false;
+      String errorMessage = detailMessage ?? '로그인에 실패했습니다.';
+
+      if (statusCode == 401) {
         errorMessage = '이메일 또는 비밀번호가 올바르지 않습니다.';
-      } else if (e.toString().contains('network')) {
+      } else if (statusCode == 403 ||
+          statusCode == 410 ||
+          (detailMessage != null &&
+              (detailMessage.contains('탈퇴') ||
+                  detailMessage.toLowerCase().contains('deleted')))) {
+        isAccountDeleted = true;
+        errorMessage = detailMessage ?? '해당 계정은 탈퇴된 상태입니다. 복구를 진행해주세요.';
+      } else if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout) {
+        errorMessage = '서버 연결 시간이 초과되었습니다. 네트워크 상태를 확인해주세요.';
+      } else if (e.type == DioExceptionType.connectionError) {
         errorMessage = '네트워크 연결을 확인해주세요.';
       }
 
-      state = state.copyWith(isLoading: false, errorMessage: errorMessage);
-      return false;
+      state = state.copyWith(
+        isAuthenticated: false,
+        isLoading: false,
+        errorMessage: isAccountDeleted ? null : errorMessage,
+      );
+
+      if (isAccountDeleted) {
+        return EmailLoginResult.accountDeleted(
+          email: email,
+          message: errorMessage,
+        );
+      }
+
+      return EmailLoginResult.failure(errorMessage);
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        'Login failed for user: $email',
+        error: e,
+        stackTrace: stackTrace,
+        tag: 'AuthNotifier',
+      );
+
+      const errorMessage = '로그인에 실패했습니다.';
+      state = state.copyWith(
+        isAuthenticated: false,
+        isLoading: false,
+        errorMessage: errorMessage,
+      );
+
+      return EmailLoginResult.failure(errorMessage);
     }
   }
 
@@ -388,32 +522,46 @@ class AuthNotifier extends _$AuthNotifier {
     }
   }
 
-  /// 로그아웃
+  /// 로그아웃 (일반 로그인 + 소셜 로그인 통합)
   Future<void> logout() async {
-    // FCM 토큰 서버에서 해제
-    try {
-      await FCMMessageService.instance.deactivateTokenOnLogout();
-      AppLogger.info('FCM 토큰 해제 완료', 'AuthNotifier');
-    } catch (e) {
-      AppLogger.error('FCM 토큰 해제 실패', error: e, tag: 'AuthNotifier');
-    }
-
-    // Google 로그아웃
-    try {
-      await GoogleSignInService.instance.signOut();
-      AppLogger.info('Google 로그아웃 완료', 'AuthNotifier');
-    } catch (e) {
-      AppLogger.error('Google 로그아웃 실패', error: e, tag: 'AuthNotifier');
-    }
-
-    // 저장된 인증 데이터 모두 삭제
-    await AuthStorageService.instance.clearAllAuthData();
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {
-      // TODO: 실제 로그아웃 처리 (토큰 삭제 등)
-      await Future.delayed(const Duration(seconds: 1));
+      // 1. 서버에 로그아웃 요청 (토큰 무효화)
+      try {
+        final token = await AuthStorageService.instance.getAuthToken();
+        if (token != null && token.isNotEmpty) {
+          await DioClient.instance.dio.post(
+            '/api/auth/logout',
+            options: Options(headers: {'Authorization': 'Bearer $token'}),
+          );
+          AppLogger.info('서버 로그아웃 완료', 'AuthNotifier');
+        }
+      } catch (e) {
+        AppLogger.warning('서버 로그아웃 실패 (무시됨): $e', 'AuthNotifier');
+      }
 
+      // 2. FCM 토큰 서버에서 해제
+      try {
+        await FCMMessageService.instance.deactivateTokenOnLogout();
+        AppLogger.info('FCM 토큰 해제 완료', 'AuthNotifier');
+      } catch (e) {
+        AppLogger.error('FCM 토큰 해제 실패', error: e, tag: 'AuthNotifier');
+      }
+
+      // 3. Google 로그아웃 (소셜 로그인인 경우)
+      try {
+        await GoogleSignInService.instance.signOut();
+        AppLogger.info('Google 로그아웃 완료', 'AuthNotifier');
+      } catch (e) {
+        AppLogger.error('Google 로그아웃 실패', error: e, tag: 'AuthNotifier');
+      }
+
+      // 4. 저장된 인증 데이터 모두 삭제
+      await AuthStorageService.instance.clearAllAuthData();
+      AppLogger.info('로컬 인증 데이터 삭제 완료', 'AuthNotifier');
+
+      // 5. 상태 초기화
       state = state.copyWith(
         isAuthenticated: false,
         userId: null,
@@ -421,57 +569,97 @@ class AuthNotifier extends _$AuthNotifier {
         isLoading: false,
       );
 
-      // 생성된 글 상태도 초기화 (SharedPreferences 데이터 포함)
+      // 6. 생성된 글 상태도 초기화 (SharedPreferences 데이터 포함)
       try {
         ref.read(createProvider.notifier).resetToDefaults();
         AppLogger.info('생성된 글 상태 초기화 완료', 'AuthNotifier');
       } catch (e) {
         AppLogger.error('생성된 글 상태 초기화 실패', error: e, tag: 'AuthNotifier');
       }
+
+      AppLogger.info('전체 로그아웃 프로세스 완료', 'AuthNotifier');
     } catch (e) {
       // 에러가 발생해도 로컬 상태는 초기화
+      AppLogger.error('로그아웃 중 오류 발생', error: e, tag: 'AuthNotifier');
+
+      // 강제로 로컬 데이터 정리
+      await AuthStorageService.instance.clearAllAuthData();
+
       state = state.copyWith(
         isAuthenticated: false,
         userId: null,
         userEmail: null,
         isLoading: false,
-        errorMessage: e.toString(),
+        errorMessage: '로그아웃 중 오류가 발생했지만 로컬 데이터는 정리되었습니다.',
       );
     }
   }
 
-  /// 비밀번호 찾기
+  /// 비밀번호 찾기 (일반 계정만 가능)
   Future<bool> forgotPassword(String email) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {
-      // TODO: 실제 비밀번호 찾기 API 호출
-      await Future.delayed(const Duration(seconds: 2));
+      AppLogger.info('비밀번호 찾기 요청: $email', 'AuthNotifier');
+
+      // ForgotPasswordService 사용
+      final result = await ForgotPasswordService.sendPasswordResetEmail(email);
+
       state = state.copyWith(isLoading: false);
-      return true;
+
+      if (result.success) {
+        AppLogger.info('비밀번호 재설정 이메일 발송 성공: $email', 'AuthNotifier');
+        return true;
+      } else {
+        AppLogger.warning(
+          '비밀번호 재설정 이메일 발송 실패: ${result.message}',
+          'AuthNotifier',
+        );
+        state = state.copyWith(errorMessage: result.message);
+        return false;
+      }
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      AppLogger.error('비밀번호 찾기 중 오류 발생', error: e, tag: 'AuthNotifier');
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: '비밀번호 찾기 중 오류가 발생했습니다: ${e.toString()}',
+      );
       return false;
     }
   }
 
-  /// 계정 복구
+  /// 계정 복구 (일반 계정용)
   Future<bool> restoreAccount(String email) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {
-      // TODO: 실제 계정 복구 API 호출
-      await Future.delayed(const Duration(seconds: 2));
+      AppLogger.info('계정 복구 요청: $email', 'AuthNotifier');
+
+      // 일반 계정 복구는 이메일 인증을 통해 처리
+      final result = await ForgotPasswordService.sendPasswordResetEmail(email);
+
       state = state.copyWith(isLoading: false);
-      return true;
+
+      if (result.success) {
+        AppLogger.info('계정 복구 이메일 발송 성공: $email', 'AuthNotifier');
+        return true;
+      } else {
+        AppLogger.warning('계정 복구 이메일 발송 실패: ${result.message}', 'AuthNotifier');
+        state = state.copyWith(errorMessage: result.message);
+        return false;
+      }
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      AppLogger.error('계정 복구 중 오류 발생', error: e, tag: 'AuthNotifier');
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: '계정 복구 중 오류가 발생했습니다: ${e.toString()}',
+      );
       return false;
     }
   }
 
   /// Google 로그인
-  Future<bool> loginWithGoogle() async {
+  Future<GoogleLoginResult> loginWithGoogle() async {
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {
@@ -486,8 +674,16 @@ class AuthNotifier extends _$AuthNotifier {
         );
 
         AppLogger.info('Google login successful for user: ${result.userEmail}');
-        return true;
+        return GoogleLoginResult.success();
       } else {
+        // 계정이 탈퇴된 상태인지 확인
+        if (result.isAccountDeleted) {
+          AppLogger.info(
+            'Account is deleted, user needs to restore: ${result.userEmail}',
+          );
+          return GoogleLoginResult.accountDeleted(result.userEmail ?? '');
+        }
+
         state = state.copyWith(
           isAuthenticated: false,
           isLoading: false,
@@ -495,7 +691,7 @@ class AuthNotifier extends _$AuthNotifier {
         );
 
         AppLogger.warning('Google login failed: ${result.message}');
-        return false;
+        return GoogleLoginResult.failure(result.message);
       }
     } catch (e) {
       AppLogger.error('Google login error', error: e, tag: 'AuthNotifier');
@@ -506,13 +702,24 @@ class AuthNotifier extends _$AuthNotifier {
         errorMessage: '구글 로그인 중 오류가 발생했습니다.',
       );
 
-      return false;
+      return GoogleLoginResult.failure('구글 로그인 중 오류가 발생했습니다.');
     }
   }
 
   /// 에러 메시지 초기화
   void clearError() {
     state = state.copyWith(errorMessage: null);
+  }
+
+  /// 복구 성공 후 로그인 상태 설정
+  void setRestoredLoginState(String userId, String userEmail) {
+    state = state.copyWith(
+      isAuthenticated: true,
+      userId: userId,
+      userEmail: userEmail,
+      isLoading: false,
+      errorMessage: null,
+    );
   }
 
   /// 이메일 중복 확인
@@ -556,7 +763,7 @@ class AuthNotifier extends _$AuthNotifier {
     }
   }
 
-  /// 이메일 인증 코드 발송
+  /// 이메일 인증 코드 발송 (일반 회원가입용)
   Future<bool> sendVerificationEmail(String email) async {
     if (email.isEmpty) return false;
 
@@ -585,7 +792,7 @@ class AuthNotifier extends _$AuthNotifier {
     }
   }
 
-  /// 이메일 인증 코드 검증
+  /// 이메일 인증 코드 검증 (일반 회원가입용)
   Future<bool> verifyEmail(String email, String verificationCode) async {
     if (email.isEmpty || verificationCode.isEmpty) return false;
 
@@ -603,6 +810,67 @@ class AuthNotifier extends _$AuthNotifier {
       return false;
     } catch (e) {
       AppLogger.error('Email verification failed: $email', error: e);
+      return false;
+    }
+  }
+
+  /// 탈퇴 계정 복구용 인증 코드 발송
+  Future<bool> sendRestoreEmail(String email) async {
+    if (email.isEmpty) return false;
+
+    try {
+      final dio = DioClient.instance.dio;
+      AppLogger.info('Sending restore email to: $email');
+
+      final response = await dio.post(
+        '/api/auth/restore/send-restore-email',
+        data: {'email': email},
+      );
+
+      AppLogger.info(
+        'Restore email response: ${response.statusCode} - ${response.data}',
+      );
+
+      if (response.statusCode == 200 ||
+          response.statusCode == 201 ||
+          response.statusCode == 202) {
+        AppLogger.info('Restore email sent successfully to: $email');
+        return true;
+      }
+
+      AppLogger.warning('Unexpected restore status code: ${response.statusCode}');
+      return false;
+    } catch (e) {
+      AppLogger.error('Failed to send restore email: $email', error: e);
+      return false;
+    }
+  }
+
+  /// 탈퇴 계정 복구 코드 검증
+  Future<bool> verifyRestoreCode(String email, String code) async {
+    if (email.isEmpty || code.isEmpty) return false;
+
+    try {
+      final dio = DioClient.instance.dio;
+      final response = await dio.post(
+        '/api/auth/restore',
+        data: {
+          'email': email,
+          'verification_code': code,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        AppLogger.info('Restore verification successful: $email');
+        return true;
+      }
+
+      AppLogger.warning(
+        'Restore verification failed with status: ${response.statusCode}',
+      );
+      return false;
+    } catch (e) {
+      AppLogger.error('Restore verification failed: $email', error: e);
       return false;
     }
   }

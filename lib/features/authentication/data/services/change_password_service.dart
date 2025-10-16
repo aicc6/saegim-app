@@ -44,6 +44,10 @@ class ChangePasswordService {
       }
     } on DioException catch (e) {
       AppLogger.error('Failed to change password', error: e);
+      AppLogger.error(
+        'Change password error response: ${e.response?.data}',
+        tag: 'ChangePasswordService',
+      );
 
       // 401은 현재 비밀번호가 잘못된 경우
       if (e.response?.statusCode == 401) {
@@ -61,6 +65,21 @@ class ChangePasswordService {
           throw ChangePasswordException(message);
         }
         throw ChangePasswordException('비밀번호 형식이 올바르지 않습니다.');
+      }
+
+      // 400은 잘못된 요청 (예: 새 비밀번호가 기존과 동일 등) - 서버 메시지 전달
+      if (e.response?.statusCode == 400) {
+        final errorData = e.response?.data;
+        if (errorData is Map<String, dynamic>) {
+          final message =
+              errorData['message'] as String? ??
+              errorData['detail'] as String? ??
+              '잘못된 요청입니다. 입력한 정보를 다시 확인해주세요.';
+          throw ChangePasswordException(message);
+        } else if (errorData is String) {
+          throw ChangePasswordException(errorData);
+        }
+        throw ChangePasswordException('잘못된 요청입니다. 입력한 정보를 다시 확인해주세요.');
       }
 
       // 네트워크 에러
