@@ -9,7 +9,6 @@ import 'package:saegim/core/theme/theme_extensions.dart';
 import 'package:saegim/features/home/data/services/handwriting_diary_service.dart';
 import 'package:saegim/features/home/presentation/riverpod/create_notifier.dart';
 import 'package:saegim/features/home/presentation/riverpod/handwriting_diary_notifier.dart';
-import 'package:saegim/shared/utils/app_logger.dart';
 import 'package:saegim/shared/widgets/common_app_bar.dart';
 
 /// 손글씨 이미지를 AI 다이어리로 변환하는 페이지
@@ -55,15 +54,15 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
               ),
               const SizedBox(height: 24),
 
-              // 감정 선택 섹션 (선택사항)
-              _buildEmotionSelectionSection(
+              // 길이 선택 섹션 (먼저 표시)
+              _buildLengthSelectionSection(
                 handwritingState,
                 handwritingNotifier,
               ),
               const SizedBox(height: 24),
 
-              // 길이 선택 섹션
-              _buildLengthSelectionSection(
+              // 감정 선택 섹션 (선택사항)
+              _buildEmotionSelectionSection(
                 handwritingState,
                 handwritingNotifier,
               ),
@@ -320,8 +319,9 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
     HandwritingDiaryState state,
     HandwritingDiaryNotifier notifier,
   ) {
-    final emotions = ['', '행복', '평온', '불안', '분노', '슬픔'];
-    final emotionLabels = ['자동 분석', '행복', '평온', '불안', '분노', '슬픔'];
+    // '자동 분석' 제거
+    final emotions = ['행복', '평온', '불안', '분노', '슬픔'];
+    final emotionLabels = ['행복', '평온', '불안', '분노', '슬픔'];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -342,23 +342,6 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
             color: context.colorScheme.onSurface.withOpacity(0.6),
           ),
         ),
-        const SizedBox(height: 4),
-        Text(
-          '현재 선택된 감정: ${state.emotion ?? "없음"}',
-          style: TextStyle(
-            fontSize: 10,
-            color: context.colorScheme.primary,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        Text(
-          '디버그 - state.emotion: "${state.emotion}", 평온 isSelected: ${state.emotion == '평온'}',
-          style: TextStyle(
-            fontSize: 8,
-            color: Colors.red,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
         const SizedBox(height: 12),
         Wrap(
           spacing: 8,
@@ -367,19 +350,10 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
             final emotion = entry.value;
             final label = emotionLabels[entry.key];
             final isSelected = state.emotion == emotion;
-            AppLogger.info(
-              'Emotion button: $emotion, state.emotion: ${state.emotion}, isSelected: $isSelected',
-              'HandwritingDiaryPage',
-            );
 
             return InkWell(
               onTap: () {
-                final selectedEmotion = emotion.isEmpty ? null : emotion;
-                AppLogger.info(
-                  'Emotion button tapped: $selectedEmotion (label: $label), current state.emotion: ${state.emotion}',
-                  'HandwritingDiaryPage',
-                );
-                notifier.setEmotion(selectedEmotion);
+                notifier.setEmotion(emotion);
               },
               child: Container(
                 padding: const EdgeInsets.symmetric(
@@ -1085,10 +1059,9 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
       if (mounted) {
         if (tempEntry != null) {
           // 다이어리 상세 페이지로 이동 (편집 모드로 시작)
-          context.go(
-            RoutePaths.diaryDetailPath(tempEntry.id),
-            extra: tempEntry,
-          );
+          final targetPath =
+              '${RoutePaths.diaryDetailPath(tempEntry.id)}?from=handwriting';
+          context.go(targetPath, extra: tempEntry);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(

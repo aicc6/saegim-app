@@ -8,6 +8,7 @@ import 'package:saegim/features/calendar/data/models/diary_image_model.dart';
 import 'package:saegim/features/calendar/data/models/diary_model.dart';
 import 'package:saegim/features/calendar/data/services/diary_api_service.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
+import 'package:saegim/app/routes/route_paths.dart';
 
 class DiaryDetailPage extends StatefulWidget {
   final String diaryId;
@@ -1447,6 +1448,9 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
     if (from == 'calendar') {
       // 캘린더에서 왔다면 캘린더로 돌아가기
       context.go('/calendar');
+    } else if (from == 'handwriting') {
+      // 손글씨 변환 페이지에서 왔다면 그 페이지로 돌아가기
+      context.go(RoutePaths.handwritingDiary);
     } else {
       // 그 외의 경우는 기본 pop 동작 (다이어리 목록으로)
       context.pop();
@@ -1991,7 +1995,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
           const SizedBox(width: 12),
 
-          // 취소 버튼
+          // 취소 버튼 → 상단 뒤로가기와 동일 동작
           Container(
             width: 120,
             height: 48,
@@ -2000,7 +2004,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
               borderRadius: BorderRadius.circular(24),
             ),
             child: TextButton(
-              onPressed: isSaving ? null : _cancelEditMode,
+              onPressed: isSaving ? null : () => _handleBackNavigation(context),
               style: TextButton.styleFrom(
                 foregroundColor: context.colorScheme.onSurface,
                 shape: RoundedRectangleBorder(
