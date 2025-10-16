@@ -982,8 +982,19 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
           }
 
           // 새 다이어리 생성인 경우 페이지 이동
+          AppLogger.info(
+            'Checking new diary condition - widget.diaryId: ${widget.diaryId}, diary.id: ${diary?.id}',
+            'DiaryDetailPage',
+          );
+
           if (widget.diaryId == 'new' ||
+              widget.diaryId.startsWith('temp_') ||
               (diary?.id.startsWith('temp_') ?? false)) {
+            AppLogger.info(
+              'New diary creation detected - preparing navigation',
+              'DiaryDetailPage',
+            );
+
             if (mounted && context.mounted) {
               final hadImages = newImages.isNotEmpty;
               ScaffoldMessenger.of(context).showSnackBar(
@@ -998,12 +1009,33 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                 ),
               );
 
-              // 약간의 지연 후 페이지 이동 (편집 모드 해제된 상태로)
+              AppLogger.info(
+                'Success message shown - waiting before navigation',
+                'DiaryDetailPage',
+              );
+
+              // 약간의 지연 후 목록 페이지로 이동 (새 다이어리 생성 후)
               await Future.delayed(const Duration(milliseconds: 500));
+
               if (mounted && context.mounted) {
-                // 편집 모드를 해제한 상태로 다이어리 상세 페이지로 이동
-                context.go('/diary/${diary!.id}');
+                // 새 다이어리 생성 후 목록 페이지로 이동하여 새로고침 트리거
+                final timestamp = DateTime.now().millisecondsSinceEpoch;
+                AppLogger.info(
+                  'Navigating to diary list after creation with refresh parameter: $timestamp',
+                  'DiaryDetailPage',
+                );
+                context.pushReplacement('/diary?refresh=$timestamp');
+              } else {
+                AppLogger.warning(
+                  'Widget not mounted during creation navigation',
+                  'DiaryDetailPage',
+                );
               }
+            } else {
+              AppLogger.warning(
+                'Widget not mounted during creation flow',
+                'DiaryDetailPage',
+              );
             }
           } else {
             // 기존 다이어리 수정인 경우
@@ -1050,8 +1082,19 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
           }
 
           // 새 다이어리 생성인 경우 페이지 이동
+          AppLogger.info(
+            'Checking new diary condition (image failure) - widget.diaryId: ${widget.diaryId}, diary.id: ${diary?.id}',
+            'DiaryDetailPage',
+          );
+
           if (widget.diaryId == 'new' ||
+              widget.diaryId.startsWith('temp_') ||
               (diary?.id.startsWith('temp_') ?? false)) {
+            AppLogger.info(
+              'New diary creation detected (with image upload failure) - preparing navigation',
+              'DiaryDetailPage',
+            );
+
             if (mounted && context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
@@ -1063,12 +1106,33 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                 ),
               );
 
-              // 약간의 지연 후 페이지 이동 (편집 모드 해제된 상태로)
+              AppLogger.info(
+                'Warning message shown - waiting before navigation',
+                'DiaryDetailPage',
+              );
+
+              // 약간의 지연 후 목록 페이지로 이동 (이미지 업로드 실패 시에도)
               await Future.delayed(const Duration(milliseconds: 500));
+
               if (mounted && context.mounted) {
-                // 편집 모드를 해제한 상태로 다이어리 상세 페이지로 이동
-                context.go('/diary/${diary!.id}');
+                // 새 다이어리 생성 후 목록 페이지로 이동하여 새로고침 트리거
+                final timestamp = DateTime.now().millisecondsSinceEpoch;
+                AppLogger.info(
+                  'Navigating to diary list after creation (with image upload failure) with refresh parameter: $timestamp',
+                  'DiaryDetailPage',
+                );
+                context.pushReplacement('/diary?refresh=$timestamp');
+              } else {
+                AppLogger.warning(
+                  'Widget not mounted during creation navigation (image failure)',
+                  'DiaryDetailPage',
+                );
               }
+            } else {
+              AppLogger.warning(
+                'Widget not mounted during creation flow (image failure)',
+                'DiaryDetailPage',
+              );
             }
           } else {
             // 기존 다이어리 수정인 경우
@@ -1183,8 +1247,27 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
               backgroundColor: context.colorScheme.primary,
             ),
           );
-          // 삭제 후 이전 페이지로 돌아가기
-          _handleBackNavigation(context);
+
+          AppLogger.info(
+            'Diary deletion successful - preparing navigation',
+            'DiaryDetailPage',
+          );
+
+          // 삭제 후 약간의 지연을 두고 네비게이션 (안전한 방식)
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) {
+              AppLogger.info(
+                'About to call _handleBackNavigation',
+                'DiaryDetailPage',
+              );
+              _handleBackNavigation(context);
+            } else {
+              AppLogger.warning(
+                'Widget not mounted - skipping navigation',
+                'DiaryDetailPage',
+              );
+            }
+          });
         } else {
           _showDeleteNotAvailableDialog(context);
         }
@@ -1486,8 +1569,14 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       // 손글씨 변환 페이지에서 왔다면 그 페이지로 돌아가기
       context.go(RoutePaths.handwritingDiary);
     } else {
-      // 그 외의 경우는 기본 pop 동작 (다이어리 목록으로)
-      context.pop();
+      // 그 외의 경우는 목록 페이지로 강제 새로고침과 함께 이동
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      AppLogger.info(
+        'Navigating to diary list with refresh parameter: $timestamp',
+        'DiaryDetailPage',
+      );
+      // 페이지를 완전히 새로 생성하여 새로고침 보장
+      context.pushReplacement('/diary?refresh=$timestamp');
     }
   }
 

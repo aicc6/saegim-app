@@ -995,8 +995,8 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
           const SizedBox(width: 12),
           Expanded(
             child: OutlinedButton.icon(
-              onPressed: () => _saveAsDiary(),
-              icon: const Icon(Icons.save, size: 18),
+              onPressed: () => _goToEditMode(),
+              icon: const Icon(Icons.edit, size: 18),
               label: const Text('저장하기'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: context.colorScheme.primary,
@@ -1047,7 +1047,8 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
     );
   }
 
-  Future<void> _saveAsDiary() async {
+  /// 편집 모드로 이동 (실제 저장은 하지 않음)
+  Future<void> _goToEditMode() async {
     final state = ref.read(handwritingDiaryProvider);
     if (!state.hasResult) return;
 
@@ -1070,13 +1071,14 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
       if (mounted) {
         if (tempEntry != null) {
           // 다이어리 상세 페이지로 이동 (편집 모드로 시작)
+          // 실제 저장은 diary_detail_page에서 편집 모드로만 가능
           final targetPath =
               '${RoutePaths.diaryDetailPath(tempEntry.id)}?from=handwriting';
           context.go(targetPath, extra: tempEntry);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('다이어리 생성에 실패했습니다. 다시 시도해주세요.'),
+              content: Text('편집 모드로 이동할 수 없습니다. 다시 시도해주세요.'),
               backgroundColor: Colors.red,
             ),
           );
