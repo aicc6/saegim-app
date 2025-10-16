@@ -595,9 +595,14 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                                               .colorScheme
                                               .primary // 오늘 날짜
                                         : isSelected
-                                        ? context
-                                              .colorScheme
-                                              .primaryContainer // 선택된 날짜
+                                        ? context.isDarkMode
+                                              ? context.colorScheme.primary
+                                                    .withOpacity(
+                                                      0.35,
+                                                    ) // 다크모드에서 선택된 날짜 (더 밝게)
+                                              : context
+                                                    .colorScheme
+                                                    .primaryContainer // 라이트모드에서 선택된 날짜
                                         : isCurrentMonth
                                         ? context
                                               .inputBackground // 현재 달 날짜
@@ -628,9 +633,13 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                                                           .colorScheme
                                                           .onPrimary
                                                     : isSelected
-                                                    ? context
-                                                          .colorScheme
-                                                          .onPrimaryContainer
+                                                    ? context.isDarkMode
+                                                          ? context
+                                                                .colorScheme
+                                                                .primary // 다크모드에서 선택된 날짜 텍스트
+                                                          : context
+                                                                .colorScheme
+                                                                .onPrimaryContainer // 라이트모드에서 선택된 날짜 텍스트
                                                     : !isCurrentMonth
                                                     ? context.secondaryText
                                                           .withValues(
@@ -684,9 +693,13 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                                                                   .colorScheme
                                                                   .onPrimary
                                                             : isSelected
-                                                            ? context
-                                                                  .colorScheme
-                                                                  .onPrimaryContainer
+                                                            ? context.isDarkMode
+                                                                  ? context
+                                                                        .colorScheme
+                                                                        .primary // 다크모드에서 선택된 날짜 키워드
+                                                                  : context
+                                                                        .colorScheme
+                                                                        .onPrimaryContainer // 라이트모드에서 선택된 날짜 키워드
                                                             : context
                                                                   .primaryText,
                                                       ),

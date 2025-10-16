@@ -997,7 +997,7 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
             child: OutlinedButton.icon(
               onPressed: () => _saveAsDiary(),
               icon: const Icon(Icons.save, size: 18),
-              label: const Text('다이어리로 이동'),
+              label: const Text('저장하기'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: context.colorScheme.primary,
                 side: BorderSide(color: context.colorScheme.primary),
