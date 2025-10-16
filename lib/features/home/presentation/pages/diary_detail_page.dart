@@ -66,7 +66,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
   /// 감정을 한글로 변환
   String _getKoreanEmotion(String? emotion) {
-    if (emotion == null || emotion.isEmpty) return '설정되지 않음';
+    if (emotion == null || emotion.isEmpty) return '미선택';
 
     switch (emotion.toLowerCase()) {
       case 'happy':
@@ -223,11 +223,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
               onPressed: () {
                 final newKeyword = keywordController.text.trim();
                 if (newKeyword.isNotEmpty) {
-                  final currentKeywords = _keywordsController.text;
-                  final updatedKeywords = currentKeywords.isEmpty
-                      ? newKeyword
-                      : '$currentKeywords, $newKeyword';
-                  _keywordsController.text = updatedKeywords;
+                  _addKeyword(newKeyword);
                 }
                 Navigator.of(context).pop();
               },
@@ -240,6 +236,34 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         );
       },
     );
+  }
+
+  /// 키워드 추가
+  void _addKeyword(String keyword) {
+    final currentKeywords = _keywordsController.text
+        .split(',')
+        .map((k) => k.trim())
+        .where((k) => k.isNotEmpty)
+        .toList();
+
+    if (!currentKeywords.contains(keyword)) {
+      currentKeywords.add(keyword);
+      _keywordsController.text = currentKeywords.join(', ');
+      setState(() {});
+    }
+  }
+
+  /// 키워드 삭제
+  void _removeKeyword(String keyword) {
+    final currentKeywords = _keywordsController.text
+        .split(',')
+        .map((k) => k.trim())
+        .where((k) => k.isNotEmpty)
+        .toList();
+
+    currentKeywords.remove(keyword);
+    _keywordsController.text = currentKeywords.join(', ');
+    setState(() {});
   }
 
   /// 이미지 선택 기능
@@ -1761,6 +1785,15 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
   Widget _buildKeywordSection() {
     if (diary == null) return const SizedBox.shrink();
 
+    // 편집 모드에서 현재 키워드 목록 가져오기
+    final currentKeywords = isEditMode
+        ? _keywordsController.text
+              .split(',')
+              .map((keyword) => keyword.trim())
+              .where((keyword) => keyword.isNotEmpty)
+              .toList()
+        : diary!.keywords;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -1812,61 +1845,54 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
             ],
           ),
           const SizedBox(height: 12),
-          if (isEditMode) ...[
-            // 편집 모드: 텍스트 필드
-            TextField(
-              controller: _keywordsController,
-              decoration: const InputDecoration(
-                hintText: '새 키워드 입력',
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-              ),
-              style: const TextStyle(fontSize: 14),
+          if (currentKeywords.isNotEmpty) ...[
+            // 키워드 태그들 표시 (편집/보기 모드 공통)
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: currentKeywords
+                  .map(
+                    (keyword) => _buildKeywordChip(
+                      '#$keyword',
+                      isEditMode: isEditMode,
+                      onDelete: isEditMode
+                          ? () => _removeKeyword(keyword)
+                          : null,
+                    ),
+                  )
+                  .toList(),
             ),
           ] else ...[
-            // 보기 모드: 키워드 표시
-            if (diary!.keywords.isNotEmpty) ...[
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: diary!.keywords
-                    .map((keyword) => _buildKeywordChip('#$keyword'))
-                    .toList(),
+            // 키워드가 없는 경우
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: context.colorScheme.surfaceVariant.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: context.colorScheme.outline.withOpacity(0.2),
+                  width: 1,
+                ),
               ),
-            ] else ...[
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: context.colorScheme.surfaceVariant.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: context.colorScheme.outline.withOpacity(0.2),
-                    width: 1,
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    size: 16,
+                    color: context.secondaryText,
                   ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      size: 16,
+                  const SizedBox(width: 8),
+                  Text(
+                    '키워드가 추출되지 않았습니다.',
+                    style: TextStyle(
+                      fontSize: 12,
                       color: context.secondaryText,
+                      fontStyle: FontStyle.italic,
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '키워드가 추출되지 않았습니다.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: context.secondaryText,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ],
         ],
       ),
@@ -1874,20 +1900,48 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
   }
 
   // 키워드 칩
-  Widget _buildKeywordChip(String keyword) {
+  Widget _buildKeywordChip(
+    String keyword, {
+    bool isEditMode = false,
+    VoidCallback? onDelete,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: context.colorScheme.primary.withOpacity(0.15),
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Text(
-        keyword,
-        style: TextStyle(
-          fontSize: 12,
-          color: context.colorScheme.primary,
-          fontWeight: FontWeight.w500,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            keyword,
+            style: TextStyle(
+              fontSize: 12,
+              color: context.colorScheme.primary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          if (isEditMode && onDelete != null) ...[
+            const SizedBox(width: 6),
+            GestureDetector(
+              onTap: onDelete,
+              child: Container(
+                width: 16,
+                height: 16,
+                decoration: BoxDecoration(
+                  color: context.colorScheme.error,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.close,
+                  color: context.colorScheme.onError,
+                  size: 10,
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
