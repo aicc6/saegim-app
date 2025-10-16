@@ -1009,70 +1009,138 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   /// 손글씨 다이어리 버튼 위젯
   Widget _buildHandwritingDiaryButton() {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            context.colorScheme.primary.withOpacity(0.1),
-            context.colorScheme.primary.withOpacity(0.05),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.colorScheme.primary.withOpacity(0.2)),
-      ),
-      child: InkWell(
-        onTap: () => context.go('/handwriting-diary'),
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: context.colorScheme.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  Icons.edit_outlined,
-                  color: context.colorScheme.primary,
-                  size: 24,
-                ),
+    return _HandwritingDiaryButton();
+  }
+}
+
+/// 손글씨 다이어리 버튼 위젯 (호버 효과 포함)
+class _HandwritingDiaryButton extends StatefulWidget {
+  @override
+  _HandwritingDiaryButtonState createState() => _HandwritingDiaryButtonState();
+}
+
+class _HandwritingDiaryButtonState extends State<_HandwritingDiaryButton> {
+  bool isExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double expandedWidth = constraints.maxWidth;
+        return Align(
+          alignment: Alignment.centerRight,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeInOut,
+            width: isExpanded ? expandedWidth : 170, // 가로 크기
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  context.colorScheme.primary.withOpacity(
+                    isExpanded ? 0.15 : 0.1,
+                  ),
+                  context.colorScheme.primary.withOpacity(
+                    isExpanded ? 0.08 : 0.05,
+                  ),
+                ],
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: context.colorScheme.primary.withOpacity(
+                  isExpanded ? 0.3 : 0.2,
+                ),
+                width: isExpanded ? 1.5 : 1,
+              ),
+            ),
+            child: InkWell(
+              onTap: () => setState(() => isExpanded = !isExpanded),
+              borderRadius: BorderRadius.circular(16),
+              child: Padding(
+                padding: const EdgeInsets.all(10), // 패딩 고정 (세로 변화 방지)
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      '손글씨 다이어리',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 400),
+                      padding: const EdgeInsets.all(8), // 고정
+                      decoration: BoxDecoration(
+                        color: context.colorScheme.primary.withOpacity(
+                          isExpanded ? 0.15 : 0.1,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.edit_outlined,
                         color: context.colorScheme.primary,
+                        size: 22, // 고정
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '손글씨 이미지를 업로드하면 AI가 텍스트를 추출하고 다이어리로 변환해드립니다',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: context.secondaryText,
-                        height: 1.3,
+                    const SizedBox(width: 16),
+                    if (isExpanded) ...[
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '손글씨 다이어리',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: context.colorScheme.primary,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '손글씨 이미지를 업로드하면 AI가 텍스트를 추출하고 다이어리로 변환해드립니다',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: context.secondaryText,
+                                height: 1.3,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
+                    ] else ...[
+                      Text(
+                        '손글씨 다이어리',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: context.colorScheme.primary,
+                        ),
+                      ),
+                    ],
+                    if (isExpanded) ...[
+                      const SizedBox(width: 12),
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => context.go('/handwriting-diary'),
+                        child: SizedBox(
+                          width: 44,
+                          height: 44,
+                          child: Center(
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 400),
+                              child: Icon(
+                                Icons.arrow_forward_ios,
+                                color: context.colorScheme.primary.withOpacity(
+                                  0.8,
+                                ),
+                                size: 18,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
-              Icon(
-                Icons.arrow_forward_ios,
-                color: context.colorScheme.primary.withOpacity(0.6),
-                size: 16,
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
