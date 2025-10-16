@@ -973,7 +973,8 @@ class _HandwritingDiaryButton extends StatefulWidget {
   _HandwritingDiaryButtonState createState() => _HandwritingDiaryButtonState();
 }
 
-class _HandwritingDiaryButtonState extends State<_HandwritingDiaryButton> {
+class _HandwritingDiaryButtonState extends State<_HandwritingDiaryButton>
+    with TickerProviderStateMixin {
   bool isExpanded = false;
 
   @override
@@ -983,165 +984,184 @@ class _HandwritingDiaryButtonState extends State<_HandwritingDiaryButton> {
         final double expandedWidth = constraints.maxWidth;
         return Align(
           alignment: Alignment.centerRight,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 400),
+          child: AnimatedSize(
+            duration: const Duration(milliseconds: 300),
             curve: Curves.easeInOut,
-            width: isExpanded ? expandedWidth : 170, // 가로 크기
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  context.colorScheme.primary.withOpacity(
-                    isExpanded ? 0.12 : 0.08,
+            alignment: Alignment.topCenter,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeInOut,
+              width: isExpanded ? expandedWidth : 170, // 가로 크기
+              // 높이는 내용에 맞게 자동, 최소 높이만 보장
+              constraints: BoxConstraints(minHeight: isExpanded ? 84 : 48),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    context.colorScheme.primary.withOpacity(
+                      isExpanded ? 0.12 : 0.08,
+                    ),
+                    context.colorScheme.primary.withOpacity(
+                      isExpanded ? 0.06 : 0.04,
+                    ),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: context.colorScheme.primary.withOpacity(
+                    isExpanded ? 0.25 : 0.15,
                   ),
-                  context.colorScheme.primary.withOpacity(
-                    isExpanded ? 0.06 : 0.04,
+                  width: isExpanded ? 1.2 : 0.8,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: context.colorScheme.primary.withOpacity(0.1),
+                    blurRadius: isExpanded ? 12 : 6,
+                    offset: Offset(0, isExpanded ? 4 : 2),
                   ),
                 ],
               ),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: context.colorScheme.primary.withOpacity(
-                  isExpanded ? 0.25 : 0.15,
-                ),
-                width: isExpanded ? 1.2 : 0.8,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: context.colorScheme.primary.withOpacity(0.1),
-                  blurRadius: isExpanded ? 12 : 6,
-                  offset: Offset(0, isExpanded ? 4 : 2),
-                ),
-              ],
-            ),
-            child: InkWell(
-              onTap: () => setState(() => isExpanded = !isExpanded),
-              borderRadius: BorderRadius.circular(20),
-              child: Padding(
-                padding: EdgeInsets.all(isExpanded ? 14 : 10),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 400),
-                      padding: EdgeInsets.all(isExpanded ? 12 : 10),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            context.colorScheme.primary.withOpacity(
-                              isExpanded ? 0.2 : 0.15,
-                            ),
-                            context.colorScheme.primary.withOpacity(
-                              isExpanded ? 0.15 : 0.1,
-                            ),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: [
-                          BoxShadow(
-                            color: context.colorScheme.primary.withOpacity(0.1),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Icon(
-                        Icons.edit_outlined,
-                        color: context.colorScheme.primary,
-                        size: isExpanded ? 20 : 18,
-                      ),
-                    ),
-                    SizedBox(width: isExpanded ? 14 : 12),
-                    if (isExpanded) ...[
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            AnimatedDefaultTextStyle(
-                              duration: const Duration(milliseconds: 300),
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: context.colorScheme.primary,
-                                letterSpacing: -0.2,
+              child: InkWell(
+                onTap: () => setState(() => isExpanded = !isExpanded),
+                borderRadius: BorderRadius.circular(20),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isExpanded ? 14 : 10,
+                    vertical: isExpanded ? 10 : 8,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // 아이콘 컨테이너: 정사각형 고정 크기로 중앙 정렬
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 400),
+                        width: isExpanded ? 40 : 34,
+                        height: isExpanded ? 40 : 34,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              context.colorScheme.primary.withOpacity(
+                                isExpanded ? 0.2 : 0.15,
                               ),
-                              child: const Text('손글씨 다이어리'),
-                            ),
-                            const SizedBox(height: 5),
-                            AnimatedDefaultTextStyle(
-                              duration: const Duration(milliseconds: 300),
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: context.secondaryText.withOpacity(0.8),
-                                height: 1.3,
-                                letterSpacing: -0.1,
-                              ),
-                              child: const Text(
-                                '손글씨 이미지를 업로드하면 AI가 텍스트를 추출하고 다이어리로 변환해드립니다',
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ] else ...[
-                      AnimatedDefaultTextStyle(
-                        duration: const Duration(milliseconds: 300),
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: context.colorScheme.primary,
-                          letterSpacing: -0.2,
-                        ),
-                        child: const Text('손글씨 다이어리'),
-                      ),
-                    ],
-                    if (isExpanded) ...[
-                      const SizedBox(width: 12),
-                      GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () => context.go('/handwriting-diary'),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 400),
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                context.colorScheme.primary.withOpacity(0.9),
-                                context.colorScheme.primary.withOpacity(0.7),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: context.colorScheme.primary.withOpacity(
-                                  0.3,
-                                ),
-                                blurRadius: 8,
-                                offset: const Offset(0, 3),
+                              context.colorScheme.primary.withOpacity(
+                                isExpanded ? 0.15 : 0.1,
                               ),
                             ],
                           ),
-                          child: Center(
-                            child: AnimatedRotation(
-                              duration: const Duration(milliseconds: 400),
-                              turns: 0,
-                              child: Icon(
-                                Icons.arrow_forward_ios_rounded,
-                                color: Colors.white,
-                                size: 20,
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: context.colorScheme.primary.withOpacity(
+                                0.1,
+                              ),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: Icon(
+                            Icons.edit_outlined,
+                            color: context.colorScheme.primary,
+                            size: isExpanded ? 20 : 18,
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: isExpanded ? 14 : 12),
+                      if (isExpanded) ...[
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              AnimatedDefaultTextStyle(
+                                duration: const Duration(milliseconds: 300),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: context.colorScheme.primary,
+                                  letterSpacing: -0.2,
+                                ),
+                                child: const Text('손글씨 다이어리'),
+                              ),
+                              const SizedBox(height: 4),
+                              AnimatedDefaultTextStyle(
+                                duration: const Duration(milliseconds: 300),
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: context.secondaryText.withOpacity(0.8),
+                                  height: 1.3,
+                                  letterSpacing: -0.1,
+                                ),
+                                child: const Text(
+                                  '손글씨 이미지를 업로드하면 AI가 텍스트를 추출하고 다이어리로 변환해드립니다',
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  softWrap: true,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ] else ...[
+                        AnimatedDefaultTextStyle(
+                          duration: const Duration(milliseconds: 300),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: context.colorScheme.primary,
+                            letterSpacing: -0.2,
+                          ),
+                          child: const Text('손글씨 다이어리'),
+                        ),
+                      ],
+                      if (isExpanded) ...[
+                        const SizedBox(width: 12),
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => context.go('/handwriting-diary'),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 400),
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  context.colorScheme.primary.withOpacity(0.9),
+                                  context.colorScheme.primary.withOpacity(0.7),
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: context.colorScheme.primary
+                                      .withOpacity(0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: AnimatedRotation(
+                                duration: const Duration(milliseconds: 400),
+                                turns: 0,
+                                child: Icon(
+                                  Icons.arrow_forward_ios_rounded,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             ),
