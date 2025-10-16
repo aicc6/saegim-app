@@ -818,7 +818,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  // 문체 선택
+  // 문체 선택기
   Widget _buildStyleSelector(CreateState createState) {
     return Container(
       decoration: BoxDecoration(
