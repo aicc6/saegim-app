@@ -748,11 +748,45 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
     final diaryEmotionRaw = diary!.emotion ?? diary!.aiEmotion;
     final diaryEmotion = _toEnglishEmotion(diaryEmotionRaw);
 
-    if (diaryEmotion.isNotEmpty &&
-        _emotions.any((e) => e['value'] == diaryEmotion)) {
-      _selectedEmotion = diaryEmotion;
+    // 디버깅을 위한 로그 추가
+    AppLogger.info(
+      'Diary emotion initialization - raw: $diaryEmotionRaw, converted: $diaryEmotion',
+      'DiaryDetailPage',
+    );
+
+    // 감정 초기화 로직 개선
+    if (diaryEmotionRaw != null && diaryEmotionRaw.isNotEmpty) {
+      if (diaryEmotion.isNotEmpty &&
+          _emotions.any((e) => e['value'] == diaryEmotion)) {
+        // 영문으로 변환된 감정이 유효한 경우
+        _selectedEmotion = diaryEmotion;
+        AppLogger.info(
+          'Emotion set from converted value: $_selectedEmotion',
+          'DiaryDetailPage',
+        );
+      } else {
+        // 한글 감정명이 직접 매칭되는지 확인
+        final directMatch = _emotions.firstWhere(
+          (e) => e['label'] == diaryEmotionRaw,
+          orElse: () => {'value': '', 'label': ''},
+        );
+        if (directMatch['value']?.isNotEmpty == true) {
+          _selectedEmotion = directMatch['value'];
+          AppLogger.info(
+            'Emotion set from direct match: $_selectedEmotion',
+            'DiaryDetailPage',
+          );
+        } else {
+          _selectedEmotion = null;
+          AppLogger.warning(
+            'No emotion match found for: $diaryEmotionRaw',
+            'DiaryDetailPage',
+          );
+        }
+      }
     } else {
       _selectedEmotion = null;
+      AppLogger.info('No emotion data found in diary', 'DiaryDetailPage');
     }
 
     _selectedDate = diary!.diaryDate; // 날짜 초기화

@@ -831,6 +831,12 @@ class CreateNotifier extends StateNotifier<CreateState> {
     }
 
     try {
+      // 디버깅을 위한 로그 추가
+      AppLogger.info(
+        'Creating temp diary entry - userEmotion: $userEmotion, aiEmotion: $aiEmotion, state.emotion: ${state.emotion}',
+        'CreateNotifier',
+      );
+
       // 날짜 형식 변환 (YYYY-MM-DD)
       String? formattedDate;
       if (diaryDate != null) {
@@ -851,14 +857,23 @@ class CreateNotifier extends StateNotifier<CreateState> {
             '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
       }
 
+      // 감정 설정 로직
+      final finalUserEmotion = userEmotion ?? state.emotion;
+      final finalAiEmotion = aiEmotion ?? state.emotion;
+
+      AppLogger.info(
+        'Final emotions - user: $finalUserEmotion, ai: $finalAiEmotion',
+        'CreateNotifier',
+      );
+
       // 임시 다이어리 엔트리 생성
-      return DiaryEntry(
+      final entry = DiaryEntry(
         id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
         title: title ?? '손글씨 다이어리',
         content: state.generatedText!,
         aiGeneratedText: state.generatedText!,
-        emotion: userEmotion ?? state.emotion, // 사용자가 선택한 감정 우선
-        aiEmotion: aiEmotion ?? state.emotion,
+        emotion: finalUserEmotion, // 사용자가 선택한 감정 우선
+        aiEmotion: finalAiEmotion,
         keywords: state.generatedKeywords ?? [],
         createdAt: DateTime.now(),
         diaryDate: DateTime.parse(formattedDate),
@@ -867,6 +882,13 @@ class CreateNotifier extends StateNotifier<CreateState> {
             ? [state.handwritingImageUrl!]
             : [],
       );
+
+      AppLogger.info(
+        'Temp diary entry created - emotion: ${entry.emotion}, aiEmotion: ${entry.aiEmotion}',
+        'CreateNotifier',
+      );
+
+      return entry;
     } catch (e) {
       AppLogger.error(
         'Failed to create temp diary entry',

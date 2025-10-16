@@ -10,6 +10,7 @@ import 'package:saegim/core/theme/theme_extensions.dart';
 import 'package:saegim/features/home/data/services/handwriting_diary_service.dart';
 import 'package:saegim/features/home/presentation/riverpod/create_notifier.dart';
 import 'package:saegim/features/home/presentation/riverpod/handwriting_diary_notifier.dart';
+import 'package:saegim/shared/utils/app_logger.dart';
 import 'package:saegim/shared/widgets/common_app_bar.dart';
 
 /// 손글씨 이미지를 AI 다이어리로 변환하는 페이지
@@ -79,9 +80,11 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
         Text(
           '손글씨 이미지',
           style: TextStyle(
-            fontSize: 16,
+            fontSize: 14,
             fontWeight: FontWeight.w500,
-            color: context.colorScheme.primary,
+            color: context.isDarkMode
+                ? AppColors.darkTextSecondary
+                : AppColors.textSecondary,
           ),
         ),
         const SizedBox(height: 12),
@@ -396,22 +399,19 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
           ),
         ),
         const SizedBox(height: 8),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(emotions.length, (index) {
-              final emotion = emotions[index];
-              final isSelected = state.emotion == emotion;
-              final backgroundColor =
-                  emotionColors[emotion] ?? AppColors.borderStrong;
+        Row(
+          children: List.generate(emotions.length, (index) {
+            final emotion = emotions[index];
+            final isSelected = state.emotion == emotion;
+            final backgroundColor =
+                emotionColors[emotion] ?? AppColors.borderStrong;
 
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
+            return Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2),
                 child: GestureDetector(
                   onTap: () => notifier.setEmotion(emotion),
                   child: Container(
-                    width: 52,
                     height: 52,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
@@ -449,9 +449,9 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
                     ),
                   ),
                 ),
-              );
-            }),
-          ),
+              ),
+            );
+          }),
         ),
       ],
     );
@@ -1063,11 +1063,23 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
       // CreateNotifier를 통해 임시 다이어리 엔트리 생성
       final createNotifier = ref.read(createProvider.notifier);
       final handwritingResult = state.result;
+
+      // 디버깅을 위한 로그 추가
+      AppLogger.info(
+        'Creating temp diary entry - user emotion: ${state.emotion}, ai emotion: ${handwritingResult?.aiEmotion}',
+        'HandwritingDiaryPage',
+      );
+
       final tempEntry = createNotifier.createTempDiaryEntry(
         title: '손글씨 다이어리',
         diaryDate: DateTime.now().toIso8601String(),
         aiEmotion: handwritingResult?.aiEmotion, // AI 감정 전달
         userEmotion: state.emotion, // 사용자가 선택한 감정 전달
+      );
+
+      AppLogger.info(
+        'Temp entry created - emotion field: ${tempEntry?.emotion}',
+        'HandwritingDiaryPage',
       );
 
       if (mounted) {
