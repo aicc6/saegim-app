@@ -59,9 +59,12 @@ class HandwritingDiaryState {
     bool clearError = false,
     bool clearResult = false,
     bool clearExtractedText = false,
+    bool clearSelectedImage = false,
   }) {
     return HandwritingDiaryState(
-      selectedImage: selectedImage ?? this.selectedImage,
+      selectedImage: clearSelectedImage
+          ? null
+          : (selectedImage ?? this.selectedImage),
       style: style ?? this.style,
       length: length ?? this.length,
       emotion: emotion, // null 값을 명시적으로 허용
@@ -175,6 +178,16 @@ class HandwritingDiaryNotifier extends StateNotifier<HandwritingDiaryState> {
   /// 결과 클리어
   void clearResult() {
     state = state.copyWith(clearResult: true, clearExtractedText: true);
+  }
+
+  /// 선택된 이미지 클리어
+  void clearSelectedImage() {
+    state = state.copyWith(
+      clearSelectedImage: true,
+      clearResult: true,
+      clearExtractedText: true,
+      clearError: true,
+    );
   }
 
   /// 추출된 텍스트 표시/숨김 토글

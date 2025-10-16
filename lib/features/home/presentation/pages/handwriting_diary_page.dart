@@ -244,7 +244,7 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
             const SizedBox(width: 12),
             Expanded(
               child: ElevatedButton.icon(
-                onPressed: () => notifier.clearResult(),
+                onPressed: () => notifier.clearSelectedImage(),
                 icon: const Icon(Icons.close, size: 18),
                 label: const Text('제거'),
                 style: ElevatedButton.styleFrom(
