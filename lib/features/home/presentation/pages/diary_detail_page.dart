@@ -1,16 +1,18 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:saegim/app/routes/route_paths.dart';
 import 'package:saegim/core/theme/theme_extensions.dart';
 import 'package:saegim/features/calendar/data/models/diary_image_model.dart';
 import 'package:saegim/features/calendar/data/models/diary_model.dart';
 import 'package:saegim/features/calendar/data/services/diary_api_service.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
-import 'package:saegim/app/routes/route_paths.dart';
+import 'package:saegim/shared/widgets/emotion_emoji_widget.dart';
 
-class DiaryDetailPage extends StatefulWidget {
+class DiaryDetailPage extends ConsumerStatefulWidget {
   final String diaryId;
   final DiaryEntry? tempEntry; // 새 다이어리용 임시 데이터
   final bool startInEditMode; // 편집 모드로 시작할지 여부
@@ -23,10 +25,10 @@ class DiaryDetailPage extends StatefulWidget {
   });
 
   @override
-  State<DiaryDetailPage> createState() => _DiaryDetailPageState();
+  ConsumerState<DiaryDetailPage> createState() => _DiaryDetailPageState();
 }
 
-class _DiaryDetailPageState extends State<DiaryDetailPage> {
+class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
   // 현재 보고 있는 일기
   DiaryEntry? diary;
   bool isLoading = true;
@@ -91,33 +93,6 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
     }
   }
 
-  /// 감정에 해당하는 이모지 반환
-  String _getEmotionEmoji(String? emotion) {
-    if (emotion == null || emotion.isEmpty) return '😐';
-
-    switch (emotion.toLowerCase()) {
-      case 'happy':
-      case '행복':
-        return '😊';
-      case 'peaceful':
-      case '평온':
-        return '😌';
-      case 'unrest':
-      case 'anxious':
-      case '불안':
-        return '😰';
-      case 'angry':
-      case '분노':
-      case '화남':
-        return '😠';
-      case 'sad':
-      case '슬픔':
-        return '😢';
-      default:
-        return '😐';
-    }
-  }
-
   /// 감정을 한글->영문 코드로 변환
   String _toEnglishEmotion(String? emotion) {
     if (emotion == null) return '';
@@ -140,31 +115,24 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
   /// 감정 선택 드롭다운 위젯
   Widget _buildEmotionDropdown() {
     // 현재 선택된 값이 없으면 다이어리의 저장된 감정(한글일 수 있음)을 영문 코드로 변환해 사용
-    final String? resolvedSelected =
+    final String resolvedSelected =
         _selectedEmotion ?? _toEnglishEmotion(diary?.emotion);
 
-    String? normalizedSelected = resolvedSelected?.toLowerCase().trim();
+    String? normalizedSelected = resolvedSelected.toLowerCase().trim();
 
     // 선택된 감정이 유효한지 확인, 기본값 설정하지 않음
     final validEmotion =
-        (normalizedSelected != null &&
-            _emotions.any(
-              (emotion) =>
-                  (emotion['value'] ?? '').toLowerCase().trim() ==
-                  normalizedSelected,
-            ))
+        (_emotions.any(
+          (emotion) =>
+              (emotion['value'] ?? '').toLowerCase().trim() ==
+              normalizedSelected,
+        ))
         ? _emotions.firstWhere(
             (emotion) =>
                 (emotion['value'] ?? '').toLowerCase().trim() ==
                 normalizedSelected,
           )['value']
         : null;
-
-    AppLogger.info(
-      '🧭 Emotion dropdown resolve - _selected: '
-          '$_selectedEmotion, diary(raw): ${diary?.emotion}, resolved: $resolvedSelected, final: $validEmotion',
-      'DiaryDetailPage',
-    );
 
     return DropdownButton<String>(
       value: validEmotion,
@@ -175,7 +143,11 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
           value: emotion['value'],
           child: Row(
             children: [
-              Text(emotion['emoji']!, style: const TextStyle(fontSize: 20)),
+              EmotionEmojiWidget(
+                emotion: emotion['value']!,
+                size: 20,
+                imageScale: 1.3,
+              ),
               const SizedBox(width: 8),
               Text(
                 emotion['label']!,
@@ -773,20 +745,15 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
     _aiGeneratedTextController.text = diary!.aiGeneratedText ?? '';
 
     // 사용자 감정 초기화 - 한글일 수 있으므로 영문 코드로 치환 후 검증
-    final diaryEmotionRaw = diary!.emotion;
+    final diaryEmotionRaw = diary!.emotion ?? diary!.aiEmotion;
     final diaryEmotion = _toEnglishEmotion(diaryEmotionRaw);
+
     if (diaryEmotion.isNotEmpty &&
         _emotions.any((e) => e['value'] == diaryEmotion)) {
       _selectedEmotion = diaryEmotion;
     } else {
-      _selectedEmotion = null; // 기본값 설정하지 않음
+      _selectedEmotion = null;
     }
-
-    // AI 감정 디버깅 로그 추가
-    AppLogger.info(
-      '🔍 AI Emotion Debug - Raw aiEmotion: ${diary!.aiEmotion}, IsEmpty: ${diary!.aiEmotion?.isEmpty ?? true}',
-      'DiaryDetailPage',
-    );
 
     _selectedDate = diary!.diaryDate; // 날짜 초기화
   }
@@ -1713,15 +1680,6 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       isEditMode ? _selectedEmotion : diary!.emotion,
     );
     final aiEmotion = _getKoreanEmotion(diary!.aiEmotion);
-    final currentEmoji = _getEmotionEmoji(
-      isEditMode ? _selectedEmotion : diary!.emotion,
-    );
-
-    // AI 감정 디버깅 로그
-    AppLogger.info(
-      '🔍 AI Emotion Debug - Raw: ${diary!.aiEmotion}, Korean: $aiEmotion, IsEmpty: ${diary!.aiEmotion?.isEmpty ?? true}',
-      'DiaryDetailPage',
-    );
 
     return Column(
       children: [
@@ -1770,26 +1728,28 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                       Expanded(child: _buildEmotionDropdown()),
                     ] else ...[
                       // 보기 모드: 현재 감정 표시
-                      Expanded(
-                        child: Row(
-                          children: [
-                            Text(
-                              currentEmoji,
-                              style: const TextStyle(fontSize: 20),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                userEmotion,
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w600,
-                                  color: context.primaryText,
-                                ),
+                      Row(
+                        children: [
+                          EmotionEmojiWidget(
+                            emotion:
+                                _selectedEmotion ??
+                                diary!.emotion ??
+                                'peaceful',
+                            size: 24,
+                            imageScale: 1.4,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              userEmotion,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: context.primaryText,
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ],
                   ],
@@ -1834,31 +1794,30 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Expanded(
-                      child: Row(
-                        children: [
-                          Text(
-                            _getEmotionEmoji(diary!.aiEmotion),
-                            style: const TextStyle(fontSize: 20),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              aiEmotion.isNotEmpty ? aiEmotion : '분석 결과 없음',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w600,
-                                color: aiEmotion.isNotEmpty
-                                    ? context.primaryText
-                                    : context.secondaryText,
-                                fontStyle: aiEmotion.isEmpty
-                                    ? FontStyle.italic
-                                    : FontStyle.normal,
-                              ),
+                    Row(
+                      children: [
+                        EmotionEmojiWidget(
+                          emotion: diary!.aiEmotion ?? 'peaceful',
+                          size: 24,
+                          imageScale: 1.4,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            aiEmotion.isNotEmpty ? aiEmotion : '분석 결과 없음',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: aiEmotion.isNotEmpty
+                                  ? context.primaryText
+                                  : context.secondaryText,
+                              fontStyle: aiEmotion.isEmpty
+                                  ? FontStyle.italic
+                                  : FontStyle.normal,
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -1956,7 +1915,9 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: context.colorScheme.surfaceVariant.withOpacity(0.3),
+                color: context.colorScheme.surfaceContainerHighest.withOpacity(
+                  0.3,
+                ),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: context.colorScheme.outline.withOpacity(0.2),

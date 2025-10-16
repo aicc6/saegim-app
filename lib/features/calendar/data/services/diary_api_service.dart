@@ -16,24 +16,6 @@ class DiaryApiService {
   /// 중앙화된 Dio 인스턴스 사용 (CookieManager가 자동으로 쿠키 기반 인증 처리)
   Dio get dio => DioClient.instance.dio;
 
-  /// 한국어 감정을 영어로 변환
-  String _convertKoreanEmotionToEnglish(String koreanEmotion) {
-    switch (koreanEmotion) {
-      case '행복':
-        return 'happy';
-      case '평온':
-        return 'peaceful';
-      case '불안':
-        return 'unrest';
-      case '분노':
-        return 'angry';
-      case '슬픔':
-        return 'sad';
-      default:
-        return 'peaceful'; // 기본값
-    }
-  }
-
   /// 필터링 조건으로 다이어리 목록 조회 (페이지네이션 지원)
   ///
   /// [page]: 페이지 번호 (1부터 시작)
@@ -607,11 +589,13 @@ class DiaryApiService {
       }
 
       if (userEmotion != null && userEmotion.isNotEmpty) {
-        diaryData['user_emotion'] = _convertKoreanEmotionToEnglish(userEmotion);
+        // 영어 감정은 그대로 전달 (이미 정규화됨)
+        diaryData['user_emotion'] = userEmotion;
       }
 
       if (aiEmotion != null && aiEmotion.isNotEmpty) {
-        diaryData['ai_emotion'] = _convertKoreanEmotionToEnglish(aiEmotion);
+        // 영어 감정은 그대로 전달 (이미 정규화됨)
+        diaryData['ai_emotion'] = aiEmotion;
       }
 
       if (aiEmotionConfidence != null) {
@@ -631,23 +615,9 @@ class DiaryApiService {
       }
 
       AppLogger.info(
-        'Create diary request data: $diaryData',
+        'Creating diary with user_emotion: ${diaryData['user_emotion']}, ai_emotion: ${diaryData['ai_emotion']}',
         'DiaryApiService',
       );
-
-      // 감정 변환 로깅
-      if (userEmotion != null && userEmotion.isNotEmpty) {
-        AppLogger.info(
-          'Emotion conversion - user_emotion: $userEmotion -> ${_convertKoreanEmotionToEnglish(userEmotion)}',
-          'DiaryApiService',
-        );
-      }
-      if (aiEmotion != null && aiEmotion.isNotEmpty) {
-        AppLogger.info(
-          'Emotion conversion - ai_emotion: $aiEmotion -> ${_convertKoreanEmotionToEnglish(aiEmotion)}',
-          'DiaryApiService',
-        );
-      }
 
       final response = await dio.post('/api/diary', data: diaryData);
 

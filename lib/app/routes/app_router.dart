@@ -19,6 +19,7 @@ import 'package:saegim/features/home/presentation/pages/support_page.dart';
 import 'package:saegim/features/profile/presentation/pages/profile_page.dart';
 import 'package:saegim/features/settings/presentation/pages/app_preferences_page.dart';
 import 'package:saegim/features/settings/presentation/pages/change_password_page.dart';
+import 'package:saegim/features/settings/presentation/pages/emoji_theme_settings_page.dart';
 import 'package:saegim/features/settings/presentation/pages/notification_settings_page.dart';
 import 'package:saegim/features/settings/presentation/pages/privacy_settings_page.dart';
 import 'package:saegim/shared/widgets/error_page.dart';
@@ -151,6 +152,10 @@ class AppRouter {
             GoRoute(
               path: '/app-preferences',
               builder: (context, state) => const AppPreferencesPage(),
+            ),
+            GoRoute(
+              path: '/emoji-theme',
+              builder: (context, state) => const EmojiThemeSettingsPage(),
             ),
             GoRoute(
               path: '/notifications',

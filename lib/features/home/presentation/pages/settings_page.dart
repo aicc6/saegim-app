@@ -157,6 +157,13 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           _buildSettingsTile(
             context,
+            icon: Icons.emoji_emotions_outlined,
+            title: '이모지 스타일',
+            subtitle: '감정 이모지 테마 변경',
+            onTap: () => context.push('/settings/emoji-theme'),
+          ),
+          _buildSettingsTile(
+            context,
             icon: Icons.lock_outline,
             title: '개인정보 설정',
             subtitle: '계정 정보, 데이터 관리',
