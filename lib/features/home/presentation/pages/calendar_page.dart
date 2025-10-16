@@ -11,6 +11,7 @@ import 'package:saegim/features/calendar/presentation/riverpod/calendar_notifier
 import 'package:saegim/features/calendar/presentation/widgets/test_login_widget.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
 import 'package:saegim/shared/widgets/common_app_bar.dart';
+import 'package:saegim/shared/widgets/emotion_emoji_widget.dart';
 
 class CalendarPage extends ConsumerStatefulWidget {
   const CalendarPage({super.key});
@@ -301,10 +302,12 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     }).toList();
   }
 
-  // 특정 날짜의 다이어리 이모티콘 가져오기 (첫 번째 다이어리 기준)
-  String _getDiaryEmoji(DateTime date, List<DiaryEntry> diaries) {
+  // 특정 날짜의 다이어리 감정 가져오기 (첫 번째 다이어리 기준)
+  String _getDiaryEmotion(DateTime date, List<DiaryEntry> diaries) {
     final dailyDiaries = _getDiariesForDate(date, diaries);
-    return dailyDiaries.isNotEmpty ? dailyDiaries.first.emotionEmoji : '😊';
+    if (dailyDiaries.isEmpty) return 'happy';
+    final diary = dailyDiaries.first;
+    return diary.aiEmotion ?? diary.emotion ?? 'peaceful';
   }
 
   // 특정 날짜의 다이어리 키워드 가져오기 (첫 번째 다이어리 기준)
@@ -658,16 +661,15 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                                                 crossAxisAlignment:
                                                     CrossAxisAlignment.start,
                                                 children: [
-                                                  // 이모티콘
-                                                  Text(
-                                                    _getDiaryEmoji(
+                                                  // 이모티콘 (테마 적용)
+                                                  EmotionEmojiWidget(
+                                                    emotion: _getDiaryEmotion(
                                                       date,
                                                       calendarState
                                                           .monthlyDiaries,
                                                     ),
-                                                    style: const TextStyle(
-                                                      fontSize: 12,
-                                                    ),
+                                                    size: 12,
+                                                    imageScale: 1.3,
                                                   ),
                                                   const SizedBox(height: 1),
                                                   // 키워드
@@ -1366,7 +1368,11 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
               ),
             ),
             const SizedBox(width: 16),
-            Text(diary.emotionEmoji, style: const TextStyle(fontSize: 32)),
+            EmotionEmojiWidget(
+              emotion: diary.aiEmotion ?? diary.emotion ?? 'peaceful',
+              size: 32,
+              imageScale: 1.4,
+            ),
           ],
         ),
 
@@ -1973,8 +1979,12 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                 ),
               ),
               const SizedBox(width: 8),
-              // 이모티콘
-              Text(emotion.emoji, style: const TextStyle(fontSize: 18)),
+              // 이모티콘 (테마 적용)
+              EmotionEmojiWidget(
+                emotion: emotion.emotion,
+                size: 18,
+                imageScale: 1.3,
+              ),
               const SizedBox(width: 6),
               // 감정 이름과 갯수, 퍼센트를 세로로 배치
               Column(

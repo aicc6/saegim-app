@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:saegim/features/calendar/data/models/diary_model.dart';
 import 'package:saegim/features/calendar/data/services/diary_api_service.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
+import 'package:saegim/shared/widgets/emotion_emoji_widget.dart';
 
-class DiaryEditPage extends StatefulWidget {
+class DiaryEditPage extends ConsumerStatefulWidget {
   final DiaryEntry diary;
 
   const DiaryEditPage({super.key, required this.diary});
 
   @override
-  State<DiaryEditPage> createState() => _DiaryEditPageState();
+  ConsumerState<DiaryEditPage> createState() => _DiaryEditPageState();
 }
 
-class _DiaryEditPageState extends State<DiaryEditPage> {
+class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _titleController;
   late TextEditingController _aiGeneratedTextController;
@@ -543,9 +545,10 @@ class _DiaryEditPageState extends State<DiaryEditPage> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        emotion['emoji']!,
-                        style: const TextStyle(fontSize: 16),
+                      EmotionEmojiWidget(
+                        emotion: emotion['value']!,
+                        size: 16,
+                        imageScale: 1.5,
                       ),
                       const SizedBox(width: 4),
                       Text(

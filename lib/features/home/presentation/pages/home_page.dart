@@ -10,6 +10,7 @@ import 'package:saegim/core/theme/theme_extensions.dart';
 import 'package:saegim/features/calendar/data/models/diary_model.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
 import 'package:saegim/shared/widgets/common_app_bar.dart';
+import 'package:saegim/shared/widgets/emotion_emoji_widget.dart';
 
 import '../riverpod/create_notifier.dart';
 import '../riverpod/emotions_notifier.dart';
@@ -431,6 +432,10 @@ class _HomePageState extends ConsumerState<HomePage> {
               // 임시 DiaryEntry 생성하여 DiaryDetailPage로 전달
               final now = DateTime.now();
 
+              print('\n');
+              print('📝📝📝 MOVE TO DIARY 📝📝📝');
+              print('📥 Received emotion: "${emotion ?? "NULL"}"');
+
               // 한글 감정을 영어로 변환
               String? convertedEmotion;
               if (emotion != null && emotion.isNotEmpty) {
@@ -448,7 +453,12 @@ class _HomePageState extends ConsumerState<HomePage> {
                   'sad': 'sad',
                 };
                 convertedEmotion = emotionMap[emotion.trim()] ?? emotion;
+                print('✅ Converted emotion: "$convertedEmotion"');
+              } else {
+                print('❌ Emotion is empty or null, will be saved as NULL');
               }
+              print('📝📝📝📝📝📝📝📝📝📝📝📝📝📝📝');
+              print('\n');
 
               final userInput = _promptController.text.trim();
               final contentText = userInput.isNotEmpty ? userInput : content;
@@ -934,36 +944,12 @@ class _HomePageState extends ConsumerState<HomePage> {
               child: Container(
                 width: 52,
                 height: 52,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: isSelected
-                        ? context.colorScheme.primary
-                        : context.borderSubtle,
-                    width: isSelected ? 3 : 1,
-                  ),
-                  color: isSelected
-                      ? _getColorFromStyle(config.styles.bg)
-                      : context.colorScheme.surface,
-                  boxShadow: isSelected
-                      ? [
-                          BoxShadow(
-                            color: context.colorScheme.primary.withAlpha(38),
-                            blurRadius: 3,
-                            spreadRadius: 1,
-                          ),
-                        ]
-                      : null,
-                ),
+                decoration: BoxDecoration(shape: BoxShape.circle),
                 child: Center(
-                  child: Text(
-                    config.emoji,
-                    style: TextStyle(
-                      fontSize: isSelected ? 28 : 22,
-                      color: isSelected
-                          ? _getColorFromStyle(config.styles.text)
-                          : context.primaryText,
-                    ),
+                  child: EmotionEmojiWidget(
+                    emotion: config.value.value,
+                    size: isSelected ? 33 : 25,
+                    imageScale: 1.7, // PNG 이미지는 1.5배 크게 표시
                   ),
                 ),
               ),
@@ -981,29 +967,6 @@ class _HomePageState extends ConsumerState<HomePage> {
       _showSuccessSnackBar('텍스트가 복사되었습니다!');
     } catch (e) {
       _showErrorSnackBar('복사 중 오류가 발생했습니다.');
-    }
-  }
-
-  Color _getColorFromStyle(String style) {
-    final parts = style.split('-');
-    if (parts.length != 3) return Colors.grey;
-
-    final color = parts[1];
-    final shade = int.tryParse(parts[2]) ?? 500;
-
-    switch (color) {
-      case 'yellow':
-        return const Color.fromARGB(255, 255, 250, 203);
-      case 'sky':
-        return const Color.fromARGB(255, 227, 247, 255);
-      case 'green':
-        return Colors.green[shade] ?? Colors.green;
-      case 'orange':
-        return const Color.fromARGB(255, 255, 221, 169);
-      case 'purple':
-        return const Color.fromARGB(162, 247, 206, 255);
-      default:
-        return Colors.grey[shade] ?? Colors.grey;
     }
   }
 

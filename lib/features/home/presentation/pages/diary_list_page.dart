@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:saegim/core/theme/theme_extensions.dart';
 import 'package:saegim/features/calendar/data/models/diary_image_model.dart';
@@ -6,15 +7,16 @@ import 'package:saegim/features/calendar/data/models/diary_model.dart';
 import 'package:saegim/features/calendar/data/services/diary_api_service.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
 import 'package:saegim/shared/widgets/common_app_bar.dart';
+import 'package:saegim/shared/widgets/emotion_emoji_widget.dart';
 
-class DiaryListPage extends StatefulWidget {
+class DiaryListPage extends ConsumerStatefulWidget {
   const DiaryListPage({super.key});
 
   @override
-  State<DiaryListPage> createState() => _DiaryListPageState();
+  ConsumerState<DiaryListPage> createState() => _DiaryListPageState();
 }
 
-class _DiaryListPageState extends State<DiaryListPage> {
+class _DiaryListPageState extends ConsumerState<DiaryListPage> {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
@@ -730,9 +732,34 @@ class _DiaryListPageState extends State<DiaryListPage> {
                         ).colorScheme.surface.withOpacity(0.9),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Text(
-                        diary.emotionEmoji,
-                        style: const TextStyle(fontSize: 20),
+                      child: Builder(
+                        builder: (context) {
+                          // 감정 값 디버깅
+                          final emotionValue =
+                              diary.aiEmotion ?? diary.emotion ?? 'peaceful';
+
+                          // 디버깅 로그 (눈에 잘 띄게)
+                          if (diary.id.isNotEmpty) {
+                            print('\n');
+                            print('🎯🎯🎯 EMOTION DEBUG 🎯🎯🎯');
+                            print('📌 Diary ID: ${diary.id}');
+                            print(
+                              '📌 AI Emotion: ${diary.aiEmotion ?? "NULL"}',
+                            );
+                            print(
+                              '📌 User Emotion: ${diary.emotion ?? "NULL"}',
+                            );
+                            print('📌 Using Emotion: $emotionValue');
+                            print('🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯');
+                            print('\n');
+                          }
+
+                          return EmotionEmojiWidget(
+                            emotion: emotionValue,
+                            size: 20,
+                            imageScale: 1.3,
+                          );
+                        },
                       ),
                     ),
                   ),
@@ -925,23 +952,5 @@ class _DiaryListPageState extends State<DiaryListPage> {
         color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
       ),
     );
-  }
-
-  String _getEmotionEmoji(String emotion) {
-    switch (emotion) {
-      case 'happy':
-        return '😊';
-      case 'sad':
-        return '😢';
-      case 'angry':
-        return '😡';
-      case 'peaceful':
-        return '😌';
-      case 'unrest':
-      case 'anxious':
-        return '😨';
-      default:
-        return '😊';
-    }
   }
 }

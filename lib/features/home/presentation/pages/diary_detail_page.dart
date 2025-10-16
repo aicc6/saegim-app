@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:saegim/core/theme/theme_extensions.dart';
@@ -8,8 +9,9 @@ import 'package:saegim/features/calendar/data/models/diary_image_model.dart';
 import 'package:saegim/features/calendar/data/models/diary_model.dart';
 import 'package:saegim/features/calendar/data/services/diary_api_service.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
+import 'package:saegim/shared/widgets/emotion_emoji_widget.dart';
 
-class DiaryDetailPage extends StatefulWidget {
+class DiaryDetailPage extends ConsumerStatefulWidget {
   final String diaryId;
   final DiaryEntry? tempEntry; // 새 다이어리용 임시 데이터
   final bool startInEditMode; // 편집 모드로 시작할지 여부
@@ -22,10 +24,10 @@ class DiaryDetailPage extends StatefulWidget {
   });
 
   @override
-  State<DiaryDetailPage> createState() => _DiaryDetailPageState();
+  ConsumerState<DiaryDetailPage> createState() => _DiaryDetailPageState();
 }
 
-class _DiaryDetailPageState extends State<DiaryDetailPage> {
+class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
   // 현재 보고 있는 일기
   DiaryEntry? diary;
   bool isLoading = true;
@@ -90,33 +92,6 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
     }
   }
 
-  /// 감정에 해당하는 이모지 반환
-  String _getEmotionEmoji(String? emotion) {
-    if (emotion == null || emotion.isEmpty) return '😐';
-
-    switch (emotion.toLowerCase()) {
-      case 'happy':
-      case '행복':
-        return '😊';
-      case 'peaceful':
-      case '평온':
-        return '😌';
-      case 'unrest':
-      case 'anxious':
-      case '불안':
-        return '😰';
-      case 'angry':
-      case '분노':
-      case '화남':
-        return '😠';
-      case 'sad':
-      case '슬픔':
-        return '😢';
-      default:
-        return '😐';
-    }
-  }
-
   /// 감정 선택 드롭다운 위젯
   Widget _buildEmotionDropdown() {
     // 선택된 감정이 유효한지 확인, 기본값 설정하지 않음
@@ -135,7 +110,11 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
           value: emotion['value'],
           child: Row(
             children: [
-              Text(emotion['emoji']!, style: const TextStyle(fontSize: 20)),
+              EmotionEmojiWidget(
+                emotion: emotion['value']!,
+                size: 20,
+                imageScale: 1.3,
+              ),
               const SizedBox(width: 8),
               Text(
                 emotion['label']!,
@@ -707,21 +686,28 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
     _keywordsController.text = diary!.keywords.join(', ');
     _aiGeneratedTextController.text = diary!.aiGeneratedText ?? '';
-    // 사용자 감정 초기화 - 유효한 감정만 설정, 기본값 설정하지 않음
-    final diaryEmotion = diary!.emotion;
+
+    // 사용자 감정 초기화 - AI 감정 우선, 그 다음 사용자 감정
+    final diaryEmotion = diary!.emotion ?? diary!.aiEmotion;
+
+    print('\n');
+    print('🔧🔧🔧 EDIT CONTROLLER INIT 🔧🔧🔧');
+    print('📝 Diary ID: ${diary!.id}');
+    print('📝 diary.emotion: ${diary!.emotion ?? "NULL"}');
+    print('📝 diary.aiEmotion: ${diary!.aiEmotion ?? "NULL"}');
+    print('📝 Selected emotion: $diaryEmotion');
+
     if (diaryEmotion != null &&
         diaryEmotion.isNotEmpty &&
         _emotions.any((emotion) => emotion['value'] == diaryEmotion)) {
       _selectedEmotion = diaryEmotion;
+      print('✅ _selectedEmotion SET TO: $_selectedEmotion');
     } else {
-      _selectedEmotion = null; // 기본값 설정하지 않음
+      _selectedEmotion = null;
+      print('❌ _selectedEmotion SET TO NULL (no valid emotion found)');
     }
-
-    // AI 감정 디버깅 로그 추가
-    AppLogger.info(
-      '🔍 AI Emotion Debug - Raw aiEmotion: ${diary!.aiEmotion}, IsEmpty: ${diary!.aiEmotion?.isEmpty ?? true}',
-      'DiaryDetailPage',
-    );
+    print('🔧🔧🔧🔧🔧🔧🔧🔧🔧🔧🔧🔧🔧');
+    print('\n');
 
     _selectedDate = diary!.diaryDate; // 날짜 초기화
   }
@@ -819,6 +805,15 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         }
 
         // 새 다이어리 생성 시 편집 모드에서 입력한 데이터 사용
+        print('\n');
+        print('💾💾💾 SAVING TO BACKEND 💾💾💾');
+        print('📤 userEmotion: ${_selectedEmotion ?? "NULL"}');
+        print('📤 aiEmotion: ${diary!.aiEmotion ?? "NULL"}');
+        print('📤 title: ${titleText.isNotEmpty ? titleText : "NULL"}');
+        print('📤 keywords: $keywordsList');
+        print('💾💾💾💾💾💾💾💾💾💾💾💾💾💾💾💾');
+        print('\n');
+
         final createdDiary = await DiaryApiService.instance.createDiary(
           content: diary!.content, // 필수 - 원본 콘텐츠 사용
           title: titleText.isNotEmpty ? titleText : null, // 편집 모드에서 입력한 제목 사용
@@ -1543,9 +1538,6 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       isEditMode ? _selectedEmotion : diary!.emotion,
     );
     final aiEmotion = _getKoreanEmotion(diary!.aiEmotion);
-    final currentEmoji = _getEmotionEmoji(
-      isEditMode ? _selectedEmotion : diary!.emotion,
-    );
 
     // AI 감정 디버깅 로그
     AppLogger.info(
@@ -1601,9 +1593,13 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                       // 보기 모드: 현재 감정 표시
                       Row(
                         children: [
-                          Text(
-                            currentEmoji,
-                            style: const TextStyle(fontSize: 24),
+                          EmotionEmojiWidget(
+                            emotion:
+                                _selectedEmotion ??
+                                diary!.emotion ??
+                                'peaceful',
+                            size: 24,
+                            imageScale: 1.4,
                           ),
                           const SizedBox(width: 8),
                           Text(
@@ -1658,9 +1654,10 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Text(
-                          _getEmotionEmoji(diary!.aiEmotion),
-                          style: const TextStyle(fontSize: 24),
+                        EmotionEmojiWidget(
+                          emotion: diary!.aiEmotion ?? 'peaceful',
+                          size: 24,
+                          imageScale: 1.4,
                         ),
                         const SizedBox(width: 8),
                         Expanded(
@@ -1773,7 +1770,8 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: context.colorScheme.surfaceVariant.withOpacity(0.3),
+                  color: context.colorScheme.surfaceContainerHighest
+                      .withOpacity(0.3),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: context.colorScheme.outline.withOpacity(0.2),
