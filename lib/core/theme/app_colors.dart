@@ -52,14 +52,14 @@ class AppColors {
   static const emotionSadSecondary = Color(0xFFE8EEF7);
   static const emotionAngrySecondary = Color(0xFFF3E5E0);
   static const emotionPeacefulSecondary = Color(0xFFE8F0E8);
-  static const emotionWorriedSecondary = Color(0xFFF5EBDC);
+  static const emotionWorriedSecondary = Color.fromARGB(255, 164, 160, 172);
 
   // 감정별 배경 색상
   static const emotionHappyBg = Color(0xFFFAF7E8);
   static const emotionSadBg = Color(0xFFF2F6FB);
   static const emotionAngryBg = Color(0xFFF8F0EC);
   static const emotionPeacefulBg = Color(0xFFF0F7F0);
-  static const emotionWorriedBg = Color(0xFFFAF4E8);
+  static const emotionWorriedBg = Color.fromARGB(255, 174, 172, 177);
 
   // ========== 시스템 색상 ==========
   static const success = Color(0xFF10B981);
