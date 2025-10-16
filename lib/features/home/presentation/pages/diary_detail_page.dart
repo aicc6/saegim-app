@@ -805,13 +805,23 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
   /// 편집 모드 취소
   void _cancelEditMode() {
-    setState(() {
-      isEditMode = false;
-      // 새로 추가된 이미지들 초기화
-      newImages.clear();
-    });
-    // 원래 값으로 되돌리기
-    _initializeEditControllers();
+    // 진입 경로에 따라 다른 동작 수행
+    final uri = GoRouter.of(context).routeInformationProvider.value.uri;
+    final from = uri.queryParameters['from'];
+
+    if (from == 'handwriting') {
+      // 1. 손글씨 다이어리 페이지에서 온 경우 - 해당 페이지로 돌아가기
+      context.go(RoutePaths.handwritingDiary);
+    } else {
+      // 2. 일반적인 경로에서 온 경우 - 보기 모드로 전환
+      setState(() {
+        isEditMode = false;
+        // 새로 추가된 이미지들 초기화
+        newImages.clear();
+      });
+      // 원래 값으로 되돌리기
+      _initializeEditControllers();
+    }
   }
 
   /// 변경사항 저장
@@ -1483,8 +1493,8 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
             Text(
               '제목',
               style: TextStyle(
-                fontSize: 14,
-                color: context.secondaryText,
+                fontSize: 15,
+                color: context.colorScheme.secondary,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -1509,10 +1519,10 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
             // 날짜 선택 필드
             Text(
-              '📅 날짜 선택',
+              '날짜 선택',
               style: TextStyle(
                 fontSize: 14,
-                color: context.secondaryText,
+                color: context.colorScheme.secondary,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -1567,13 +1577,16 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
               ),
             ),
           ],
-          const SizedBox(height: 8),
-          Text(
-            _selectedDate != null
-                ? '${_selectedDate!.month}월 ${_selectedDate!.day}일'
-                : formattedDate,
-            style: TextStyle(fontSize: 16, color: context.secondaryText),
-          ),
+          // 편집 모드가 아닐 때만 날짜 표시
+          if (!isEditMode) ...[
+            const SizedBox(height: 8),
+            Text(
+              _selectedDate != null
+                  ? '${_selectedDate!.month}월 ${_selectedDate!.day}일'
+                  : formattedDate,
+              style: TextStyle(fontSize: 16, color: context.secondaryText),
+            ),
+          ],
         ],
       ),
     );
@@ -1605,6 +1618,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
             // 사용자 감정
             Expanded(
               child: Container(
+                height: 120, // 고정 높이 설정
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: context.colorScheme.surface,
@@ -1624,7 +1638,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                         Icon(
                           Icons.person,
                           size: 16,
-                          color: context.colorScheme.primary,
+                          color: context.colorScheme.secondary,
                         ),
                         const SizedBox(width: 6),
                         Text(
@@ -1632,7 +1646,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: context.colorScheme.primary,
+                            color: context.colorScheme.secondary,
                           ),
                         ),
                       ],
@@ -1640,25 +1654,29 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                     const SizedBox(height: 8),
                     if (isEditMode) ...[
                       // 편집 모드: 감정 선택 드롭다운
-                      _buildEmotionDropdown(),
+                      Expanded(child: _buildEmotionDropdown()),
                     ] else ...[
                       // 보기 모드: 현재 감정 표시
-                      Row(
-                        children: [
-                          Text(
-                            currentEmoji,
-                            style: const TextStyle(fontSize: 24),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            userEmotion,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: context.primaryText,
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Text(
+                              currentEmoji,
+                              style: const TextStyle(fontSize: 20),
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                userEmotion,
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w600,
+                                  color: context.primaryText,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ],
@@ -1669,13 +1687,16 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
             // AI 분석 감정
             Expanded(
               child: Container(
+                height: 120, // 고정 높이 설정
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: context.colorScheme.surface,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: context.colorScheme.secondary.withOpacity(0.3),
-                    width: 1,
+                    color: isEditMode
+                        ? context.colorScheme.primary
+                        : context.borderSubtle,
+                    width: isEditMode ? 2 : 1,
                   ),
                 ),
                 child: Column(
@@ -1700,29 +1721,31 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Text(
-                          _getEmotionEmoji(diary!.aiEmotion),
-                          style: const TextStyle(fontSize: 24),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            aiEmotion.isNotEmpty ? aiEmotion : '분석 결과 없음',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: aiEmotion.isNotEmpty
-                                  ? context.primaryText
-                                  : context.secondaryText,
-                              fontStyle: aiEmotion.isEmpty
-                                  ? FontStyle.italic
-                                  : FontStyle.normal,
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Text(
+                            _getEmotionEmoji(diary!.aiEmotion),
+                            style: const TextStyle(fontSize: 20),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              aiEmotion.isNotEmpty ? aiEmotion : '분석 결과 없음',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w600,
+                                color: aiEmotion.isNotEmpty
+                                    ? context.primaryText
+                                    : context.secondaryText,
+                                fontStyle: aiEmotion.isEmpty
+                                    ? FontStyle.italic
+                                    : FontStyle.normal,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -1761,9 +1784,9 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
               Text(
                 '키워드',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: context.colorScheme.primary,
+                  color: context.colorScheme.secondary,
                 ),
               ),
               if (isEditMode) ...[
@@ -1855,7 +1878,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: context.colorScheme.primaryContainer,
+        color: context.colorScheme.primary.withOpacity(0.15),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Text(
@@ -1902,8 +1925,8 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
               Text(
                 'AI 생성 글',
                 style: TextStyle(
-                  fontSize: 14,
-                  color: context.secondaryText,
+                  fontSize: 15,
+                  color: context.colorScheme.secondary,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -2004,7 +2027,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
               borderRadius: BorderRadius.circular(24),
             ),
             child: TextButton(
-              onPressed: isSaving ? null : () => _handleBackNavigation(context),
+              onPressed: isSaving ? null : _cancelEditMode,
               style: TextButton.styleFrom(
                 foregroundColor: context.colorScheme.onSurface,
                 shape: RoundedRectangleBorder(
@@ -2138,7 +2161,12 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
       decoration: BoxDecoration(
         color: context.colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: context.borderSubtle),
+        border: Border.all(
+          color: isEditMode
+              ? context.colorScheme.primary
+              : context.borderSubtle,
+          width: isEditMode ? 2 : 1,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2154,9 +2182,9 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
               Text(
                 '이미지',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: context.primaryText,
+                  color: context.colorScheme.secondary,
                 ),
               ),
               const Spacer(),
@@ -2300,7 +2328,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: context.borderSubtle),
+              border: Border.all(color: context.borderSubtle, width: 1),
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
@@ -2396,7 +2424,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
         Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: context.colorScheme.primary, width: 2),
+            border: Border.all(color: context.colorScheme.primary, width: 1),
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),

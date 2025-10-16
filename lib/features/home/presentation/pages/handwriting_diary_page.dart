@@ -733,8 +733,6 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
                     color: context.colorScheme.onSurface,
                     height: 1.5,
                   ),
-                  maxLines: 5,
-                  overflow: TextOverflow.ellipsis,
                 ),
         ),
       ],
