@@ -1055,22 +1055,32 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
             }
           } else {
             // 기존 다이어리 수정인 경우
-            // 선택된 날짜를 임시로 저장
-            final savedSelectedDate = _selectedDate;
+            // 현재 다이어리 상태를 업데이트하고 편집 모드 해제
+            setState(() {
+              // 편집된 내용으로 다이어리 객체 업데이트
+              diary = diary!.copyWith(
+                title: _titleController.text.trim(),
+                emotion: _selectedEmotion,
+                keywords: keywordsList,
+                aiGeneratedText: _aiGeneratedTextController.text.trim().isEmpty
+                    ? null
+                    : _aiGeneratedTextController.text.trim(),
+                diaryDate: _selectedDate,
+              );
+              isEditMode = false; // 편집 모드 해제
+              newImages.clear(); // 새로 추가된 이미지 목록 클리어
+            });
 
-            await _loadDiary();
-
-            // 로드 후 선택된 날짜를 다시 설정하고 편집 모드 확실히 해제
-            if (savedSelectedDate != null && diary != null) {
-              setState(() {
-                diary = diary!.copyWith(diaryDate: savedSelectedDate);
-                isEditMode = false; // 편집 모드 확실히 해제
-              });
-            } else {
-              // 날짜가 없는 경우에도 편집 모드 해제
-              setState(() {
-                isEditMode = false; // 편집 모드 확실히 해제
-              });
+            // 같은 날짜의 다른 다이어리들도 업데이트 (현재 다이어리 정보 반영)
+            if (dailyDiaries.isNotEmpty) {
+              final currentIndex = dailyDiaries.indexWhere(
+                (d) => d.id == diary!.id,
+              );
+              if (currentIndex != -1) {
+                setState(() {
+                  dailyDiaries[currentIndex] = diary!;
+                });
+              }
             }
 
             if (mounted && context.mounted) {
@@ -1151,23 +1161,33 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
               );
             }
           } else {
-            // 기존 다이어리 수정인 경우
-            // 선택된 날짜를 임시로 저장
-            final savedSelectedDate = _selectedDate;
+            // 기존 다이어리 수정인 경우 (이미지 업로드 실패)
+            // 현재 다이어리 상태를 업데이트하고 편집 모드 해제
+            setState(() {
+              // 편집된 내용으로 다이어리 객체 업데이트
+              diary = diary!.copyWith(
+                title: _titleController.text.trim(),
+                emotion: _selectedEmotion,
+                keywords: keywordsList,
+                aiGeneratedText: _aiGeneratedTextController.text.trim().isEmpty
+                    ? null
+                    : _aiGeneratedTextController.text.trim(),
+                diaryDate: _selectedDate,
+              );
+              isEditMode = false; // 편집 모드 해제
+              newImages.clear(); // 새로 추가된 이미지 목록 클리어
+            });
 
-            await _loadDiary();
-
-            // 로드 후 선택된 날짜를 다시 설정하고 편집 모드 확실히 해제
-            if (savedSelectedDate != null && diary != null) {
-              setState(() {
-                diary = diary!.copyWith(diaryDate: savedSelectedDate);
-                isEditMode = false; // 편집 모드 확실히 해제
-              });
-            } else {
-              // 날짜가 없는 경우에도 편집 모드 해제
-              setState(() {
-                isEditMode = false; // 편집 모드 확실히 해제
-              });
+            // 같은 날짜의 다른 다이어리들도 업데이트 (현재 다이어리 정보 반영)
+            if (dailyDiaries.isNotEmpty) {
+              final currentIndex = dailyDiaries.indexWhere(
+                (d) => d.id == diary!.id,
+              );
+              if (currentIndex != -1) {
+                setState(() {
+                  dailyDiaries[currentIndex] = diary!;
+                });
+              }
             }
 
             if (mounted && context.mounted) {

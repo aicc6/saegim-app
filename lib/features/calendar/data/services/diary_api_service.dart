@@ -1398,6 +1398,15 @@ class DiaryApiService {
     } on DioException catch (dioError) {
       final statusCode = dioError.response?.statusCode;
 
+      // 404 오류는 이미 삭제된 상태로 간주하여 성공 처리
+      if (statusCode == 404) {
+        AppLogger.info(
+          '✅ Image already deleted (404): $imageId',
+          'DiaryApiService',
+        );
+        return true;
+      }
+
       AppLogger.error(
         '❌ DioException deleting image: $imageId - Status: $statusCode',
         tag: 'DiaryApiService',
