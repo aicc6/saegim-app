@@ -9,6 +9,7 @@ import 'package:saegim/core/theme/theme_extensions.dart';
 import 'package:saegim/features/calendar/data/models/diary_image_model.dart';
 import 'package:saegim/features/calendar/data/models/diary_model.dart';
 import 'package:saegim/features/calendar/data/services/diary_api_service.dart';
+import 'package:saegim/features/home/presentation/riverpod/handwriting_diary_notifier.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
 import 'package:saegim/shared/widgets/emotion_emoji_widget.dart';
 
@@ -1019,6 +1020,20 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
               await Future.delayed(const Duration(milliseconds: 500));
 
               if (mounted && context.mounted) {
+                // 손글씨 다이어리 페이지 초기화 (새 다이어리 저장 완료 후)
+                try {
+                  ref.read(handwritingDiaryProvider.notifier).reset();
+                  AppLogger.info(
+                    'Handwriting diary page reset after successful diary creation',
+                    'DiaryDetailPage',
+                  );
+                } catch (e) {
+                  AppLogger.warning(
+                    'Failed to reset handwriting diary page: $e',
+                    'DiaryDetailPage',
+                  );
+                }
+
                 // 새 다이어리 생성 후 목록 페이지로 이동하여 새로고침 트리거
                 final timestamp = DateTime.now().millisecondsSinceEpoch;
                 AppLogger.info(
