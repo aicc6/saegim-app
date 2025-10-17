@@ -24,6 +24,7 @@ class HandwritingDiaryState {
   final String? editedOcrText;
   final String? editedAiText;
   final int? regenerationCount; // AI 재생성 횟수 (null 허용, 기본 0)
+  final bool? showRegenerationCount; // 재생성 횟수 표시 여부 (null 허용)
 
   const HandwritingDiaryState({
     this.selectedImage,
@@ -41,6 +42,7 @@ class HandwritingDiaryState {
     this.editedOcrText,
     this.editedAiText,
     this.regenerationCount = 0,
+    this.showRegenerationCount = false,
   });
 
   HandwritingDiaryState copyWith({
@@ -59,6 +61,7 @@ class HandwritingDiaryState {
     String? editedOcrText,
     String? editedAiText,
     int? regenerationCount,
+    bool? showRegenerationCount,
     bool clearError = false,
     bool clearResult = false,
     bool clearExtractedText = false,
@@ -84,6 +87,8 @@ class HandwritingDiaryState {
       editedOcrText: editedOcrText ?? this.editedOcrText,
       editedAiText: editedAiText ?? this.editedAiText,
       regenerationCount: regenerationCount ?? this.regenerationCount,
+      showRegenerationCount:
+          showRegenerationCount ?? this.showRegenerationCount,
     );
   }
 
@@ -120,6 +125,7 @@ class HandwritingDiaryNotifier extends StateNotifier<HandwritingDiaryState> {
           isProcessing: false,
           isConverting: false,
           regenerationCount: 0,
+          showRegenerationCount: false,
         ),
       );
 
@@ -142,6 +148,18 @@ class HandwritingDiaryNotifier extends StateNotifier<HandwritingDiaryState> {
       clearResult: true,
       clearExtractedText: true,
     );
+  }
+
+  /// 재생성 횟수 표시 토글
+  void toggleRegenerationCountDisplay() {
+    state = state.copyWith(showRegenerationCount: true);
+
+    // 3초 후 자동으로 숨김
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        state = state.copyWith(showRegenerationCount: false);
+      }
+    });
   }
 
   /// OCR 텍스트를 기반으로 AI 다이어리만 재생성 (최대 5회)
@@ -195,6 +213,7 @@ class HandwritingDiaryNotifier extends StateNotifier<HandwritingDiaryState> {
           isConverting: false,
           conversionStep: '완료',
           regenerationCount: (state.regenerationCount ?? 0) + 1,
+          showRegenerationCount: false, // 재생성 완료 시 카운트 숨김
         );
       } else {
         state = state.copyWith(
@@ -483,7 +502,7 @@ class HandwritingDiaryNotifier extends StateNotifier<HandwritingDiaryState> {
     state = state.copyWith(isConverting: true, clearError: true);
 
     try {
-      final result = await _handwritingService.convertHandwritingToDiaryDirect(
+      final result = await _handwritingService.convertHandwritingToDiaryPreview(
         imageFile: state.selectedImage!,
         style: state.style,
         length: state.length,

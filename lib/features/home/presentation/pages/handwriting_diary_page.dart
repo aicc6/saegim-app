@@ -587,6 +587,35 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
                 color: context.colorScheme.primary,
               ),
             ),
+            const Spacer(),
+            if (!state.isEditMode)
+              Container(
+                decoration: BoxDecoration(
+                  color: context.colorScheme.primary,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () => _toggleEditMode(notifier),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      child: Text(
+                        '편집하기',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
         const SizedBox(height: 8),
@@ -680,6 +709,46 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
                     : context.colorScheme.secondary,
               ),
             ),
+            const Spacer(),
+            if (!state.isEditMode && state.hasResult)
+              Container(
+                decoration: BoxDecoration(
+                  color: (state.regenerationCount ?? 0) >= 5
+                      ? Colors.grey.shade300
+                      : context.colorScheme.primary,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap:
+                        (state.regenerationCount ?? 0) >= 5 ||
+                            state.isConverting
+                        ? null
+                        : () => _regenerateWithButtonCountDisplay(
+                            notifier,
+                            state,
+                          ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      child: Text(
+                        _getRegenerateButtonText(state),
+                        style: TextStyle(
+                          color: (state.regenerationCount ?? 0) >= 5
+                              ? Colors.grey.shade600
+                              : Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
         const SizedBox(height: 8),
@@ -839,8 +908,8 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
 
           const SizedBox(height: 16),
 
-          // 액션 버튼들
-          _buildActionButtons(state, notifier),
+          // 하단 액션 버튼들 (저장하기, 작업취소)
+          _buildBottomActionButtons(state, notifier),
         ],
       ),
     );
@@ -931,7 +1000,7 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
     }
   }
 
-  Widget _buildActionButtons(
+  Widget _buildBottomActionButtons(
     HandwritingDiaryState state,
     HandwritingDiaryNotifier notifier,
   ) {
@@ -965,66 +1034,97 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
         ],
       );
     } else {
-      // 일반 모드일 때: 편집하기/저장하기 + AI 재생성/작업 취소 버튼
-      return Column(
+      // 일반 모드일 때: 저장하기/작업취소 버튼
+      return Row(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () => _toggleEditMode(notifier),
-                  icon: const Icon(Icons.edit, size: 18),
-                  label: const Text('편집하기'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: context.colorScheme.primary,
-                    foregroundColor: Colors.white,
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5F7F5), // 연한 녹색 배경
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: const Color(0xFF8CA096), // 어두운 녹색 테두리
+                  width: 1,
+                ),
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: () => _goToEditMode(),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.save_alt,
+                          size: 18,
+                          color: const Color(0xFF8CA096), // 어두운 녹색 아이콘
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '저장하기',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: const Color(0xFF8CA096), // 어두운 녹색 텍스트
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => _goToEditMode(),
-                  icon: const Icon(Icons.save_alt, size: 18),
-                  label: const Text('저장하기'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: context.colorScheme.primary,
-                    side: BorderSide(color: context.colorScheme.primary),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: state.hasResult && !state.isConverting
-                      ? () => notifier.regenerateAiFromOcrOnly()
-                      : null,
-                  icon: const Icon(Icons.auto_awesome, size: 18),
-                  label: Text(
-                    (state.regenerationCount ?? 0) >= 5
-                        ? 'AI 재생성(제한됨)'
-                        : 'AI 재생성',
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: context.colorScheme.secondary,
-                    side: BorderSide(color: context.colorScheme.secondary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF5F5), // 연한 빨간색 배경
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: const Color(0xFFE64646), // 밝은 빨간색 테두리
+                  width: 1,
+                ),
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: () => _cancelAndGoHome(),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.close,
+                          size: 18,
+                          color: const Color(0xFFE64646), // 밝은 빨간색 아이콘
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '취소하기',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: const Color(0xFFE64646), // 밝은 빨간색 텍스트
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextButton.icon(
-                  onPressed: () => _cancelAndGoHome(),
-                  icon: const Icon(Icons.cancel, size: 18),
-                  label: const Text('작업 취소'),
-                  style: TextButton.styleFrom(foregroundColor: Colors.red),
-                ),
-              ),
-            ],
+            ),
           ),
         ],
       );
@@ -1127,6 +1227,39 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
           ),
         );
       }
+    }
+  }
+
+  /// 재생성 버튼 텍스트 가져오기
+  String _getRegenerateButtonText(HandwritingDiaryState state) {
+    final currentCount = state.regenerationCount ?? 0;
+    final remainingCount = 4 - currentCount;
+
+    if (state.isConverting) {
+      return '재생성 중... ($remainingCount회 남음)';
+    } else if (state.showRegenerationCount == true) {
+      return '남은 횟수: $remainingCount회';
+    } else if (currentCount >= 5) {
+      return 'AI 재생성(제한됨)';
+    } else {
+      return 'AI 재생성';
+    }
+  }
+
+  /// AI 재생성과 함께 버튼에 남은 횟수 표시
+  void _regenerateWithButtonCountDisplay(
+    HandwritingDiaryNotifier notifier,
+    HandwritingDiaryState state,
+  ) {
+    final currentCount = state.regenerationCount ?? 0;
+    final remainingCount = 5 - currentCount;
+
+    if (remainingCount > 0) {
+      // 버튼에 남은 횟수 표시
+      notifier.toggleRegenerationCountDisplay();
+
+      // 재생성 실행
+      notifier.regenerateAiFromOcrOnly();
     }
   }
 

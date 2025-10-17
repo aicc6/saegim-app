@@ -107,13 +107,13 @@ class HandwritingDiaryService {
     }
   }
 
-  /// 새로운 /handwriting/to-diary 엔드포인트 사용 (두 단계 처리)
+  /// 손글씨를 임시 변환 (저장하지 않음)
   ///
   /// [imageFile]: 손글씨 이미지 파일
   /// [style]: 작성 스타일
   /// [length]: 길이 옵션
   /// [emotion]: 선택적 감정
-  Future<HandwritingDiaryResult?> convertHandwritingToDiaryDirect({
+  Future<HandwritingDiaryResult?> convertHandwritingToDiaryPreview({
     required File imageFile,
     required WritingStyle style,
     required LengthOption length,
@@ -121,7 +121,7 @@ class HandwritingDiaryService {
   }) async {
     try {
       AppLogger.info(
-        '🖋️ Using direct handwriting to diary API',
+        '🖋️ Using preview handwriting to diary API (no save)',
         'HandwritingDiaryService',
       );
 
@@ -180,6 +180,7 @@ class HandwritingDiaryService {
         'image_url': imageUrl,
         'style': style.value,
         'length': length.value,
+        'save': false, // 저장하지 않음
         if (emotion != null && emotion.isNotEmpty) ...{
           'emotion': _convertKoreanEmotionToEnglish(emotion),
           'user_emotion': _convertKoreanEmotionToEnglish(
@@ -267,6 +268,152 @@ class HandwritingDiaryService {
       }
 
       // 500 에러인 경우 더 구체적인 메시지 제공
+      if (statusCode == 500) {
+        errorMessage = '서버 내부 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
+      }
+
+      throw HandwritingDiaryException(errorMessage);
+    } catch (e) {
+      if (e is HandwritingDiaryException) rethrow;
+
+      AppLogger.error(
+        'Unexpected error in handwriting conversion',
+        tag: 'HandwritingDiaryService',
+        error: e,
+      );
+      throw HandwritingDiaryException(
+        '손글씨 다이어리 변환 중 오류가 발생했습니다: ${e.toString()}',
+      );
+    }
+  }
+
+  /// 새로운 /handwriting/to-diary 엔드포인트 사용 (저장 포함)
+  ///
+  /// [imageFile]: 손글씨 이미지 파일
+  /// [style]: 작성 스타일
+  /// [length]: 길이 옵션
+  /// [emotion]: 선택적 감정
+  Future<HandwritingDiaryResult?> convertHandwritingToDiaryDirect({
+    required File imageFile,
+    required WritingStyle style,
+    required LengthOption length,
+    String? emotion,
+  }) async {
+    try {
+      AppLogger.info(
+        '🖋️ Using direct handwriting to diary API (with save)',
+        'HandwritingDiaryService',
+      );
+
+      final jwt = await _getJwtToken();
+      if (jwt == null || jwt.isEmpty) {
+        throw HandwritingDiaryException('인증 토큰이 없습니다. 다시 로그인해주세요.');
+      }
+
+      // 1단계: 이미지 업로드
+      AppLogger.info(
+        '📤 Step 1: Uploading handwriting image',
+        'HandwritingDiaryService',
+      );
+
+      final uploadFormData = FormData.fromMap({
+        'image': await MultipartFile.fromFile(
+          imageFile.path,
+          filename: imageFile.path.split('/').last,
+        ),
+      });
+
+      final uploadResponse = await dio.post(
+        '/api/diary/handwriting/upload',
+        data: uploadFormData,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $jwt',
+            'Content-Type': 'multipart/form-data',
+          },
+        ),
+      );
+
+      if (uploadResponse.statusCode != 200) {
+        throw HandwritingDiaryException('이미지 업로드에 실패했습니다.');
+      }
+
+      final uploadData = uploadResponse.data;
+      final imageUrl = uploadData['data']['original_url'];
+
+      if (imageUrl == null || imageUrl.isEmpty) {
+        throw HandwritingDiaryException('이미지 업로드 후 URL을 받을 수 없습니다.');
+      }
+
+      AppLogger.info(
+        '✅ Image uploaded successfully: $imageUrl',
+        'HandwritingDiaryService',
+      );
+
+      // 2단계: 손글씨 다이어리 변환
+      AppLogger.info(
+        '📤 Step 2: Converting handwriting to diary',
+        'HandwritingDiaryService',
+      );
+
+      final requestBody = {
+        'image_url': imageUrl,
+        'style': style.value,
+        'length': length.value,
+        'save': true, // 저장함
+        if (emotion != null && emotion.isNotEmpty) ...{
+          'emotion': _convertKoreanEmotionToEnglish(emotion),
+          'user_emotion': _convertKoreanEmotionToEnglish(emotion),
+        },
+      };
+
+      AppLogger.info(
+        '📤 Sending handwriting conversion request: $requestBody',
+        'HandwritingDiaryService',
+      );
+
+      final response = await dio.post(
+        '/api/diary/handwriting/to-diary',
+        data: requestBody,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $jwt',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        AppLogger.info(
+          '✅ Handwriting to diary conversion successful',
+          'HandwritingDiaryService',
+        );
+
+        final data = response.data;
+        return _parseDiaryResponse(data, imageUrl);
+      } else {
+        AppLogger.warning(
+          'Handwriting conversion failed with status: ${response.statusCode}',
+          'HandwritingDiaryService',
+        );
+        throw HandwritingDiaryException('서버 오류: ${response.statusCode}');
+      }
+    } on DioException catch (dioError) {
+      final statusCode = dioError.response?.statusCode;
+      final errorData = dioError.response?.data;
+
+      AppLogger.error(
+        'DioException in handwriting conversion - Status: $statusCode',
+        tag: 'HandwritingDiaryService',
+        error: dioError,
+      );
+
+      String errorMessage = '손글씨 처리 중 오류가 발생했습니다.';
+      if (errorData is Map<String, dynamic>) {
+        errorMessage =
+            errorData['message'] ?? errorData['detail'] ?? errorMessage;
+      }
+
       if (statusCode == 500) {
         errorMessage = '서버 내부 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
       }
