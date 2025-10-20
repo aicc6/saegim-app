@@ -1,8 +1,12 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:saegim/features/authentication/presentation/riverpod/auth_notifier.dart';
 import 'package:saegim/app/routes/route_paths.dart';
+import 'package:saegim/core/services/app_version_service.dart';
+import 'package:saegim/features/authentication/presentation/riverpod/auth_notifier.dart';
+import 'package:saegim/shared/utils/app_logger.dart';
+import 'package:saegim/shared/widgets/app_update_dialog.dart';
 
 /// 스플래시 화면
 /// 앱 시작시 인증 상태를 확인하고 적절한 화면으로 이동
@@ -26,6 +30,54 @@ class _SplashPageState extends ConsumerState<SplashPage> {
   }
 
   Future<void> _initialize() async {
+    try {
+      // 1. 앱 버전 체크 (릴리즈 모드에서만)
+      if (kReleaseMode) {
+        AppLogger.info('앱 버전 체크 시작 (릴리즈 모드)', 'SplashPage');
+        final versionInfo = await AppVersionService.instance.checkAppVersion();
+
+        if (!mounted) return;
+
+        // 2. 업데이트가 필요한 경우 다이얼로그 표시
+        if (versionInfo.hasUpdate) {
+          AppLogger.info(
+            '새로운 버전 발견: ${versionInfo.latestVersion?.versionName}, 필수: ${versionInfo.isMandatory}',
+            'SplashPage',
+          );
+
+          await showDialog(
+            context: context,
+            barrierDismissible: !versionInfo.isMandatory,
+            builder: (context) => AppUpdateDialog(
+              versionInfo: versionInfo,
+              onSkip: () {
+                // 나중에 업데이트 선택 시 계속 진행
+                _proceedToNextScreen();
+              },
+            ),
+          );
+
+          // 필수 업데이트인 경우 여기서 멈춤
+          if (versionInfo.isMandatory) {
+            return;
+          }
+        }
+      } else {
+        AppLogger.debug('앱 버전 체크 스킵 (디버그 모드)', 'SplashPage');
+      }
+
+      // 3. 인증 상태 확인 및 화면 이동
+      await _proceedToNextScreen();
+    } catch (e) {
+      AppLogger.error('초기화 중 오류 발생', tag: 'SplashPage', error: e);
+      // 오류가 발생해도 계속 진행
+      if (mounted) {
+        await _proceedToNextScreen();
+      }
+    }
+  }
+
+  Future<void> _proceedToNextScreen() async {
     await ref.read(authNotifierProvider.notifier).initialize();
 
     if (!mounted) return;

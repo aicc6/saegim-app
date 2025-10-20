@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:saegim/app/app.dart';
 import 'package:saegim/core/config/environment.dart';
 import 'package:saegim/core/network/dio_client.dart';
+import 'package:saegim/core/services/app_version_service.dart';
 import 'package:saegim/core/services/fcm_message_service.dart';
 import 'package:saegim/firebase_options.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
@@ -25,6 +26,10 @@ Future<void> bootstrap() async {
   // DioClient 초기화
   await DioClient.instance.initialize();
   AppLogger.info('DioClient 초기화 완료', 'Bootstrap');
+
+  // AppVersionService 초기화
+  await AppVersionService.instance.initialize();
+  AppLogger.info('AppVersionService 초기화 완료', 'Bootstrap');
 
   await _initializeFirebaseAndMessaging();
 
