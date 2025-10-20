@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:saegim/core/models/app_version.dart';
+import 'package:saegim/shared/utils/app_logger.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// 앱 업데이트 다이얼로그
@@ -105,38 +106,88 @@ class AppUpdateDialog extends StatelessWidget {
     BuildContext context,
     AppVersionInfo? latestVersion,
   ) async {
-    if (latestVersion?.downloadUrl != null) {
-      // 다운로드 URL이 있으면 브라우저로 열기
-      final uri = Uri.parse(latestVersion!.downloadUrl!);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      }
-    } else {
-      // 다운로드 URL이 없으면 스토어로 이동
-      await _openStore();
-    }
+    try {
+      AppLogger.info(
+        '업데이트 버튼 클릭 - downloadUrl: ${latestVersion?.downloadUrl}',
+        'AppUpdateDialog',
+      );
 
-    if (context.mounted && !versionInfo.isMandatory) {
-      Navigator.of(context).pop();
-      onSkip();
+      if (latestVersion?.downloadUrl != null &&
+          latestVersion!.downloadUrl!.isNotEmpty) {
+        // 다운로드 URL이 있으면 브라우저로 열기
+        final downloadUrl = latestVersion.downloadUrl!;
+        AppLogger.info('다운로드 URL 열기 시도: $downloadUrl', 'AppUpdateDialog');
+
+        final uri = Uri.parse(downloadUrl);
+        final canLaunch = await canLaunchUrl(uri);
+
+        AppLogger.info('URL 실행 가능 여부: $canLaunch', 'AppUpdateDialog');
+
+        if (canLaunch) {
+          final launched = await launchUrl(
+            uri,
+            mode: LaunchMode.externalApplication,
+          );
+          AppLogger.info('URL 실행 결과: $launched', 'AppUpdateDialog');
+
+          if (!launched) {
+            throw Exception('URL 실행 실패');
+          }
+        } else {
+          throw Exception('URL을 실행할 수 없습니다');
+        }
+      } else {
+        // 다운로드 URL이 없으면 스토어로 이동
+        AppLogger.info('다운로드 URL 없음 - 스토어로 이동', 'AppUpdateDialog');
+        await _openStore();
+      }
+
+      if (context.mounted && !versionInfo.isMandatory) {
+        Navigator.of(context).pop();
+        onSkip();
+      }
+    } catch (e) {
+      AppLogger.error('업데이트 처리 중 오류: $e', tag: 'AppUpdateDialog', error: e);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('다운로드를 시작할 수 없습니다: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
     }
   }
 
   Future<void> _openStore() async {
-    if (Platform.isAndroid) {
-      // Google Play Store
-      final uri = Uri.parse(
-        'https://play.google.com/store/apps/details?id=com.aicc6.saegim',
-      );
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
+    try {
+      if (Platform.isAndroid) {
+        // Google Play Store
+        final uri = Uri.parse(
+          'https://play.google.com/store/apps/details?id=com.aicc6.saegim',
+        );
+        AppLogger.info('Play Store 열기 시도: $uri', 'AppUpdateDialog');
+
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } else {
+          throw Exception('Play Store를 열 수 없습니다');
+        }
+      } else if (Platform.isIOS) {
+        // Apple App Store
+        final uri = Uri.parse('https://apps.apple.com/app/id YOUR_APP_ID');
+        AppLogger.info('App Store 열기 시도: $uri', 'AppUpdateDialog');
+
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } else {
+          throw Exception('App Store를 열 수 없습니다');
+        }
       }
-    } else if (Platform.isIOS) {
-      // Apple App Store
-      final uri = Uri.parse('https://apps.apple.com/app/id YOUR_APP_ID');
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      }
+    } catch (e) {
+      AppLogger.error('스토어 열기 실패: $e', tag: 'AppUpdateDialog', error: e);
+      rethrow;
     }
   }
 }
