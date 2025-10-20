@@ -25,10 +25,7 @@ class EmailLoginResult {
   });
 
   factory EmailLoginResult.success() {
-    return const EmailLoginResult._(
-      isSuccess: true,
-      isAccountDeleted: false,
-    );
+    return const EmailLoginResult._(isSuccess: true, isAccountDeleted: false);
   }
 
   factory EmailLoginResult.accountDeleted({String? email, String? message}) {
@@ -145,27 +142,55 @@ class AuthNotifier extends _$AuthNotifier {
 
   /// 안전한 초기화 메서드 (앱 시작 후 명시적으로 호출)
   Future<void> initialize() async {
-    if (state.isInitialized) return; // 중복 초기화 방지
+    AppLogger.info(
+      'initialize() 호출됨 - isInitialized: ${state.isInitialized}',
+      'AuthNotifier',
+    );
 
+    if (state.isInitialized) {
+      AppLogger.info('이미 초기화됨 - 중복 초기화 방지', 'AuthNotifier');
+      return; // 중복 초기화 방지
+    }
+
+    AppLogger.info('인증 상태 확인 시작', 'AuthNotifier');
     await checkAuthStatus();
+
     state = state.copyWith(isInitialized: true);
+    AppLogger.info(
+      '초기화 완료 - isAuthenticated: ${state.isAuthenticated}, userId: ${state.userId}',
+      'AuthNotifier',
+    );
   }
 
   /// 로그인 상태 확인 (내부적으로만 호출)
   Future<void> checkAuthStatus() async {
+    AppLogger.info('=== checkAuthStatus 시작 ===', 'AuthNotifier');
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {
       // 저장된 토큰 확인
+      AppLogger.info('저장된 토큰 조회 시작...', 'AuthNotifier');
       final token = await AuthStorageService.instance.getAuthToken();
 
       if (token != null && token.isNotEmpty) {
+        AppLogger.info(
+          '토큰 발견: ${token.substring(0, 20)}... (길이: ${token.length})',
+          'AuthNotifier',
+        );
+
         // 서버에서 토큰 유효성 검증
+        AppLogger.info('서버에 토큰 검증 요청 중...', 'AuthNotifier');
         final isValid = await _validateTokenWithServer(token);
+        AppLogger.info('토큰 검증 결과: $isValid', 'AuthNotifier');
 
         if (isValid) {
           final userId = await AuthStorageService.instance.getUserId();
           final userEmail = await AuthStorageService.instance.getUserEmail();
+
+          AppLogger.info(
+            '사용자 정보 조회 완료 - userId: $userId, email: $userEmail',
+            'AuthNotifier',
+          );
 
           state = state.copyWith(
             isAuthenticated: true,
@@ -173,19 +198,16 @@ class AuthNotifier extends _$AuthNotifier {
             userEmail: userEmail,
             isLoading: false,
           );
-          AppLogger.info('User authenticated with valid token', 'AuthNotifier');
+          AppLogger.info('✅ 인증 성공 - 로그인 상태 복원됨', 'AuthNotifier');
         } else {
           // 토큰이 유효하지 않으면 인증 데이터 정리
+          AppLogger.warning('❌ 토큰 검증 실패 - 인증 데이터 정리', 'AuthNotifier');
           await AuthStorageService.instance.clearAllAuthData();
           state = state.copyWith(isAuthenticated: false, isLoading: false);
-          AppLogger.warning(
-            'Token validation failed, cleared auth data',
-            'AuthNotifier',
-          );
         }
       } else {
+        AppLogger.info('❌ 저장된 토큰 없음', 'AuthNotifier');
         state = state.copyWith(isAuthenticated: false, isLoading: false);
-        AppLogger.info('No authentication token found', 'AuthNotifier');
       }
     } catch (e) {
       state = state.copyWith(
@@ -285,6 +307,17 @@ class AuthNotifier extends _$AuthNotifier {
           await AuthStorageService.instance.saveAuthToken(accessToken);
           AppLogger.info('Auth token save completed', 'AuthNotifier');
 
+          // ✅ 저장 검증: 바로 다시 읽어서 확인
+          final verifyToken = await AuthStorageService.instance.getAuthToken();
+          if (verifyToken == accessToken) {
+            AppLogger.info('✅ 토큰 저장 검증 성공', 'AuthNotifier');
+          } else {
+            AppLogger.error(
+              '❌ 토큰 저장 검증 실패! 저장: ${accessToken.substring(0, 10)}, 조회: ${verifyToken?.substring(0, 10) ?? 'null'}',
+              tag: 'AuthNotifier',
+            );
+          }
+
           // refresh_token도 별도 저장
           if (refreshToken != null && refreshToken.isNotEmpty) {
             await AuthStorageService.instance.saveRefreshToken(refreshToken);
@@ -294,13 +327,16 @@ class AuthNotifier extends _$AuthNotifier {
           // 사용자 정보도 저장
           if (userId != null) {
             await AuthStorageService.instance.saveUserId(userId);
+            AppLogger.info('User ID saved: $userId', 'AuthNotifier');
           }
           if (userEmail != null) {
             await AuthStorageService.instance.saveUserEmail(userEmail);
+            AppLogger.info('User email saved: $userEmail', 'AuthNotifier');
           }
 
           // 로그인 타입 저장 (이메일 로그인)
           await AuthStorageService.instance.saveLoginType('email');
+          AppLogger.info('Login type saved: email', 'AuthNotifier');
 
           state = state.copyWith(
             isAuthenticated: true,
@@ -360,9 +396,7 @@ class AuthNotifier extends _$AuthNotifier {
             errorMessage: '백엔드 서버에서 인증 토큰을 반환하지 않았습니다.',
           );
 
-          return EmailLoginResult.failure(
-            '백엔드 서버에서 인증 토큰을 반환하지 않았습니다.',
-          );
+          return EmailLoginResult.failure('백엔드 서버에서 인증 토큰을 반환하지 않았습니다.');
         }
       } else {
         throw Exception('로그인에 실패했습니다.');
@@ -380,7 +414,8 @@ class AuthNotifier extends _$AuthNotifier {
 
       String? detailMessage;
       if (responseData is Map<String, dynamic>) {
-        detailMessage = responseData['message']?.toString() ??
+        detailMessage =
+            responseData['message']?.toString() ??
             responseData['detail']?.toString() ??
             responseData['error']?.toString();
       } else if (responseData is String) {
@@ -500,25 +535,83 @@ class AuthNotifier extends _$AuthNotifier {
   /// 서버에서 토큰 유효성 검증
   Future<bool> _validateTokenWithServer(String token) async {
     try {
-      // 간단한 사용자 정보 조회로 토큰 유효성 확인
+      // 현재 로그인한 사용자 정보 조회 (토큰 검증 겸용)
       final response = await DioClient.instance.dio.get(
-        '/api/user/profile',
+        '/api/auth/me',
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
 
       if (response.statusCode == 200) {
         AppLogger.info('Token validation successful', 'AuthNotifier');
+
+        // 프로필 정보 업데이트 (서버 최신 상태 반영)
+        final responseData = response.data is Map<String, dynamic>
+            ? response.data['data'] ?? response.data
+            : null;
+
+        final fetchedUserId = responseData is Map<String, dynamic>
+            ? responseData['id']?.toString() ??
+                  responseData['user_id']?.toString()
+            : null;
+        final fetchedEmail = responseData is Map<String, dynamic>
+            ? responseData['email']?.toString()
+            : null;
+
+        if (fetchedUserId != null && fetchedUserId.isNotEmpty) {
+          await AuthStorageService.instance.saveUserId(fetchedUserId);
+          AppLogger.info(
+            'User ID refreshed from server: $fetchedUserId',
+            'AuthNotifier',
+          );
+        }
+
+        if (fetchedEmail != null && fetchedEmail.isNotEmpty) {
+          await AuthStorageService.instance.saveUserEmail(fetchedEmail);
+          AppLogger.info(
+            'User email refreshed from server: $fetchedEmail',
+            'AuthNotifier',
+          );
+        }
+
         return true;
-      } else {
+      }
+
+      if (response.statusCode == 401) {
         AppLogger.warning(
-          'Token validation failed with status: ${response.statusCode}',
+          'Token validation failed with 401 Unauthorized',
           'AuthNotifier',
         );
         return false;
       }
-    } catch (e) {
-      AppLogger.warning('Token validation failed: $e', 'AuthNotifier');
-      return false;
+
+      AppLogger.warning(
+        'Token validation returned unexpected status: ${response.statusCode}',
+        'AuthNotifier',
+      );
+      return true; // 예외적인 상태지만 토큰을 즉시 무효화하지는 않음
+    } on DioException catch (dioError) {
+      final statusCode = dioError.response?.statusCode;
+      if (statusCode == 401) {
+        AppLogger.warning(
+          'Token validation received Dio 401 response',
+          'AuthNotifier',
+        );
+        return false;
+      }
+
+      AppLogger.warning(
+        'Token validation request failed (${dioError.type}) - status: $statusCode, keeping session',
+        'AuthNotifier',
+      );
+      return true; // 네트워크 오류 등은 세션 유지
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        'Unexpected error while validating token',
+        tag: 'AuthNotifier',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return true; // 알 수 없는 오류는 세션 유지
     }
   }
 
@@ -838,7 +931,9 @@ class AuthNotifier extends _$AuthNotifier {
         return true;
       }
 
-      AppLogger.warning('Unexpected restore status code: ${response.statusCode}');
+      AppLogger.warning(
+        'Unexpected restore status code: ${response.statusCode}',
+      );
       return false;
     } catch (e) {
       AppLogger.error('Failed to send restore email: $email', error: e);
@@ -854,10 +949,7 @@ class AuthNotifier extends _$AuthNotifier {
       final dio = DioClient.instance.dio;
       final response = await dio.post(
         '/api/auth/restore',
-        data: {
-          'email': email,
-          'verification_code': code,
-        },
+        data: {'email': email, 'verification_code': code},
       );
 
       if (response.statusCode == 200) {

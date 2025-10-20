@@ -9,23 +9,31 @@ import 'package:saegim/features/authentication/presentation/riverpod/auth_notifi
 class RouteGuard {
   /// 인증이 필요한 라우트에 대한 리다이렉트 로직
   static String? authGuard(BuildContext context, GoRouterState state) {
+    final currentPath = state.matchedLocation;
+    final isAuthRoute = _isAuthRoute(currentPath);
+
+    // 스플래시 화면은 항상 접근 허용 (초기화가 여기서 이루어짐)
+    if (currentPath == RoutePaths.splash) {
+      return null;
+    }
+
     try {
       final container = ProviderScope.containerOf(context, listen: false);
       final authState = container.read(authNotifierProvider);
       final isAuthenticated = authState.isAuthenticated;
       final isInitialized = authState.isInitialized;
-      final currentPath = state.matchedLocation;
-      final isAuthRoute = _isAuthRoute(currentPath);
 
       // AuthNotifier가 아직 초기화되지 않은 경우 스플래시로 리다이렉트
-      if (!isInitialized && currentPath != RoutePaths.splash) {
+      if (!isInitialized) {
         return RoutePaths.splash;
       }
 
+      // 초기화가 완료된 상태
+
       // 인증되지 않은 상태
       if (!isAuthenticated) {
-        // 스플래시 화면이나 인증 관련 화면이 아니라면 로그인으로 리다이렉트
-        if (!isAuthRoute && currentPath != RoutePaths.splash) {
+        // 인증 관련 화면이 아니라면 로그인으로 리다이렉트
+        if (!isAuthRoute) {
           return RoutePaths.authLogin;
         }
         return null; // 현재 경로 유지
@@ -38,15 +46,8 @@ class RouteGuard {
 
       return null; // 현재 경로 유지
     } catch (e) {
-      // 🚨 보안 수정: 예외 발생 시 안전한 기본값으로 리다이렉트
-      // 인증 상태를 알 수 없으면 로그인 페이지로 이동
-      final currentPath = state.matchedLocation;
-      final isAuthRoute = _isAuthRoute(currentPath);
-
-      if (!isAuthRoute && currentPath != RoutePaths.splash) {
-        return RoutePaths.authLogin;
-      }
-      return null;
+      // 예외 발생 시 스플래시로 이동하여 초기화 재시도
+      return RoutePaths.splash;
     }
   }
 
