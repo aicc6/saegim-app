@@ -72,7 +72,7 @@ Future<void> _initializeFirebaseAndMessaging() async {
 
   final messaging = FirebaseMessaging.instance;
 
-  await messaging.setAutoInitEnabled(true);
+  // await messaging.setAutoInitEnabled(true);
 
   // 플랫폼별 알림 권한 요청
   if (kIsWeb) {
@@ -101,6 +101,11 @@ Future<void> _initializeFirebaseAndMessaging() async {
         alert: true,
         badge: true,
         sound: true,
+        announcement: false,
+        carPlay: false,
+        criticalAlert: false,
+        provisional: false,
+        providesAppNotificationSettings: true,
       );
 
       AppLogger.info(
@@ -121,11 +126,7 @@ Future<void> _initializeFirebaseAndMessaging() async {
         'FCM',
       );
     } else {
-      AppLogger.error(
-        'FCM 토큰을 가져오는 중 오류가 발생했습니다.',
-        tag: 'FCM',
-        error: error,
-      );
+      AppLogger.error('FCM 토큰을 가져오는 중 오류가 발생했습니다.', tag: 'FCM', error: error);
     }
   }
 

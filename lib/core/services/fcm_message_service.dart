@@ -203,6 +203,11 @@ class FCMMessageService {
         icon: '@mipmap/ic_launcher',
         enableVibration: true,
         playSound: true,
+        enableLights: true,
+        channelShowBadge: true,
+        onlyAlertOnce: false,
+        autoCancel: true,
+        ongoing: false,
       );
 
       // iOS 알림 설정
@@ -680,7 +685,10 @@ class FCMMessageService {
       '새김 알림', // 채널 이름
       description: '새김 앱의 일반 알림',
       importance: Importance.high,
-      sound: RawResourceAndroidNotificationSound('notification'),
+      playSound: true,
+      enableVibration: true,
+      enableLights: true,
+      showBadge: true,
     );
 
     const highImportanceChannel = AndroidNotificationChannel(
@@ -688,7 +696,10 @@ class FCMMessageService {
       '새김 중요 알림', // 채널 이름
       description: '새김 앱의 중요 알림 (다이어리 리마인더 등)',
       importance: Importance.max,
-      sound: RawResourceAndroidNotificationSound('notification'),
+      playSound: true,
+      enableVibration: true,
+      enableLights: true,
+      showBadge: true,
     );
 
     await _localNotifications
@@ -712,7 +723,6 @@ class FCMMessageService {
 
     // 알림 탭 시 해당 화면으로 이동
     if (response.payload != null && _navigatorKey?.currentContext != null) {
-
       try {
         // JSON 페이로드 파싱
         final payloadData =
