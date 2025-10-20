@@ -142,11 +142,21 @@ class HandwritingDiaryNotifier extends StateNotifier<HandwritingDiaryState> {
       'Image selected for handwriting conversion',
       'HandwritingDiaryNotifier',
     );
+
+    // 컨트롤러도 초기화
+    _ocrTextController.clear();
+    _aiTextController.clear();
+
     state = state.copyWith(
       selectedImage: image,
       clearError: true,
       clearResult: true,
       clearExtractedText: true,
+      isEditMode: false,
+      editedOcrText: null,
+      editedAiText: null,
+      regenerationCount: 0,
+      showRegenerationCount: false,
     );
   }
 
