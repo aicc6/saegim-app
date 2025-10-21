@@ -787,26 +787,8 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
           initialCategoryId: widget.initialCategoryId,
         );
 
-        // tempEntry에서 이미지 URL들을 DiaryImage 객체로 변환
-        if (widget.tempEntry != null && widget.tempEntry!.images.isNotEmpty) {
-          final convertedImages = widget.tempEntry!.images
-              .map(
-                (imageUrl) => DiaryImage(
-                  filePath: imageUrl,
-                  id: 'temp_${DateTime.now().millisecondsSinceEpoch}_${widget.tempEntry!.images.indexOf(imageUrl)}',
-                ),
-              )
-              .toList();
-
-          setState(() {
-            diaryImages = convertedImages;
-          });
-
-          AppLogger.info(
-            'Loaded ${convertedImages.length} images from tempEntry as DiaryImage objects',
-            'DiaryDetailPage',
-          );
-        }
+        // tempEntry 이미지 처리는 _loadDiaryImages에서 처리됨
+        _loadDiaryImages();
 
         _initializeEditControllers();
         return;
@@ -934,20 +916,70 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
 
   /// 다이어리 이미지 로드
   Future<void> _loadDiaryImages() async {
-    if (diary == null) return;
+    if (diary == null) {
+      AppLogger.warning(
+        'Cannot load images - diary is null',
+        'DiaryDetailPage',
+      );
+      return;
+    }
+
+    AppLogger.info(
+      'Loading images for diary: ${diary!.id} (tempEntry: ${widget.tempEntry != null})',
+      'DiaryDetailPage',
+    );
 
     setState(() {
       isLoadingImages = true;
     });
 
     try {
-      final images = await DiaryApiService.instance.getDiaryImages(diary!.id);
+      // 임시 다이어리인 경우 (temp_로 시작하는 ID) tempEntry의 이미지 사용
+      if (diary!.id.startsWith('temp_')) {
+        AppLogger.info(
+          'Loading images from tempEntry for temporary diary: ${diary!.id}',
+          'DiaryDetailPage',
+        );
 
-      if (mounted) {
-        setState(() {
-          diaryImages = images;
-          isLoadingImages = false;
-        });
+        if (widget.tempEntry != null && widget.tempEntry!.images.isNotEmpty) {
+          final convertedImages = widget.tempEntry!.images
+              .map(
+                (imageUrl) => DiaryImage(
+                  filePath: imageUrl,
+                  id: 'temp_${DateTime.now().millisecondsSinceEpoch}_${widget.tempEntry!.images.indexOf(imageUrl)}',
+                ),
+              )
+              .toList();
+
+          if (mounted) {
+            setState(() {
+              diaryImages = convertedImages;
+              isLoadingImages = false;
+            });
+          }
+
+          AppLogger.info(
+            'Loaded ${convertedImages.length} images from tempEntry as DiaryImage objects',
+            'DiaryDetailPage',
+          );
+        } else {
+          if (mounted) {
+            setState(() {
+              diaryImages = [];
+              isLoadingImages = false;
+            });
+          }
+        }
+      } else {
+        // 일반 다이어리인 경우 서버에서 이미지 로드
+        final images = await DiaryApiService.instance.getDiaryImages(diary!.id);
+
+        if (mounted) {
+          setState(() {
+            diaryImages = images;
+            isLoadingImages = false;
+          });
+        }
       }
     } catch (e) {
       AppLogger.error(
@@ -1110,7 +1142,20 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
 
   /// 변경사항 저장
   Future<void> _saveChanges() async {
-    if (diary == null) return;
+    AppLogger.info(
+      'Save button pressed - starting _saveChanges method',
+      'DiaryDetailPage',
+    );
+
+    if (diary == null) {
+      AppLogger.warning('Cannot save - diary is null', 'DiaryDetailPage');
+      return;
+    }
+
+    AppLogger.info(
+      'Diary ID: ${diary!.id}, isTemp: ${diary!.id.startsWith('temp_')}, tempEntry: ${widget.tempEntry != null}',
+      'DiaryDetailPage',
+    );
 
     setState(() {
       isSaving = true;
@@ -1147,8 +1192,25 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
 
         // 손글씨 이미지가 있다면 uploadedImages 형태로 변환
         List<Map<String, dynamic>>? uploadedImages;
-        if (diary!.images.isNotEmpty) {
-          uploadedImages = diary!.images
+
+        // tempEntry에서 이미지 가져오기 (손글씨 다이어리인 경우)
+        List<String> imagesToUse = [];
+        if (widget.tempEntry != null && widget.tempEntry!.images.isNotEmpty) {
+          imagesToUse = widget.tempEntry!.images;
+          AppLogger.info(
+            'Using images from tempEntry for diary creation: ${imagesToUse.length} images',
+            'DiaryDetailPage',
+          );
+        } else if (diary!.images.isNotEmpty) {
+          imagesToUse = diary!.images;
+          AppLogger.info(
+            'Using images from diary object for diary creation: ${imagesToUse.length} images',
+            'DiaryDetailPage',
+          );
+        }
+
+        if (imagesToUse.isNotEmpty) {
+          uploadedImages = imagesToUse
               .map(
                 (imageUrl) => {
                   'original_url': imageUrl,
@@ -1158,6 +1220,16 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
                 },
               )
               .toList();
+
+          AppLogger.info(
+            'Converted images to uploadedImages format: ${uploadedImages.length} images',
+            'DiaryDetailPage',
+          );
+        } else {
+          AppLogger.warning(
+            'No images found for diary creation',
+            'DiaryDetailPage',
+          );
         }
 
         // 새 다이어리 생성 시 편집 모드에서 입력한 데이터 사용

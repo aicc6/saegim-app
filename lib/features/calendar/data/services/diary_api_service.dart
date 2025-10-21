@@ -612,6 +612,21 @@ class DiaryApiService {
 
       if (uploadedImages != null && uploadedImages.isNotEmpty) {
         diaryData['uploaded_images'] = uploadedImages;
+        AppLogger.info(
+          'Added uploaded_images to diary creation request: ${uploadedImages.length} images',
+          'DiaryApiService',
+        );
+        for (int i = 0; i < uploadedImages.length; i++) {
+          AppLogger.info(
+            'Image $i: ${uploadedImages[i]['original_url']}',
+            'DiaryApiService',
+          );
+        }
+      } else {
+        AppLogger.warning(
+          'No uploaded_images provided for diary creation',
+          'DiaryApiService',
+        );
       }
 
       AppLogger.info(
@@ -623,6 +638,9 @@ class DiaryApiService {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         AppLogger.info('Diary created successfully', 'DiaryApiService');
+
+        // 서버 응답 로깅 추가
+        AppLogger.info('Server response: ${response.data}', 'DiaryApiService');
 
         // 응답 데이터 파싱
         Map<String, dynamic> responseData = {};
