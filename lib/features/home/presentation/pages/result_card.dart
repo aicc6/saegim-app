@@ -313,11 +313,16 @@ class _MessageCardState extends State<MessageCard>
           onPressed: widget.message.currentVersionIndex == 0
               ? null
               : () => widget.onPreviousVersion(widget.message.id),
-          icon: const Icon(Icons.chevron_left),
-          style: IconButton.styleFrom(
-            backgroundColor: Colors.grey[200],
-            disabledBackgroundColor: Colors.grey[200]?.withOpacity(0.5),
+          icon: Icon(
+            Icons.chevron_left,
+            size: 20,
+            color: widget.message.currentVersionIndex == 0
+                ? Colors.grey[400]
+                : Colors.grey[700],
           ),
+          iconSize: 20,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
         ),
         const SizedBox(width: 16),
         Text(
@@ -331,11 +336,18 @@ class _MessageCardState extends State<MessageCard>
                   widget.message.versions.length - 1
               ? null
               : () => widget.onNextVersion(widget.message.id),
-          icon: const Icon(Icons.chevron_right),
-          style: IconButton.styleFrom(
-            backgroundColor: Colors.grey[200],
-            disabledBackgroundColor: Colors.grey[200]?.withOpacity(0.5),
+          icon: Icon(
+            Icons.chevron_right,
+            size: 20,
+            color:
+                widget.message.currentVersionIndex ==
+                    widget.message.versions.length - 1
+                ? Colors.grey[400]
+                : Colors.grey[700],
           ),
+          iconSize: 20,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
         ),
       ],
     );
@@ -405,10 +417,7 @@ class _MessageCardState extends State<MessageCard>
       children: [
         Container(width: double.infinity, height: 1, color: Colors.grey[100]),
         const SizedBox(height: 16),
-        Text(
-          '추출된 키워드:',
-          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-        ),
+        Text('키워드:', style: TextStyle(fontSize: 14, color: Colors.grey[600])),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
