@@ -1,22 +1,26 @@
+import 'dart:ui';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:saegim/core/theme/theme_extensions.dart';
 import 'package:saegim/features/calendar/data/models/diary_image_model.dart';
 import 'package:saegim/features/calendar/data/models/diary_model.dart';
 import 'package:saegim/features/calendar/data/services/diary_api_service.dart';
+import 'package:saegim/features/home/data/models/diary_category_model.dart';
+import 'package:saegim/features/home/data/services/diary_category_service.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
 import 'package:saegim/shared/widgets/common_app_bar.dart';
 import 'package:saegim/shared/widgets/emotion_emoji_widget.dart';
 
-class DiaryListPage extends ConsumerStatefulWidget {
+class DiaryListPage extends StatefulWidget {
   const DiaryListPage({super.key});
 
   @override
-  ConsumerState<DiaryListPage> createState() => _DiaryListPageState();
+  State<DiaryListPage> createState() => _DiaryListPageState();
 }
 
-class _DiaryListPageState extends ConsumerState<DiaryListPage> {
+class _DiaryListPageState extends State<DiaryListPage> {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
@@ -28,7 +32,7 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
 
   bool _isLoading = false;
   bool _hasMore = true;
-  final List<DiaryEntry> _filteredDiaries = [];
+  final List<DiaryEntry> _allDiaries = [];
   final List<DiaryEntry> _displayedDiaries = [];
   int _currentPage = 1;
   final int _itemsPerPage = 20;
@@ -37,6 +41,13 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
   final Map<String, List<DiaryImage>> _diaryImagesCache = {};
   final Set<String> _loadingImages = {};
 
+  static const String _defaultCategoryKey = '__default__';
+  List<DiaryCategory> _categories = [];
+  Map<String, String> _categoryAssignments = {};
+  String? _selectedCategoryId;
+  bool _isLoadingCategories = false;
+  bool _isOverlayMode = false;
+  ValueListenable<RouteInformation>? _routeInformationListenable;
   // 초기 로드 완료 플래그
   bool _isInitialLoadComplete = false;
 
@@ -49,10 +60,20 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
     // 쿼리 파라미터에서 새로고침 요청 확인 (안전한 방법)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        final uri = GoRouter.of(context).routeInformationProvider.value.uri;
-        final refreshParam = uri.queryParameters['refresh'];
-        AppLogger.info('Current URI: ${uri.toString()}', 'DiaryListPage');
+        final router = GoRouter.of(context);
+        _routeInformationListenable = router.routeInformationProvider
+          ..addListener(_handleRouteInformation);
+
+        final initialUri = _uriFromRouteInformation(
+              _routeInformationListenable?.value,
+            ) ??
+            GoRouterState.of(context).uri;
+
+        final refreshParam = initialUri?.queryParameters['refresh'];
+        AppLogger.info('Current URI: ${initialUri?.toString()}', 'DiaryListPage');
         AppLogger.info('Refresh parameter: $refreshParam', 'DiaryListPage');
+
+        _syncOverlayFromUri(initialUri, useSetState: true);
 
         if (refreshParam != null) {
           AppLogger.info(
@@ -80,8 +101,13 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
     // 초기 로드 완료 후에만 새로고침 (다른 페이지에서 돌아올 때)
     if (_isInitialLoadComplete) {
       // 쿼리 파라미터에서 새로고침 요청 확인
-      final uri = GoRouter.of(context).routeInformationProvider.value.uri;
-      final refreshParam = uri.queryParameters['refresh'];
+        final routeInfo =
+            GoRouter.of(context).routeInformationProvider.value;
+        final uri = _uriFromRouteInformation(routeInfo) ??
+            GoRouterState.of(context).uri;
+
+        final refreshParam = uri?.queryParameters['refresh'];
+        _syncOverlayFromUri(uri);
 
       if (refreshParam != null) {
         AppLogger.info(
@@ -106,6 +132,7 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
   void dispose() {
     _searchController.dispose();
     _scrollController.dispose();
+    _routeInformationListenable?.removeListener(_handleRouteInformation);
     super.dispose();
   }
 
@@ -135,6 +162,7 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
       _loadingImages.clear();
     });
 
+    await _loadCategories();
     await _loadDiariesFromAPI();
 
     // 초기 로드 완료 플래그 설정
@@ -193,14 +221,17 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
       if (mounted) {
         setState(() {
           if (_currentPage == 1) {
-            // 첫 페이지인 경우 기존 데이터 클리어
             _displayedDiaries.clear();
-            _filteredDiaries.clear();
+            _allDiaries.clear();
           }
 
           if (diaries != null && diaries.isNotEmpty) {
-            _displayedDiaries.addAll(diaries);
-            _filteredDiaries.addAll(diaries);
+            _allDiaries.addAll(diaries);
+
+            final filtered = _filterDiaries(_allDiaries);
+            _displayedDiaries
+              ..clear()
+              ..addAll(filtered);
 
             // 백엔드에서 반환된 데이터가 요청한 페이지 크기보다 적으면 더 이상 데이터가 없음
             _hasMore = diaries.length >= _itemsPerPage;
@@ -210,6 +241,9 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
               'DiaryListPage',
             );
           } else {
+            if (_currentPage == 1) {
+              _displayedDiaries.clear();
+            }
             _hasMore = false;
             AppLogger.info('No more diaries to load', 'DiaryListPage');
           }
@@ -244,13 +278,171 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
     _loadDiariesFromAPI();
   }
 
+  Future<void> _loadCategories() async {
+    if (mounted) {
+      setState(() {
+        _isLoadingCategories = true;
+      });
+    }
+
+    try {
+      final categoryService = DiaryCategoryService.instance;
+      final categories = await categoryService.getCategories();
+      final assignments = await categoryService.getAssignments();
+
+      final filtered = _filterDiaries(
+        _allDiaries,
+        assignments: assignments,
+        categoryId: _selectedCategoryId,
+      );
+
+      if (mounted) {
+        setState(() {
+          _categories = categories;
+          _categoryAssignments = assignments;
+          _displayedDiaries
+            ..clear()
+            ..addAll(filtered);
+          _isLoadingCategories = false;
+        });
+      }
+    } catch (e) {
+      AppLogger.error(
+        'Failed to load diary categories',
+        tag: 'DiaryListPage',
+        error: e,
+      );
+      if (mounted) {
+        setState(() {
+          _isLoadingCategories = false;
+        });
+      }
+    }
+  }
+
+  List<DiaryEntry> _filterDiaries(
+    List<DiaryEntry> source, {
+    Map<String, String>? assignments,
+    String? categoryId,
+  }) {
+    final resolvedAssignments = assignments ?? _categoryAssignments;
+    final targetCategoryId = categoryId ?? _selectedCategoryId;
+
+    if (targetCategoryId == null) {
+      return List<DiaryEntry>.from(source);
+    }
+
+    if (targetCategoryId == _defaultCategoryKey) {
+      return source
+          .where((diary) => !resolvedAssignments.containsKey(diary.id))
+          .toList();
+    }
+
+    return source
+        .where((diary) => resolvedAssignments[diary.id] == targetCategoryId)
+        .toList();
+  }
+
+  void _onCategorySelected(String? categoryId) {
+    setState(() {
+      _selectedCategoryId = categoryId;
+      final filtered = _filterDiaries(_allDiaries);
+      _displayedDiaries
+        ..clear()
+        ..addAll(filtered);
+    });
+  }
+
+  Future<void> _createCategory() async {
+    final controller = TextEditingController();
+    String? errorText;
+    bool isSaving = false;
+
+    final createdCategory = await showDialog<DiaryCategory>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('새 다이어리 만들기'),
+              content: TextField(
+                controller: controller,
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: '다이어리 이름',
+                  errorText: errorText,
+                ),
+                enabled: !isSaving,
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSaving
+                      ? null
+                      : () => Navigator.of(context).pop(),
+                  child: const Text('취소'),
+                ),
+                ElevatedButton(
+                  onPressed: isSaving
+                      ? null
+                      : () async {
+                          final name = controller.text.trim();
+                          if (name.isEmpty) {
+                            setState(() {
+                              errorText = '다이어리 이름을 입력해주세요.';
+                            });
+                            return;
+                          }
+
+                          setState(() {
+                            isSaving = true;
+                            errorText = null;
+                          });
+
+                          try {
+                            final category = await DiaryCategoryService.instance
+                                .createCategory(name);
+                            if (!context.mounted) {
+                              return;
+                            }
+                            Navigator.of(context).pop(category);
+                          } catch (_) {
+                            setState(() {
+                              isSaving = false;
+                              errorText =
+                                  '다이어리를 만들지 못했습니다. 다시 시도해주세요.';
+                            });
+                          }
+                        },
+                  child: isSaving
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('생성'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (createdCategory != null && mounted) {
+      setState(() {
+        _selectedCategoryId = createdCategory.id;
+      });
+      await _loadCategories();
+    }
+  }
+
   /// 필터 적용 (새로운 검색)
   void _applyFilters() {
     setState(() {
       _currentPage = 1;
       _hasMore = true;
       _displayedDiaries.clear();
-      _filteredDiaries.clear();
+      _allDiaries.clear();
     });
 
     _loadDiariesFromAPI();
@@ -294,16 +486,19 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: const CommonAppBar(),
-      body: Column(
+      body: Stack(
         children: [
-          // 검색 및 필터 섹션
-          _buildFilterSection(),
-          // 다이어리 목록
-          Expanded(
-            child: _displayedDiaries.isEmpty && !_isLoading
-                ? _buildEmptyState()
-                : _buildDiaryList(),
+          Column(
+            children: [
+              _buildFilterSection(),
+              Expanded(
+                child: _displayedDiaries.isEmpty && !_isLoading
+                    ? _buildEmptyState()
+                    : _buildDiaryList(),
+              ),
+            ],
           ),
+          if (_isOverlayMode) _buildOverlayPanel(),
         ],
       ),
     );
@@ -319,7 +514,10 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
         ),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          _buildCategoryChips(),
+          const SizedBox(height: 16),
           // 검색창
           TextField(
             controller: _searchController,
@@ -460,11 +658,409 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
     );
   }
 
+  Widget _buildCategoryChips() {
+    final theme = Theme.of(context);
+
+    if (_isLoadingCategories && _categories.isEmpty) {
+      return SizedBox(
+        height: 40,
+        child: Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: const CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+
+    final pills = <Widget>[
+      _buildCategoryPill(
+        label: '전체',
+        isSelected: _selectedCategoryId == null,
+        onTap: () => _onCategorySelected(null),
+      ),
+      _buildCategoryPill(
+        label: '기본 다이어리',
+        isSelected: _selectedCategoryId == _defaultCategoryKey,
+        onTap: () => _onCategorySelected(_defaultCategoryKey),
+      ),
+      ..._categories.map(
+        (category) => _buildCategoryPill(
+          label: category.name,
+          isSelected: _selectedCategoryId == category.id,
+          onTap: () => _onCategorySelected(category.id),
+        ),
+      ),
+      _buildAddCategoryPill(theme),
+      if (_isLoadingCategories)
+        Padding(
+          padding: const EdgeInsets.only(left: 4),
+          child: SizedBox(
+            width: 18,
+            height: 18,
+            child: const CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.colorScheme.outline.withOpacity(0.08)),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        child: Row(children: pills),
+      ),
+    );
+  }
+
+  Widget _buildCategoryPill({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    final theme = Theme.of(context);
+
+    final selectedColor = theme.colorScheme.primary;
+    final unselectedColor = theme.colorScheme.onSurface.withOpacity(0.7);
+    final background = isSelected
+        ? selectedColor.withOpacity(0.12)
+        : theme.colorScheme.surface;
+    final borderColor = isSelected
+        ? selectedColor
+        : theme.colorScheme.outlineVariant ??
+            theme.colorScheme.outline.withOpacity(0.3);
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: background,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: borderColor, width: isSelected ? 1.4 : 1),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: selectedColor.withOpacity(0.18),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
+                    ),
+                  ]
+                : const [],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isSelected) ...[
+                Icon(Icons.check_rounded, size: 16, color: selectedColor),
+                const SizedBox(width: 6),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: isSelected ? selectedColor : unselectedColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAddCategoryPill(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: InkWell(
+        onTap: _isLoadingCategories ? null : _createCategory,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: theme.colorScheme.primary.withOpacity(0.5)),
+            color: theme.colorScheme.primary.withOpacity(0.08),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.add_rounded,
+                  size: 18, color: theme.colorScheme.primary),
+              const SizedBox(width: 4),
+              Text(
+                '새 다이어리',
+                style: TextStyle(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOverlayPanel() {
+    final theme = Theme.of(context);
+    final size = MediaQuery.of(context).size;
+    final panelHeight = size.height * 0.5;
+
+    const overlayIcon = Icons.menu_book_outlined;
+
+    final overlayItems = <_OverlayCategoryItem>[
+      const _OverlayCategoryItem(id: null, label: '전체 보기', icon: overlayIcon),
+      const _OverlayCategoryItem(
+        id: _defaultCategoryKey,
+        label: '기본 다이어리',
+        icon: overlayIcon,
+      ),
+      ..._categories.map((category) => _OverlayCategoryItem(
+            id: category.id,
+            label: category.name,
+            icon: overlayIcon,
+          )),
+    ];
+
+    return Positioned(
+      left: 16,
+      right: 16,
+      bottom: kBottomNavigationBarHeight + 16,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            height: panelHeight,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface.withOpacity(0.92),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: theme.colorScheme.primary.withOpacity(0.1)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.18),
+                  blurRadius: 24,
+                  offset: const Offset(0, 12),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 12),
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  child: Row(
+                    children: [
+                      Icon(Icons.menu_book_outlined, color: theme.colorScheme.primary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '다이어리 빠른 이동',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: theme.colorScheme.onSurface,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '하단 글목록 또는 X 버튼으로 닫을 수 있어요',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        color: theme.colorScheme.onSurface.withOpacity(0.7),
+                        splashRadius: 18,
+                        onPressed: _closeOverlay,
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    physics: const BouncingScrollPhysics(),
+                    itemCount: overlayItems.length,
+                    separatorBuilder: (_, __) => Divider(
+                      height: 1,
+                      color: theme.dividerColor.withOpacity(0.4),
+                    ),
+                    itemBuilder: (context, index) {
+                      final item = overlayItems[index];
+                      final isSelected = _selectedCategoryId == item.id ||
+                          (_selectedCategoryId == null && item.id == null);
+
+                      return ListTile(
+                        leading: Icon(
+                          item.icon,
+                          color: isSelected
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.onSurface.withOpacity(0.7),
+                        ),
+                        title: Row(
+                          children: [
+                            if (isSelected)
+                              Container(
+                                width: 6,
+                                height: 6,
+                                margin: const EdgeInsets.only(right: 8),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.primary,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            Expanded(
+                              child: Text(
+                                item.label,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: isSelected
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                  color: isSelected
+                                      ? theme.colorScheme.primary
+                                      : theme.colorScheme.onSurface,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        trailing: isSelected
+                            ? Icon(Icons.check_circle, color: theme.colorScheme.primary)
+                            : const Icon(Icons.keyboard_arrow_right),
+                        onTap: () => _handleOverlaySelection(item.id),
+                      );
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _isLoadingCategories
+                          ? null
+                          : () => _handleCreateFromOverlay(),
+                      icon: const Icon(Icons.add),
+                      label: const Text('새 다이어리 만들기'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _handleOverlaySelection(String? categoryId) {
+    _onCategorySelected(categoryId);
+    _closeOverlay();
+  }
+
+  Future<void> _handleCreateFromOverlay() async {
+    await _createCategory();
+    _closeOverlay();
+  }
+
+  void _closeOverlay() {
+    if (!mounted) return;
+    if (_isOverlayMode) {
+      setState(() => _isOverlayMode = false);
+    }
+    final router = GoRouter.of(context);
+    final routeInfo = router.routeInformationProvider.value;
+
+    Uri? currentUri = routeInfo.uri;
+    if (currentUri == null) {
+      final location = routeInfo.location;
+      if (location != null && location.isNotEmpty) {
+        currentUri = Uri.parse(location);
+      }
+    }
+
+    if (currentUri == null) {
+      return;
+    }
+
+    if (currentUri.queryParameters['mode'] == 'overlay') {
+      final updatedParams = Map<String, String>.from(currentUri.queryParameters)
+        ..remove('mode');
+
+      final cleanedUri = currentUri.replace(
+        queryParameters: updatedParams.isEmpty ? null : updatedParams,
+      );
+
+      router.go(cleanedUri.toString());
+    }
+  }
+
+  void _handleRouteInformation() {
+    if (!mounted) return;
+    final uri = _uriFromRouteInformation(_routeInformationListenable?.value);
+    _syncOverlayFromUri(uri);
+  }
+
+  Uri? _uriFromRouteInformation(RouteInformation? info) {
+    final location = info?.location;
+    if (location == null || location.isEmpty) {
+      return null;
+    }
+
+    return Uri.parse(location);
+  }
+
+  void _syncOverlayFromUri(Uri? uri, {bool useSetState = true}) {
+    final shouldOverlay = uri?.queryParameters['mode'] == 'overlay';
+    if (_isOverlayMode == shouldOverlay) {
+      return;
+    }
+
+    if (useSetState) {
+      if (!mounted) return;
+      setState(() => _isOverlayMode = shouldOverlay);
+    } else {
+      _isOverlayMode = shouldOverlay;
+    }
+  }
+
   Widget _buildFilterDropdown({
     required IconData icon,
     required String value,
     required List<Map<String, String>> items,
-    required Function(String?) onChanged,
+    required ValueChanged<String?> onChanged,
   }) {
     return DropdownButtonFormField<String>(
       initialValue: value,
@@ -913,6 +1509,7 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
     );
   }
 
+
   /// 다이어리 이미지 빌드 (첫 번째 이미지 표시)
   Widget _buildDiaryImage(DiaryEntry diary) {
     // 이미지 로드 (캐시되지 않은 경우)
@@ -1000,4 +1597,16 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
       ),
     );
   }
+}
+
+class _OverlayCategoryItem {
+  const _OverlayCategoryItem({
+    required this.id,
+    required this.label,
+    required this.icon,
+  });
+
+  final String? id;
+  final String label;
+  final IconData icon;
 }

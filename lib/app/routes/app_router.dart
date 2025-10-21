@@ -16,6 +16,7 @@ import 'package:saegim/features/home/presentation/pages/home_page.dart';
 import 'package:saegim/features/home/presentation/pages/notifications_page.dart';
 import 'package:saegim/features/home/presentation/pages/settings_page.dart';
 import 'package:saegim/features/home/presentation/pages/support_page.dart';
+import 'package:saegim/features/home/presentation/navigation/diary_route_arguments.dart';
 import 'package:saegim/features/profile/presentation/pages/profile_page.dart';
 import 'package:saegim/features/settings/presentation/pages/app_preferences_page.dart';
 import 'package:saegim/features/settings/presentation/pages/change_password_page.dart';
@@ -83,7 +84,7 @@ class AppRouter {
         ShellRoute(
           builder: (context, state, child) {
             return MainScaffold(
-              currentLocation: state.matchedLocation,
+              currentUri: state.uri,
               child: child,
             );
           },
@@ -107,13 +108,27 @@ class AppRouter {
                   path: '/:id',
                   builder: (context, state) {
                     final id = state.pathParameters['id']!;
-                    final tempEntry = state.extra as DiaryEntry?;
-                    final startInEditMode =
-                        tempEntry != null; // 임시 엔트리가 있으면 편집 모드로 시작
+
+                    DiaryEntry? tempEntry;
+                    bool startInEditMode = false;
+                    String? initialCategoryId;
+
+                    final extra = state.extra;
+                    if (extra is DiaryDetailRouteArguments) {
+                      tempEntry = extra.tempEntry;
+                      startInEditMode =
+                          extra.startInEditMode ?? (tempEntry != null);
+                      initialCategoryId = extra.initialCategoryId;
+                    } else if (extra is DiaryEntry) {
+                      tempEntry = extra;
+                      startInEditMode = tempEntry != null;
+                    }
+
                     return DiaryDetailPage(
                       diaryId: id,
                       tempEntry: tempEntry,
                       startInEditMode: startInEditMode,
+                      initialCategoryId: initialCategoryId,
                     );
                   },
                 ),

@@ -9,6 +9,8 @@ import 'package:saegim/core/theme/theme_extensions.dart';
 import 'package:saegim/features/calendar/data/models/diary_image_model.dart';
 import 'package:saegim/features/calendar/data/models/diary_model.dart';
 import 'package:saegim/features/calendar/data/services/diary_api_service.dart';
+import 'package:saegim/features/home/data/models/diary_category_model.dart';
+import 'package:saegim/features/home/data/services/diary_category_service.dart';
 import 'package:saegim/features/home/presentation/riverpod/handwriting_diary_notifier.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
 import 'package:saegim/shared/widgets/emotion_emoji_widget.dart';
@@ -17,12 +19,14 @@ class DiaryDetailPage extends ConsumerStatefulWidget {
   final String diaryId;
   final DiaryEntry? tempEntry; // 새 다이어리용 임시 데이터
   final bool startInEditMode; // 편집 모드로 시작할지 여부
+  final String? initialCategoryId;
 
   const DiaryDetailPage({
     super.key,
     required this.diaryId,
     this.tempEntry,
     this.startInEditMode = false,
+    this.initialCategoryId,
   });
 
   @override
@@ -57,6 +61,11 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
   // 새로 추가된 이미지들 (편집 모드에서만 사용)
   List<XFile> newImages = [];
   final ImagePicker _imagePicker = ImagePicker();
+
+  // 카테고리 관련 상태
+  List<DiaryCategory> _categories = [];
+  bool _isLoadingCategories = false;
+  String? _selectedCategoryId;
 
   // 감정 옵션 (서버 호환을 위해 정확한 영어 값 사용)
   final List<Map<String, String>> _emotions = [
@@ -168,6 +177,164 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
         });
       },
     );
+  }
+
+  Future<void> _initializeCategoryState({
+    DiaryEntry? entry,
+    String? initialCategoryId,
+    bool forceFetch = false,
+  }) async {
+    if (mounted) {
+      setState(() {
+        _isLoadingCategories = true;
+      });
+    }
+
+    try {
+      final categoryService = DiaryCategoryService.instance;
+      final categories = await categoryService.getCategories();
+      final diaryEntry = entry ?? diary;
+
+      String? resolvedCategoryId = initialCategoryId;
+
+      if ((forceFetch || resolvedCategoryId == null ||
+              resolvedCategoryId.isEmpty) &&
+          diaryEntry != null &&
+          diaryEntry.id.isNotEmpty &&
+          !diaryEntry.id.startsWith('temp_')) {
+        resolvedCategoryId =
+            await categoryService.getCategoryIdForDiary(diaryEntry.id);
+      }
+
+      if (mounted) {
+        setState(() {
+          _categories = categories;
+          _selectedCategoryId =
+              (resolvedCategoryId != null && resolvedCategoryId.isEmpty)
+                  ? null
+                  : resolvedCategoryId;
+          _isLoadingCategories = false;
+        });
+      }
+    } catch (e) {
+      AppLogger.error(
+        'Failed to initialize diary categories',
+        tag: 'DiaryDetailPage',
+        error: e,
+      );
+      if (mounted) {
+        setState(() {
+          _isLoadingCategories = false;
+        });
+      }
+    }
+  }
+
+  String _resolveCategoryLabel() {
+    if (_isLoadingCategories) {
+      return '로딩 중...';
+    }
+
+    if (_selectedCategoryId == null || _selectedCategoryId!.isEmpty) {
+      return '기본 다이어리';
+    }
+
+    for (final category in _categories) {
+      if (category.id == _selectedCategoryId) {
+        return category.name;
+      }
+    }
+
+    return '삭제된 다이어리';
+  }
+
+  Future<void> _showCreateCategoryDialog() async {
+    final controller = TextEditingController();
+    String? errorText;
+    bool isSaving = false;
+
+    final createdCategory = await showDialog<DiaryCategory>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('새 다이어리 만들기'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: controller,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      hintText: '다이어리 이름',
+                      errorText: errorText,
+                    ),
+                    enabled: !isSaving,
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSaving
+                      ? null
+                      : () => Navigator.of(context).pop(),
+                  child: const Text('취소'),
+                ),
+                ElevatedButton(
+                  onPressed: isSaving
+                      ? null
+                      : () async {
+                          final name = controller.text.trim();
+                          if (name.isEmpty) {
+                            setState(() {
+                              errorText = '다이어리 이름을 입력해주세요.';
+                            });
+                            return;
+                          }
+
+                          setState(() {
+                            isSaving = true;
+                            errorText = null;
+                          });
+
+                          try {
+                            final category = await DiaryCategoryService.instance
+                                .createCategory(name);
+                            if (!context.mounted) {
+                              return;
+                            }
+                            Navigator.of(context).pop(category);
+                          } catch (_) {
+                            setState(() {
+                              isSaving = false;
+                              errorText =
+                                  '다이어리를 만들지 못했습니다. 다시 시도해주세요.';
+                            });
+                          }
+                        },
+                  child: isSaving
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('생성'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (createdCategory != null && mounted) {
+      setState(() {
+        _categories.removeWhere((category) => category.id == createdCategory.id);
+        _categories.insert(0, createdCategory);
+        _selectedCategoryId = createdCategory.id;
+      });
+    }
   }
 
   /// 키워드 추가 다이얼로그
@@ -543,6 +710,11 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
           isEditMode = widget.startInEditMode;
         });
 
+        await _initializeCategoryState(
+          entry: widget.tempEntry,
+          initialCategoryId: widget.initialCategoryId,
+        );
+
         // tempEntry에서 이미지 URL들을 DiaryImage 객체로 변환
         if (widget.tempEntry != null && widget.tempEntry!.images.isNotEmpty) {
           final convertedImages = widget.tempEntry!.images
@@ -573,22 +745,32 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
         widget.diaryId,
       );
 
-      if (mounted) {
-        setState(() {
-          diary = loadedDiary;
-          isLoading = false;
-          if (loadedDiary == null) {
-            errorMessage = '다이어리를 불러올 수 없습니다.';
-          } else {
-            // 편집 모드를 위한 컨트롤러 초기화
-            _initializeEditControllers();
-            // 이미지 로드
-            _loadDiaryImages();
-            // 같은 날짜의 다른 일기들 로드
-            _loadDailyDiaries();
-          }
-        });
+      if (!mounted) {
+        return;
       }
+
+      if (loadedDiary == null) {
+        setState(() {
+          diary = null;
+          isLoading = false;
+          errorMessage = '다이어리를 불러올 수 없습니다.';
+        });
+        return;
+      }
+
+      setState(() {
+        diary = loadedDiary;
+        isLoading = false;
+        errorMessage = null;
+      });
+
+      _initializeEditControllers();
+      _loadDiaryImages();
+      _loadDailyDiaries();
+      await _initializeCategoryState(
+        entry: loadedDiary,
+        forceFetch: true,
+      );
     } catch (e) {
       AppLogger.error(
         'Failed to load diary: ${widget.diaryId}',
@@ -729,6 +911,7 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
     _initializeEditControllers();
     // 새 일기의 이미지 로드
     _loadDiaryImages();
+    _initializeCategoryState(forceFetch: true);
   }
 
   /// 편집 컨트롤러 초기화
@@ -868,6 +1051,13 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
 
       bool success = false;
 
+      final trimmedAiText = _aiGeneratedTextController.text.trim();
+      final contentToSave = trimmedAiText.isNotEmpty
+          ? trimmedAiText
+          : ((diary!.aiGeneratedText?.trim().isNotEmpty ?? false)
+              ? diary!.aiGeneratedText!.trim()
+              : diary!.content);
+
       // 새 다이어리인 경우 (diaryId가 "new"로 시작)
       if (widget.diaryId == 'new' || diary!.id.startsWith('temp_')) {
         // 다이어리 생성
@@ -897,11 +1087,9 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
 
         // 새 다이어리 생성 시 편집 모드에서 입력한 데이터 사용
         final createdDiary = await DiaryApiService.instance.createDiary(
-          content: diary!.content, // 필수 - 원본 콘텐츠 사용
+          content: contentToSave,
           title: titleText.isNotEmpty ? titleText : null, // 편집 모드에서 입력한 제목 사용
-          aiGeneratedText: _aiGeneratedTextController.text.trim().isEmpty
-              ? null
-              : _aiGeneratedTextController.text.trim(),
+          aiGeneratedText: contentToSave.isNotEmpty ? contentToSave : null,
           userEmotion: _selectedEmotion,
           aiEmotion: diary!.aiEmotion,
           aiEmotionConfidence: 0.8,
@@ -914,7 +1102,11 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
 
         if (success) {
           // 새 다이어리 생성 성공 - diary 객체 업데이트
-          diary = createdDiary;
+          diary = createdDiary!.copyWith(
+            content: contentToSave,
+            aiGeneratedText: contentToSave,
+            title: titleText.isNotEmpty ? titleText : createdDiary.title,
+          );
         }
       } else {
         // 기존 다이어리 업데이트
@@ -926,11 +1118,19 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
           title: titleText, // null 대신 빈 문자열도 허용
           emotion: _selectedEmotion,
           keywords: keywordsList,
-          aiGeneratedText: _aiGeneratedTextController.text.trim().isEmpty
-              ? null
-              : _aiGeneratedTextController.text.trim(),
+          aiGeneratedText: contentToSave,
           diaryDate: _selectedDate, // 선택된 날짜 전달
         );
+
+        if (success) {
+          diary = diary!.copyWith(
+            title: titleText,
+            content: contentToSave,
+            aiGeneratedText: contentToSave,
+            emotion: _selectedEmotion,
+            keywords: keywordsList,
+          );
+        }
       }
 
       // 2. 새로 추가된 이미지들 업로드 (여러 엔드포인트 시도)
@@ -974,6 +1174,11 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
       }
 
       if (success) {
+        await DiaryCategoryService.instance.assignDiaryToCategory(
+          diary!.id,
+          _selectedCategoryId,
+        );
+
         if (imageUploadSuccess) {
           // 다이어리와 이미지 모두 성공
           if (mounted) {
@@ -1713,6 +1918,55 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
                 ),
               ),
             ),
+            const SizedBox(height: 16),
+            Text(
+              '저장 위치',
+              style: TextStyle(
+                fontSize: 14,
+                color: context.colorScheme.secondary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (_isLoadingCategories)
+              const LinearProgressIndicator()
+            else
+              DropdownButtonFormField<String?>(
+                value: _selectedCategoryId,
+                items: [
+                  const DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text('기본 다이어리'),
+                  ),
+                  ..._categories.map(
+                    (category) => DropdownMenuItem<String?>(
+                      value: category.id,
+                      child: Text(category.name),
+                    ),
+                  ),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _selectedCategoryId = value;
+                  });
+                },
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                ),
+              ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed:
+                    _isLoadingCategories ? null : _showCreateCategoryDialog,
+                icon: const Icon(Icons.add),
+                label: const Text('새 다이어리 만들기'),
+              ),
+            ),
           ] else ...[
             // 보기 모드: 제목 표시
             Text(
@@ -1734,6 +1988,33 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
                   ? '${_selectedDate!.month}월 ${_selectedDate!.day}일'
                   : formattedDate,
               style: TextStyle(fontSize: 16, color: context.secondaryText),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: context.colorScheme.surfaceVariant.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.folder_outlined,
+                    size: 18,
+                    color: context.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    _resolveCategoryLabel(),
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: context.primaryText,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ],

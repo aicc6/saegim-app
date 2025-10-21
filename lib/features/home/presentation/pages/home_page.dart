@@ -6,8 +6,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:saegim/features/home/presentation/navigation/diary_route_arguments.dart';
 import 'package:saegim/core/theme/theme_extensions.dart';
 import 'package:saegim/features/calendar/data/models/diary_model.dart';
+import 'package:saegim/features/home/data/models/diary_category_model.dart';
+import 'package:saegim/features/home/data/services/diary_category_service.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
 import 'package:saegim/shared/widgets/common_app_bar.dart';
 import 'package:saegim/shared/widgets/emotion_emoji_widget.dart';
@@ -428,56 +431,8 @@ class _HomePageState extends ConsumerState<HomePage> {
               // 클립보드 복사 로직
               _copyToClipboard(content);
             },
-            onMoveToDiary: (content, emotion, keywords) async {
-              // 임시 DiaryEntry 생성하여 DiaryDetailPage로 전달
-              final now = DateTime.now();
-
-              // 한글 감정을 영어로 변환
-              String? convertedEmotion;
-              if (emotion != null && emotion.isNotEmpty) {
-                final emotionMap = {
-                  '행복': 'happy',
-                  '평온': 'peaceful',
-                  '불안': 'unrest',
-                  '분노': 'angry',
-                  '화남': 'angry',
-                  '슬픔': 'sad',
-                  'happy': 'happy',
-                  'peaceful': 'peaceful',
-                  'unrest': 'unrest',
-                  'angry': 'angry',
-                  'sad': 'sad',
-                };
-                convertedEmotion = emotionMap[emotion.trim()] ?? emotion;
-              }
-
-              final userInput = _promptController.text.trim();
-              final contentText = userInput.isNotEmpty ? userInput : content;
-
-              // 선택된 이미지들의 경로 추출
-              final imagePaths = selectedImages
-                  .map((xFile) => xFile.path)
-                  .toList();
-
-              final tempDiary = DiaryEntry(
-                id: 'temp_${now.millisecondsSinceEpoch}',
-                title: null,
-                content: contentText, // 원본 사용자 입력
-                aiGeneratedText: content, // AI가 생성한 텍스트
-                emotion: convertedEmotion,
-                aiEmotion: convertedEmotion,
-                keywords: keywords ?? [],
-                diaryDate: now,
-                createdAt: now,
-                isPublic: false,
-                images: imagePaths, // 변경: imagePaths → images
-              );
-
-              // DiaryDetailPage로 이동 (새 다이어리 모드)
-              if (mounted) {
-                context.go('/diary/new', extra: tempDiary);
-              }
-            },
+            onMoveToDiary: (content, emotion, keywords) =>
+                _handleMoveToDiary(content, emotion, keywords),
             onRegenerate: (message) {
               // 재생성 로직 (5번 제한 확인)
               final createState = ref.read(createProvider);
@@ -951,6 +906,106 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
+  Future<void> _handleMoveToDiary(
+    String content,
+    String? emotion,
+    List<String>? keywords,
+  ) async {
+    final selection = await _showDiaryCategorySheet();
+    if (selection == null) {
+      return;
+    }
+
+    final now = DateTime.now();
+
+    String? convertedEmotion;
+    if (emotion != null && emotion.isNotEmpty) {
+      final emotionMap = {
+        '행복': 'happy',
+        '평온': 'peaceful',
+        '불안': 'unrest',
+        '분노': 'angry',
+        '화남': 'angry',
+        '슬픔': 'sad',
+        'happy': 'happy',
+        'peaceful': 'peaceful',
+        'unrest': 'unrest',
+        'angry': 'angry',
+        'sad': 'sad',
+      };
+      convertedEmotion = emotionMap[emotion.trim()] ?? emotion;
+    }
+
+    final originalPrompt = _promptController.text.trim();
+    final contentText = content;
+
+    final imagePaths = selectedImages.map((xFile) => xFile.path).toList();
+
+    final tempDiary = DiaryEntry(
+      id: 'temp_${now.millisecondsSinceEpoch}',
+      title: null,
+      content: contentText,
+      aiGeneratedText: content,
+      emotion: convertedEmotion,
+      aiEmotion: convertedEmotion,
+      keywords: keywords ?? [],
+      diaryDate: now,
+      createdAt: now,
+      isPublic: false,
+      images: imagePaths,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    context.go(
+      '/diary/new',
+      extra: DiaryDetailRouteArguments(
+        tempEntry: tempDiary.copyWith(
+          // 원본 사용자 입력을 참고할 수 있도록 제목이 비어있으면 프롬프트를 임시 제목으로 사용
+          title: (tempDiary.title?.isNotEmpty ?? false)
+              ? tempDiary.title
+              : (originalPrompt.isNotEmpty ? originalPrompt : null),
+        ),
+        startInEditMode: true,
+        initialCategoryId: selection.categoryId,
+      ),
+    );
+  }
+
+  Future<_DiaryDestinationSelection?> _showDiaryCategorySheet() async {
+    final categoryService = DiaryCategoryService.instance;
+    final categories = await categoryService.getCategories();
+    final recentIds = await categoryService.getRecentCategoryIds();
+
+    final recentCategories = <DiaryCategory>[];
+    for (final id in recentIds) {
+      for (final category in categories) {
+        if (category.id == id) {
+          recentCategories.add(category);
+          break;
+        }
+      }
+    }
+
+    final remainingCategories = categories
+        .where((category) => !recentCategories.contains(category))
+        .toList();
+
+    return showModalBottomSheet<_DiaryDestinationSelection>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return _DiaryCategorySelectionSheet(
+          recentCategories: recentCategories,
+          otherCategories: remainingCategories,
+          onCreateCategory: (name) => categoryService.createCategory(name),
+        );
+      },
+    );
+  }
+
   // 클립보드 복사
   void _copyToClipboard(String text) async {
     try {
@@ -964,6 +1019,262 @@ class _HomePageState extends ConsumerState<HomePage> {
   /// 손글씨 다이어리 버튼 위젯
   Widget _buildHandwritingDiaryButton() {
     return _HandwritingDiaryButton();
+  }
+}
+
+class _DiaryDestinationSelection {
+  const _DiaryDestinationSelection({this.categoryId});
+
+  final String? categoryId;
+}
+
+class _DiaryCategorySelectionSheet extends StatefulWidget {
+  const _DiaryCategorySelectionSheet({
+    required this.recentCategories,
+    required this.otherCategories,
+    required this.onCreateCategory,
+  });
+
+  final List<DiaryCategory> recentCategories;
+  final List<DiaryCategory> otherCategories;
+  final Future<DiaryCategory> Function(String name) onCreateCategory;
+
+  @override
+  State<_DiaryCategorySelectionSheet> createState() =>
+      _DiaryCategorySelectionSheetState();
+}
+
+class _DiaryCategorySelectionSheetState
+    extends State<_DiaryCategorySelectionSheet> {
+  final TextEditingController _controller = TextEditingController();
+  bool _isCreating = false;
+  bool _showCreateField = false;
+  String? _errorText;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _handleSelect(String? categoryId) {
+    Navigator.of(context)
+        .pop(_DiaryDestinationSelection(categoryId: categoryId));
+  }
+
+  Future<void> _handleCreate() async {
+    final name = _controller.text.trim();
+    if (name.isEmpty) {
+      setState(() {
+        _errorText = '다이어리 이름을 입력해주세요.';
+      });
+      return;
+    }
+
+    setState(() {
+      _isCreating = true;
+      _errorText = null;
+    });
+
+    try {
+      final created = await widget.onCreateCategory(name);
+      if (!mounted) {
+        return;
+      }
+
+      FocusScope.of(context).unfocus();
+      Navigator.of(context)
+          .pop(_DiaryDestinationSelection(categoryId: created.id));
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isCreating = false;
+        _errorText = '새 다이어리를 만들지 못했습니다. 다시 시도해주세요.';
+      });
+    }
+  }
+
+  void _toggleCreateField() {
+    setState(() {
+      _showCreateField = !_showCreateField;
+      _controller.clear();
+      _errorText = null;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.only(bottom: bottomInset),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Align(
+                  alignment: Alignment.center,
+                  child: Container(
+                    width: 48,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  '다이어리 선택',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: CircleAvatar(
+                    radius: 18,
+                    backgroundColor:
+                        Theme.of(context).colorScheme.secondaryContainer,
+                    child: Icon(
+                      Icons.inbox_outlined,
+                      color: Theme.of(context).colorScheme.onSecondaryContainer,
+                      size: 18,
+                    ),
+                  ),
+                  title: Text(
+                    '기본 다이어리로 저장',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                  onTap: () => _handleSelect(null),
+                ),
+                if (widget.recentCategories.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    '최근 사용',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ...widget.recentCategories.map(_buildCategoryTile),
+                ],
+                if (widget.otherCategories.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    '내 다이어리',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ...widget.otherCategories.map(_buildCategoryTile),
+                ],
+                const SizedBox(height: 20),
+                if (_showCreateField)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        controller: _controller,
+                        enabled: !_isCreating,
+                        decoration: InputDecoration(
+                          hintText: '새 다이어리 이름',
+                          border: const OutlineInputBorder(),
+                          errorText: _errorText,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          TextButton(
+                            onPressed: _isCreating ? null : _toggleCreateField,
+                            child: const Text('취소'),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: _isCreating ? null : _handleCreate,
+                            child: _isCreating
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Text('만들기'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  )
+                else
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: CircleAvatar(
+                      radius: 18,
+                      backgroundColor:
+                          Theme.of(context).colorScheme.primaryContainer,
+                      child: Icon(
+                        Icons.add,
+                        color:
+                            Theme.of(context).colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                    title: Text(
+                      '새 다이어리 만들기',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                    onTap: _toggleCreateField,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryTile(DiaryCategory category) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: CircleAvatar(
+        radius: 18,
+        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+        child: Icon(
+          Icons.folder_outlined,
+          color: Theme.of(context).colorScheme.onPrimaryContainer,
+          size: 18,
+        ),
+      ),
+      title: Text(
+        category.name,
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          color: Theme.of(context).colorScheme.onSurface,
+        ),
+      ),
+      onTap: () => _handleSelect(category.id),
+    );
   }
 }
 
