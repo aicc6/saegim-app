@@ -1423,27 +1423,101 @@ class _DiaryListPageState extends State<DiaryListPage> {
     return category.name;
   }
 
+  int _countDiariesForCategory(String? categoryId) {
+    if (categoryId == null) {
+      return _allDiaries.length;
+    }
+
+    if (categoryId == _defaultCategoryKey) {
+      return _allDiaries.where((diary) {
+        final diaryId = diary.id;
+        if (diaryId == null) {
+          return true;
+        }
+        return !_categoryAssignments.containsKey(diaryId);
+      }).length;
+    }
+
+    return _allDiaries.where((diary) {
+      final diaryId = diary.id;
+      if (diaryId == null) {
+        return false;
+      }
+      return _categoryAssignments[diaryId] == categoryId;
+    }).length;
+  }
+
+  List<_CategorySheetItem> _buildCategorySheetItems() {
+    final items = <_CategorySheetItem>[
+      _CategorySheetItem(
+        id: null,
+        label: '전체 보기',
+        icon: Icons.menu_book_outlined,
+        count: _countDiariesForCategory(null),
+        canDelete: false,
+      ),
+      _CategorySheetItem(
+        id: _defaultCategoryKey,
+        label: '기본 다이어리',
+        icon: Icons.menu_book_outlined,
+        count: _countDiariesForCategory(_defaultCategoryKey),
+        canDelete: false,
+      ),
+    ];
+
+    items.addAll(
+      _categories.map(
+        (category) => _CategorySheetItem(
+          id: category.id,
+          label: category.name,
+          icon: Icons.menu_book_outlined,
+          count: _countDiariesForCategory(category.id),
+          canDelete: true,
+        ),
+      ),
+    );
+
+    return items;
+  }
+
+  Future<void> _deleteCategoryById(String categoryId) async {
+    try {
+      await DiaryCategoryService.instance.deleteCategory(categoryId);
+
+      if (!mounted) {
+        return;
+      }
+
+      if (_selectedCategoryId == categoryId) {
+        setState(() {
+          _selectedCategoryId = null;
+        });
+      }
+
+      await _loadCategories();
+    } catch (e) {
+      AppLogger.error(
+        'Failed to delete category: $categoryId',
+        tag: 'DiaryListPage',
+        error: e,
+      );
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('카테고리를 삭제하지 못했습니다. 다시 시도해 주세요.')),
+      );
+    }
+  }
+
   Future<void> _showCategorySelectorSheet() async {
     if (_isLoadingCategories && _categories.isEmpty) {
       return;
     }
 
     final theme = Theme.of(context);
-    final overlayItems = <_OverlayCategoryItem>[
-      const _OverlayCategoryItem(id: null, label: '전체 보기', icon: Icons.menu_book_outlined),
-      const _OverlayCategoryItem(
-        id: _defaultCategoryKey,
-        label: '기본 다이어리',
-        icon: Icons.menu_book_outlined,
-      ),
-      ..._categories.map(
-        (category) => _OverlayCategoryItem(
-          id: category.id,
-          label: category.name,
-          icon: Icons.menu_book_outlined,
-        ),
-      ),
-    ];
+    final items = _buildCategorySheetItems();
 
     final result = await showModalBottomSheet<String?>(
       context: context,
@@ -1451,71 +1525,153 @@ class _DiaryListPageState extends State<DiaryListPage> {
       showDragHandle: true,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       builder: (sheetContext) {
-        return FractionallySizedBox(
-          heightFactor: 0.6,
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '카테고리 선택',
-                    style: Theme.of(sheetContext).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: ListView.separated(
-                      itemCount: overlayItems.length,
-                      separatorBuilder: (_, __) => Divider(
-                        height: 1,
-                        color: theme.dividerColor.withOpacity(0.4),
-                      ),
-                      itemBuilder: (context, index) {
-                        final item = overlayItems[index];
-                        final isSelected = _selectedCategoryId == item.id ||
-                            (_selectedCategoryId == null && item.id == null);
+        var sheetItems = List<_CategorySheetItem>.from(items);
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            Future<void> refreshItems() async {
+              sheetItems
+                ..clear()
+                ..addAll(_buildCategorySheetItems());
+              setModalState(() {});
+            }
 
-                        return ListTile(
-                          leading: Icon(
-                            item.icon,
-                            color: isSelected
-                                ? theme.colorScheme.primary
-                                : theme.colorScheme.onSurface.withOpacity(0.7),
-                          ),
-                          title: Text(
-                            item.label,
-                            style: TextStyle(
-                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                              color: isSelected
-                                  ? theme.colorScheme.primary
-                                  : theme.colorScheme.onSurface,
+            Future<void> handleDelete(_CategorySheetItem item) async {
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (dialogContext) {
+                  return AlertDialog(
+                    title: const Text('카테고리 삭제'),
+                    content: Text(
+                      '\'${item.label}\' 카테고리를 삭제할까요?\n카테고리에 속한 일기는 기본 다이어리로 이동합니다.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(false),
+                        child: const Text('취소'),
+                      ),
+                      FilledButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(true),
+                        child: const Text('삭제'),
+                      ),
+                    ],
+                  );
+                },
+              );
+
+              if (confirmed != true) {
+                return;
+              }
+
+              await _deleteCategoryById(item.id!);
+              await refreshItems();
+            }
+
+            return FractionallySizedBox(
+              heightFactor: 0.6,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '카테고리 선택',
+                        style: Theme.of(sheetContext).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
                             ),
+                      ),
+                      const SizedBox(height: 12),
+                      Expanded(
+                        child: ListView.separated(
+                          itemCount: sheetItems.length,
+                          separatorBuilder: (_, __) => Divider(
+                            height: 1,
+                            color: theme.dividerColor.withOpacity(0.4),
                           ),
-                          trailing: isSelected
-                              ? Icon(Icons.check_circle, color: theme.colorScheme.primary)
-                              : const Icon(Icons.keyboard_arrow_right),
-                          onTap: () => Navigator.of(sheetContext).pop(item.id ?? _allCategoryValue),
-                        );
-                      },
-                    ),
+                          itemBuilder: (context, index) {
+                            final item = sheetItems[index];
+                            final isSelected = _selectedCategoryId == item.id ||
+                                (_selectedCategoryId == null && item.id == null);
+
+                            return InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () => Navigator.of(sheetContext)
+                                  .pop(item.id ?? _allCategoryValue),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    SizedBox(
+                                      width: 40,
+                                      child: IconButton(
+                                        icon: Icon(
+                                          Icons.delete_outline,
+                                          size: 18,
+                                          color: item.canDelete
+                                              ? theme.colorScheme.error
+                                              : theme.colorScheme.onSurface.withOpacity(0.25),
+                                        ),
+                                        tooltip: item.canDelete
+                                            ? '카테고리 삭제'
+                                            : '삭제할 수 없는 카테고리',
+                                        onPressed:
+                                            item.canDelete ? () => handleDelete(item) : null,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Icon(
+                                      item.icon,
+                                      color: isSelected
+                                          ? theme.colorScheme.primary
+                                          : theme.colorScheme.onSurface.withOpacity(0.7),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        '${item.label} (${item.count})',
+                                        style: TextStyle(
+                                          fontWeight:
+                                              isSelected ? FontWeight.w700 : FontWeight.w500,
+                                          color: isSelected
+                                              ? theme.colorScheme.primary
+                                              : theme.colorScheme.onSurface,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Icon(
+                                      isSelected
+                                          ? Icons.check_circle
+                                          : Icons.keyboard_arrow_right,
+                                      color: isSelected
+                                          ? theme.colorScheme.primary
+                                          : theme.colorScheme.onSurface.withOpacity(0.6),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: _isLoadingCategories
+                              ? null
+                              : () => Navigator.of(sheetContext).pop(_createCategoryValue),
+                          icon: const Icon(Icons.add),
+                          label: const Text('새 다이어리 만들기'),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed:
-                          _isLoadingCategories ? null : () => Navigator.of(sheetContext).pop(_createCategoryValue),
-                      icon: const Icon(Icons.add),
-                      label: const Text('새 다이어리 만들기'),
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
+            );
+          },
         );
       },
     );
@@ -1974,16 +2130,20 @@ class _DiaryListPageState extends State<DiaryListPage> {
   }
 }
 
-class _OverlayCategoryItem {
-  const _OverlayCategoryItem({
+class _CategorySheetItem {
+  const _CategorySheetItem({
     required this.id,
     required this.label,
     required this.icon,
+    required this.count,
+    required this.canDelete,
   });
 
   final String? id;
   final String label;
   final IconData icon;
+  final int count;
+  final bool canDelete;
 }
 
 class _FilterIconTile extends StatelessWidget {
