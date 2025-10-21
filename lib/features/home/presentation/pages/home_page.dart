@@ -918,6 +918,12 @@ class _HomePageState extends ConsumerState<HomePage> {
 
     final now = DateTime.now();
 
+    // 사용자가 선택한 감정 (없으면 null 유지)
+    final emotionState = ref.read(emotionProvider);
+    final userEmotionOption = emotionState.selectedEmotion;
+    final userEmotionValue =
+        userEmotionOption != EmotionOption.none ? userEmotionOption.value : null;
+
     String? convertedEmotion;
     if (emotion != null && emotion.isNotEmpty) {
       final emotionMap = {
@@ -946,7 +952,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       title: null,
       content: contentText,
       aiGeneratedText: content,
-      emotion: convertedEmotion,
+      emotion: userEmotionValue,
       aiEmotion: convertedEmotion,
       keywords: keywords ?? [],
       diaryDate: now,
