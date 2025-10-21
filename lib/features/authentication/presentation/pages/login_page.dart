@@ -109,7 +109,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     ),
                   ),
                   validator: (value) {
-                    // TODO: 이메일 유효성 검사 추가
+                    final email = value?.trim() ?? '';
+                    if (email.isEmpty) {
+                      return '이메일을 입력해주세요';
+                    }
+                    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(email)) {
+                      return '올바른 이메일 형식을 입력해주세요';
+                    }
                     return null;
                   },
                 ),
@@ -154,7 +160,19 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     ),
                   ),
                   validator: (value) {
-                    // TODO: 비밀번호 유효성 검사 추가
+                    final password = value ?? '';
+                    if (password.isEmpty) {
+                      return '비밀번호를 입력해주세요';
+                    }
+                    if (password.length < 9) {
+                      return '비밀번호는 9자 이상이어야 합니다';
+                    }
+                    final pattern = RegExp(
+                      r'^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{9,}$',
+                    );
+                    if (!pattern.hasMatch(password)) {
+                      return '영문, 숫자, 특수문자를 모두 포함해야 합니다';
+                    }
                     return null;
                   },
                 ),
