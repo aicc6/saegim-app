@@ -6,11 +6,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:saegim/features/home/presentation/navigation/diary_route_arguments.dart';
 import 'package:saegim/core/theme/theme_extensions.dart';
 import 'package:saegim/features/calendar/data/models/diary_model.dart';
 import 'package:saegim/features/home/data/models/diary_category_model.dart';
 import 'package:saegim/features/home/data/services/diary_category_service.dart';
+import 'package:saegim/features/home/presentation/navigation/diary_route_arguments.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
 import 'package:saegim/shared/widgets/common_app_bar.dart';
 import 'package:saegim/shared/widgets/emotion_emoji_widget.dart';
@@ -1058,8 +1058,9 @@ class _DiaryCategorySelectionSheetState
   }
 
   void _handleSelect(String? categoryId) {
-    Navigator.of(context)
-        .pop(_DiaryDestinationSelection(categoryId: categoryId));
+    Navigator.of(
+      context,
+    ).pop(_DiaryDestinationSelection(categoryId: categoryId));
   }
 
   Future<void> _handleCreate() async {
@@ -1083,8 +1084,9 @@ class _DiaryCategorySelectionSheetState
       }
 
       FocusScope.of(context).unfocus();
-      Navigator.of(context)
-          .pop(_DiaryDestinationSelection(categoryId: created.id));
+      Navigator.of(
+        context,
+      ).pop(_DiaryDestinationSelection(categoryId: created.id));
     } catch (_) {
       if (!mounted) {
         return;
@@ -1143,8 +1145,9 @@ class _DiaryCategorySelectionSheetState
                   contentPadding: EdgeInsets.zero,
                   leading: CircleAvatar(
                     radius: 18,
-                    backgroundColor:
-                        Theme.of(context).colorScheme.secondaryContainer,
+                    backgroundColor: Theme.of(
+                      context,
+                    ).colorScheme.secondaryContainer,
                     child: Icon(
                       Icons.inbox_outlined,
                       color: Theme.of(context).colorScheme.onSecondaryContainer,
@@ -1229,12 +1232,12 @@ class _DiaryCategorySelectionSheetState
                     contentPadding: EdgeInsets.zero,
                     leading: CircleAvatar(
                       radius: 18,
-                      backgroundColor:
-                          Theme.of(context).colorScheme.primaryContainer,
+                      backgroundColor: Theme.of(
+                        context,
+                      ).colorScheme.primaryContainer,
                       child: Icon(
                         Icons.add,
-                        color:
-                            Theme.of(context).colorScheme.onPrimaryContainer,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
                       ),
                     ),
                     title: Text(

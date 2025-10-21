@@ -67,6 +67,11 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
   bool _isLoadingCategories = false;
   String? _selectedCategoryId;
 
+  // AI 글 / 사용자 입력 글 토글 관련
+  bool _showPromptContent = false; // false: AI 글, true: 사용자 입력 글
+  String? _cachedPromptContent; // 캐시된 사용자 입력 글
+  bool _isLoadingPromptContent = false; // 로딩 상태
+
   // 감정 옵션 (서버 호환을 위해 정확한 영어 값 사용)
   final List<Map<String, String>> _emotions = [
     {'value': 'happy', 'emoji': '😊', 'label': '행복'},
@@ -197,13 +202,15 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
 
       String? resolvedCategoryId = initialCategoryId;
 
-      if ((forceFetch || resolvedCategoryId == null ||
+      if ((forceFetch ||
+              resolvedCategoryId == null ||
               resolvedCategoryId.isEmpty) &&
           diaryEntry != null &&
           diaryEntry.id.isNotEmpty &&
           !diaryEntry.id.startsWith('temp_')) {
-        resolvedCategoryId =
-            await categoryService.getCategoryIdForDiary(diaryEntry.id);
+        resolvedCategoryId = await categoryService.getCategoryIdForDiary(
+          diaryEntry.id,
+        );
       }
 
       if (mounted) {
@@ -211,8 +218,8 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
           _categories = categories;
           _selectedCategoryId =
               (resolvedCategoryId != null && resolvedCategoryId.isEmpty)
-                  ? null
-                  : resolvedCategoryId;
+              ? null
+              : resolvedCategoryId;
           _isLoadingCategories = false;
         });
       }
@@ -308,8 +315,7 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
                           } catch (_) {
                             setState(() {
                               isSaving = false;
-                              errorText =
-                                  '다이어리를 만들지 못했습니다. 다시 시도해주세요.';
+                              errorText = '다이어리를 만들지 못했습니다. 다시 시도해주세요.';
                             });
                           }
                         },
@@ -330,7 +336,9 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
 
     if (createdCategory != null && mounted) {
       setState(() {
-        _categories.removeWhere((category) => category.id == createdCategory.id);
+        _categories.removeWhere(
+          (category) => category.id == createdCategory.id,
+        );
         _categories.insert(0, createdCategory);
         _selectedCategoryId = createdCategory.id;
       });
@@ -404,6 +412,70 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
     currentKeywords.remove(keyword);
     _keywordsController.text = currentKeywords.join(', ');
     setState(() {});
+  }
+
+  /// AI 글 / 사용자 입력 글 토글
+  Future<void> _toggleContentType() async {
+    if (diary == null) return;
+
+    // 편집 모드에서는 토글 불가
+    if (isEditMode) return;
+
+    // 현재 상태가 AI 글이고, 사용자 입력 글로 전환하려는 경우
+    if (!_showPromptContent) {
+      // 캐시된 content가 없으면 API 호출
+      if (_cachedPromptContent == null) {
+        setState(() {
+          _isLoadingPromptContent = true;
+        });
+
+        try {
+          final content = await DiaryApiService.instance.getDiaryContent(
+            diary!.id,
+          );
+
+          if (mounted) {
+            setState(() {
+              _cachedPromptContent = content ?? diary!.content;
+              _showPromptContent = true;
+              _isLoadingPromptContent = false;
+            });
+          }
+        } catch (e) {
+          AppLogger.error(
+            'Failed to load prompt content',
+            tag: 'DiaryDetailPage',
+            error: e,
+          );
+
+          if (mounted) {
+            setState(() {
+              // 실패 시 기본 content 사용
+              _cachedPromptContent = diary!.content;
+              _showPromptContent = true;
+              _isLoadingPromptContent = false;
+            });
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('사용자 입력 글을 불러오는 중 오류가 발생했습니다.'),
+                backgroundColor: context.colorScheme.error,
+              ),
+            );
+          }
+        }
+      } else {
+        // 이미 캐시된 content가 있으면 바로 전환
+        setState(() {
+          _showPromptContent = true;
+        });
+      }
+    } else {
+      // 사용자 입력 글에서 AI 글로 전환
+      setState(() {
+        _showPromptContent = false;
+      });
+    }
   }
 
   /// 이미지 선택 기능
@@ -767,10 +839,7 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
       _initializeEditControllers();
       _loadDiaryImages();
       _loadDailyDiaries();
-      await _initializeCategoryState(
-        entry: loadedDiary,
-        forceFetch: true,
-      );
+      await _initializeCategoryState(entry: loadedDiary, forceFetch: true);
     } catch (e) {
       AppLogger.error(
         'Failed to load diary: ${widget.diaryId}',
@@ -905,6 +974,10 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
       if (isEditMode) {
         isEditMode = false;
       }
+      // 토글 상태 초기화
+      _showPromptContent = false;
+      _cachedPromptContent = null;
+      _isLoadingPromptContent = false;
     });
 
     // 새 일기의 컨트롤러 초기화
@@ -1009,6 +1082,8 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
   void _startEditMode() {
     setState(() {
       isEditMode = true;
+      // 편집 모드로 전환 시 토글 상태 초기화
+      _showPromptContent = false;
     });
   }
 
@@ -1055,8 +1130,8 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
       final contentToSave = trimmedAiText.isNotEmpty
           ? trimmedAiText
           : ((diary!.aiGeneratedText?.trim().isNotEmpty ?? false)
-              ? diary!.aiGeneratedText!.trim()
-              : diary!.content);
+                ? diary!.aiGeneratedText!.trim()
+                : diary!.content);
 
       // 새 다이어리인 경우 (diaryId가 "new"로 시작)
       if (widget.diaryId == 'new' || diary!.id.startsWith('temp_')) {
@@ -1102,7 +1177,7 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
 
         if (success) {
           // 새 다이어리 생성 성공 - diary 객체 업데이트
-          diary = createdDiary!.copyWith(
+          diary = createdDiary.copyWith(
             content: contentToSave,
             aiGeneratedText: contentToSave,
             title: titleText.isNotEmpty ? titleText : createdDiary.title,
@@ -1932,7 +2007,7 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
               const LinearProgressIndicator()
             else
               DropdownButtonFormField<String?>(
-                value: _selectedCategoryId,
+                initialValue: _selectedCategoryId,
                 items: [
                   const DropdownMenuItem<String?>(
                     value: null,
@@ -1961,8 +2036,9 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
             Align(
               alignment: Alignment.centerRight,
               child: TextButton.icon(
-                onPressed:
-                    _isLoadingCategories ? null : _showCreateCategoryDialog,
+                onPressed: _isLoadingCategories
+                    ? null
+                    : _showCreateCategoryDialog,
                 icon: const Icon(Icons.add),
                 label: const Text('새 다이어리 만들기'),
               ),
@@ -1993,7 +2069,9 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: context.colorScheme.surfaceVariant.withOpacity(0.3),
+                color: context.colorScheme.surfaceContainerHighest.withOpacity(
+                  0.3,
+                ),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -2352,42 +2430,33 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
 
     final aiContent = diary!.aiGeneratedText;
     final originalContent = diary!.content;
-    final displayContent = isEditMode
-        ? _aiGeneratedTextController.text.isNotEmpty
-              ? _aiGeneratedTextController.text
-              : (aiContent ?? originalContent)
-        : (aiContent ?? originalContent);
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: context.colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isEditMode
-              ? context.colorScheme.primary
-              : context.borderSubtle,
-          width: isEditMode ? 2 : 1,
+    // 편집 모드일 때
+    if (isEditMode) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: context.colorScheme.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: context.colorScheme.primary, width: 2),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                'AI 생성 글',
-                style: TextStyle(
-                  fontSize: 15,
-                  color: context.colorScheme.secondary,
-                  fontWeight: FontWeight.w500,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  'AI 생성 글',
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: context.colorScheme.secondary,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (isEditMode) ...[
+              ],
+            ),
+            const SizedBox(height: 12),
             // 편집 모드: 텍스트 필드
             TextField(
               controller: _aiGeneratedTextController,
@@ -2403,17 +2472,101 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
                 color: context.primaryText,
               ),
             ),
-          ] else ...[
-            // 보기 모드: 텍스트 표시
-            Text(
-              displayContent,
-              style: TextStyle(
-                fontSize: 16,
-                height: 1.6,
-                color: context.primaryText,
-              ),
-            ),
           ],
+        ),
+      );
+    }
+
+    // 보기 모드일 때
+    final displayContent = _showPromptContent
+        ? (_cachedPromptContent ?? originalContent)
+        : (aiContent ?? originalContent);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: context.colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: context.borderSubtle, width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                _showPromptContent ? '사용자 입력 글' : 'AI 생성 글',
+                style: TextStyle(
+                  fontSize: 15,
+                  color: context.colorScheme.secondary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const Spacer(),
+              // 토글 버튼
+              if (_isLoadingPromptContent)
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      context.colorScheme.primary,
+                    ),
+                  ),
+                )
+              else
+                GestureDetector(
+                  onTap: _toggleContentType,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: context.colorScheme.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: context.colorScheme.primary,
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _showPromptContent
+                              ? Icons.smart_toy
+                              : Icons.edit_note,
+                          size: 16,
+                          color: context.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          _showPromptContent ? 'AI 글' : '입력 글',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: context.colorScheme.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // 보기 모드: 텍스트 표시
+          Text(
+            displayContent,
+            style: TextStyle(
+              fontSize: 16,
+              height: 1.6,
+              color: context.primaryText,
+            ),
+          ),
         ],
       ),
     );

@@ -1370,6 +1370,68 @@ class DiaryApiService {
     return null;
   }
 
+  /// 다이어리 content 조회 (사용자 입력 원본)
+  ///
+  /// [diaryId]: 조회할 다이어리 ID
+  Future<String?> getDiaryContent(String diaryId) async {
+    try {
+      AppLogger.info('📝 Fetching diary content: $diaryId', 'DiaryApiService');
+
+      final response = await dio.get('/api/diary/$diaryId/content');
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+
+        // 응답 데이터 파싱
+        String? content;
+        if (data is Map<String, dynamic>) {
+          if (data.containsKey('data')) {
+            final dataMap = data['data'] as Map<String, dynamic>;
+            content = dataMap['content'] as String?;
+          } else if (data.containsKey('content')) {
+            content = data['content'] as String?;
+          }
+        }
+
+        AppLogger.info(
+          '✅ Successfully loaded content for diary: $diaryId',
+          'DiaryApiService',
+        );
+        return content;
+      } else {
+        AppLogger.warning(
+          'Failed to load diary content: ${response.statusCode}',
+          'DiaryApiService',
+        );
+        return null;
+      }
+    } on DioException catch (dioError) {
+      final statusCode = dioError.response?.statusCode;
+
+      if (statusCode == 404) {
+        AppLogger.info(
+          'Content not found for diary: $diaryId',
+          'DiaryApiService',
+        );
+        return null;
+      }
+
+      AppLogger.error(
+        '❌ DioException loading diary content: $diaryId - Status: $statusCode',
+        tag: 'DiaryApiService',
+        error: dioError,
+      );
+      return null;
+    } catch (e) {
+      AppLogger.error(
+        'Unexpected error loading diary content: $diaryId',
+        tag: 'DiaryApiService',
+        error: e,
+      );
+      return null;
+    }
+  }
+
   /// 다이어리 이미지 삭제
   ///
   /// [imageId]: 삭제할 이미지 ID
