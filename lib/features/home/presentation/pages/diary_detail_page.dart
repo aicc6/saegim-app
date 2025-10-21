@@ -9,6 +9,7 @@ import 'package:saegim/core/theme/theme_extensions.dart';
 import 'package:saegim/features/calendar/data/models/diary_image_model.dart';
 import 'package:saegim/features/calendar/data/models/diary_model.dart';
 import 'package:saegim/features/calendar/data/services/diary_api_service.dart';
+import 'package:saegim/features/calendar/presentation/riverpod/calendar_notifier.dart';
 import 'package:saegim/features/home/data/models/diary_category_model.dart';
 import 'package:saegim/features/home/data/services/diary_category_service.dart';
 import 'package:saegim/features/home/presentation/riverpod/handwriting_diary_notifier.dart';
@@ -1563,6 +1564,8 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
               backgroundColor: context.colorScheme.primary,
             ),
           );
+
+          ref.read(calendarNotifierProvider.notifier).refresh();
 
           AppLogger.info(
             'Diary deletion successful - preparing navigation',

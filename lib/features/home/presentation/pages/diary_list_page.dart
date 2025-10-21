@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:saegim/core/theme/theme_extensions.dart';
 import 'package:saegim/features/calendar/data/models/diary_image_model.dart';
 import 'package:saegim/features/calendar/data/models/diary_model.dart';
 import 'package:saegim/features/calendar/data/services/diary_api_service.dart';
+import 'package:saegim/features/calendar/presentation/riverpod/calendar_notifier.dart';
 import 'package:saegim/features/home/data/models/diary_category_model.dart';
 import 'package:saegim/features/home/data/services/diary_category_service.dart';
 import 'package:saegim/shared/utils/app_logger.dart';
@@ -616,6 +618,8 @@ class _DiaryListPageState extends State<DiaryListPage> {
           _categoryAssignments.remove(diaryId);
           _selectedDiaryIds.remove(diaryId);
         }
+
+        _notifyCalendarRefresh();
       }
 
       if (_selectedDiaryIds.isEmpty) {
@@ -645,6 +649,11 @@ class _DiaryListPageState extends State<DiaryListPage> {
         ),
       );
     }
+  }
+
+  void _notifyCalendarRefresh() {
+    final container = ProviderScope.containerOf(context, listen: false);
+    container.read(calendarNotifierProvider.notifier).refresh();
   }
 
   @override
