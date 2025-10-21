@@ -9,6 +9,7 @@ import 'package:saegim/core/theme/theme_extensions.dart';
 import 'package:saegim/features/calendar/data/models/diary_image_model.dart';
 import 'package:saegim/features/calendar/data/models/diary_model.dart';
 import 'package:saegim/features/calendar/data/services/diary_api_service.dart';
+import 'package:saegim/features/calendar/presentation/riverpod/calendar_notifier.dart';
 import 'package:saegim/features/home/data/models/diary_category_model.dart';
 import 'package:saegim/features/home/data/services/diary_category_service.dart';
 import 'package:saegim/features/home/presentation/riverpod/handwriting_diary_notifier.dart';
@@ -153,6 +154,13 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
       value: validEmotion,
       isExpanded: true,
       underline: Container(),
+      hint: Text(
+        '없음 (미선택)',
+        style: TextStyle(
+          color: context.secondaryText,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
       items: _emotions.map((emotion) {
         return DropdownMenuItem<String>(
           value: emotion['value'],
@@ -1033,8 +1041,8 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
     _keywordsController.text = diary!.keywords.join(', ');
     _aiGeneratedTextController.text = diary!.aiGeneratedText ?? '';
 
-    // 사용자 감정 초기화 - 한글일 수 있으므로 영문 코드로 치환 후 검증
-    final diaryEmotionRaw = diary!.emotion ?? diary!.aiEmotion;
+    // 사용자 감정 초기화 - user emotion 값만 사용 (없으면 null 유지)
+    final String? diaryEmotionRaw = diary!.emotion;
     final diaryEmotion = _toEnglishEmotion(diaryEmotionRaw);
 
     // 디버깅을 위한 로그 추가
@@ -1636,6 +1644,8 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
             ),
           );
 
+          ref.read(calendarNotifierProvider.notifier).refresh();
+
           AppLogger.info(
             'Diary deletion successful - preparing navigation',
             'DiaryDetailPage',
@@ -2176,9 +2186,14 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
   Widget _buildEmotionAnalysisSection() {
     if (diary == null) return const SizedBox.shrink();
 
-    final userEmotion = _getKoreanEmotion(
-      isEditMode ? _selectedEmotion : diary!.emotion,
-    );
+    final String? rawUserEmotion = isEditMode ? _selectedEmotion : diary!.emotion;
+    final bool hasUserEmotion =
+        rawUserEmotion != null && rawUserEmotion.trim().isNotEmpty;
+    final String normalizedUserEmotion =
+        hasUserEmotion ? _toEnglishEmotion(rawUserEmotion) : '';
+    final String userEmotionLabel = hasUserEmotion
+        ? _getKoreanEmotion(rawUserEmotion)
+        : '없음 (미선택)';
     final aiEmotion = _getKoreanEmotion(diary!.aiEmotion);
 
     return Column(
@@ -2230,18 +2245,23 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
                       // 보기 모드: 현재 감정 표시
                       Row(
                         children: [
-                          EmotionEmojiWidget(
-                            emotion:
-                                _selectedEmotion ??
-                                diary!.emotion ??
-                                'peaceful',
-                            size: 24,
-                            imageScale: 1.4,
-                          ),
+                          if (hasUserEmotion) ...[
+                            EmotionEmojiWidget(
+                              emotion: normalizedUserEmotion,
+                              size: 24,
+                              imageScale: 1.4,
+                            ),
+                          ] else ...[
+                            Icon(
+                              Icons.remove_circle_outline,
+                              size: 24,
+                              color: context.borderSubtle,
+                            ),
+                          ],
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              userEmotion,
+                              userEmotionLabel,
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
