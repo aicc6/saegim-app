@@ -34,6 +34,10 @@ class _DiaryListPageState extends State<DiaryListPage> {
   int _currentPage = 1;
   final int _itemsPerPage = 20;
 
+  bool _selectionMode = false;
+  final Set<String> _selectedDiaryIds = {};
+  bool _isBulkDeleting = false;
+
   // 다이어리별 이미지 캐시
   final Map<String, List<DiaryImage>> _diaryImagesCache = {};
   final Set<String> _loadingImages = {};
@@ -139,6 +143,9 @@ class _DiaryListPageState extends State<DiaryListPage> {
       // 새로고침 시 캐시 클리어 (캘린더 페이지와 동일)
       _diaryImagesCache.clear();
       _loadingImages.clear();
+      _selectionMode = false;
+      _selectedDiaryIds.clear();
+      _isBulkDeleting = false;
     });
 
     await _loadCategories();
@@ -211,6 +218,9 @@ class _DiaryListPageState extends State<DiaryListPage> {
             _displayedDiaries
               ..clear()
               ..addAll(filtered);
+            final validIds =
+                _displayedDiaries.map((diary) => diary.id).whereType<String>().toSet();
+            _selectedDiaryIds.removeWhere((id) => !validIds.contains(id));
 
             // 백엔드에서 반환된 데이터가 요청한 페이지 크기보다 적으면 더 이상 데이터가 없음
             _hasMore = diaries.length >= _itemsPerPage;
@@ -461,6 +471,182 @@ class _DiaryListPageState extends State<DiaryListPage> {
     }
   }
 
+  int get _selectableDiaryCount =>
+      _displayedDiaries.where((diary) => diary.id != null).length;
+
+  bool get _hasSelection => _selectedDiaryIds.isNotEmpty;
+
+  bool get _isAllVisibleSelected =>
+      _hasSelection &&
+      _selectedDiaryIds.length == _selectableDiaryCount &&
+      _selectableDiaryCount > 0;
+
+  void _enterSelectionMode([String? diaryId]) {
+    if (_displayedDiaries.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _selectionMode = true;
+      _selectedDiaryIds.clear();
+      if (diaryId != null) {
+        _selectedDiaryIds.add(diaryId);
+      }
+    });
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _selectionMode = false;
+      _selectedDiaryIds.clear();
+    });
+  }
+
+  void _toggleDiarySelection(String? diaryId) {
+    if (diaryId == null) {
+      return;
+    }
+
+    setState(() {
+      if (_selectedDiaryIds.contains(diaryId)) {
+        _selectedDiaryIds.remove(diaryId);
+      } else {
+        _selectedDiaryIds.add(diaryId);
+      }
+    });
+  }
+
+  void _toggleSelectAll(bool selectAll) {
+    if (_selectableDiaryCount == 0) {
+      return;
+    }
+
+    setState(() {
+      if (selectAll) {
+        _selectedDiaryIds
+          ..clear()
+          ..addAll(
+            _displayedDiaries
+                .map((diary) => diary.id)
+                .whereType<String>()
+                .toList(),
+          );
+      } else {
+        _selectedDiaryIds.clear();
+      }
+    });
+  }
+
+  Future<void> _confirmBulkDelete() async {
+    final selectedCount = _selectedDiaryIds.length;
+
+    if (selectedCount == 0) {
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('선택한 일기를 삭제할까요?'),
+          content: Text(
+            '총 ${selectedCount}개의 일기를 삭제하시겠습니까?\n삭제된 일기는 복구할 수 없습니다.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: _isBulkDeleting
+                  ? null
+                  : () => Navigator.of(dialogContext).pop(false),
+              child: const Text('취소'),
+            ),
+            FilledButton(
+              onPressed: _isBulkDeleting
+                  ? null
+                  : () => Navigator.of(dialogContext).pop(true),
+              child: const Text('삭제'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      await _deleteSelectedDiaries();
+    }
+  }
+
+  Future<void> _deleteSelectedDiaries() async {
+    final idsToDelete = List<String>.from(_selectedDiaryIds);
+
+    if (idsToDelete.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _isBulkDeleting = true;
+    });
+
+    final List<String> deletedIds = [];
+    final List<String> failedIds = [];
+
+    for (final diaryId in idsToDelete) {
+      final success = await DiaryApiService.instance.deleteDiary(diaryId);
+      if (success) {
+        deletedIds.add(diaryId);
+      } else {
+        failedIds.add(diaryId);
+      }
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isBulkDeleting = false;
+
+      if (deletedIds.isNotEmpty) {
+        _allDiaries.removeWhere((diary) => deletedIds.contains(diary.id));
+        _displayedDiaries
+            .removeWhere((diary) => deletedIds.contains(diary.id));
+
+        for (final diaryId in deletedIds) {
+          _diaryImagesCache.remove(diaryId);
+          _loadingImages.remove(diaryId);
+          _categoryAssignments.remove(diaryId);
+          _selectedDiaryIds.remove(diaryId);
+        }
+      }
+
+      if (_selectedDiaryIds.isEmpty) {
+        _selectionMode = false;
+      }
+    });
+
+    final messenger = ScaffoldMessenger.of(context);
+
+    if (deletedIds.isNotEmpty && failedIds.isEmpty) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('${deletedIds.length}개의 일기를 삭제했습니다.')),
+      );
+    } else if (deletedIds.isNotEmpty && failedIds.isNotEmpty) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            '${deletedIds.length}개의 일기를 삭제했습니다. ${failedIds.length}개의 일기는 삭제하지 못했습니다.',
+          ),
+        ),
+      );
+    } else {
+      messenger.showSnackBar(
+        SnackBar(
+          content: const Text('선택한 일기를 삭제하지 못했습니다. 다시 시도해 주세요.'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -468,6 +654,14 @@ class _DiaryListPageState extends State<DiaryListPage> {
       body: Column(
         children: [
           _buildFilterSection(),
+          if (!_selectionMode && _displayedDiaries.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: _buildBulkActionButton(),
+              ),
+            ),
           Expanded(
             child: _displayedDiaries.isEmpty && !_isLoading
                 ? _buildEmptyState()
@@ -479,150 +673,75 @@ class _DiaryListPageState extends State<DiaryListPage> {
   }
 
   Widget _buildFilterSection() {
+    final theme = Theme.of(context);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
+        color: theme.scaffoldBackgroundColor,
         border: Border(
-          bottom: BorderSide(color: Theme.of(context).dividerColor),
+          bottom: BorderSide(color: theme.dividerColor),
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (_selectionMode) ...[
+            _buildSelectionControls(),
+            const SizedBox(height: 12),
+          ],
           _buildCategorySelector(),
           const SizedBox(height: 16),
-          // 검색창
-          TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              hintText: '제목이나 내용으로 검색하세요',
-              prefixIcon: Icon(
-                Icons.search,
-                color: context.colorScheme.primary,
-              ),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(
-                      icon: Icon(
-                        Icons.clear,
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withOpacity(0.6),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              const gap = 12.0;
+              const minSearchWidth = 160.0;
+              final filterWidth = _filterButtonWidth;
+              final available = constraints.maxWidth - filterWidth - gap;
+
+              if (available >= minSearchWidth) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: available,
+                      child: _buildSearchField(),
+                    ),
+                    const SizedBox(width: gap),
+                    SizedBox(
+                      width: filterWidth,
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: _buildFilterTrigger(),
                       ),
-                      onPressed: () {
-                        _searchController.clear();
-                        _applyFilters();
-                      },
-                    )
-                  : null,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Theme.of(context).dividerColor),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: Theme.of(context).colorScheme.primary,
-                  width: 2,
-                ),
-              ),
-              filled: true,
-              fillColor: Theme.of(context).cardColor,
-            ),
-            onChanged: (value) => _applyFilters(),
+                    ),
+                  ],
+                );
+              }
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSearchField(),
+                  const SizedBox(height: 12),
+                  _buildFilterTrigger(),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 12),
-
-          // 필터 옵션들 - 세로 배치로 변경
-          Column(
-            children: [
-              // 첫 번째 줄: 감정 필터와 날짜 필터
-              Row(
-                children: [
-                  // 감정 필터
-                  Expanded(
-                    child: _buildFilterDropdown(
-                      icon: Icons.mood,
-                      value: _selectedEmotion,
-                      items: const [
-                        {'value': 'all', 'label': '모든 감정'},
-                        {'value': 'happy', 'label': '😊 기쁨'},
-                        {'value': 'sad', 'label': '😢 슬픔'},
-                        {'value': 'angry', 'label': '😡 화남'},
-                        {'value': 'peaceful', 'label': '😌 평온'},
-                        {'value': 'unrest', 'label': '😨 불안'},
-                      ],
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedEmotion = value!;
-                        });
-                        _applyFilters();
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-
-                  // 날짜 필터
-                  Expanded(
-                    child: _buildFilterDropdown(
-                      icon: Icons.calendar_today,
-                      value: _dateFilter,
-                      items: const [
-                        {'value': 'all', 'label': '전체 기간'},
-                        {'value': 'today', 'label': '오늘'},
-                        {'value': 'week', 'label': '일주일'},
-                        {'value': 'month', 'label': '한달'},
-                        {'value': 'custom', 'label': '기간 선택'},
-                      ],
-                      onChanged: (value) {
-                        setState(() {
-                          _dateFilter = value!;
-                          if (value != 'custom') {
-                            _startDate = null;
-                            _endDate = null;
-                          }
-                        });
-                        _applyFilters();
-                      },
-                    ),
-                  ),
-                ],
+          if (_dateFilter == 'custom' &&
+              _startDate != null &&
+              _endDate != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              '${_formatDate(_startDate!)} ~ ${_formatDate(_endDate!)}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.7),
+                fontWeight: FontWeight.w600,
               ),
-              const SizedBox(height: 12),
-
-              // 두 번째 줄: 정렬 옵션
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildFilterDropdown(
-                      icon: Icons.sort,
-                      value: _sortOrder,
-                      items: const [
-                        {'value': 'desc', 'label': '최신순'},
-                        {'value': 'asc', 'label': '오래된순'},
-                      ],
-                      onChanged: (value) {
-                        setState(() {
-                          _sortOrder = value!;
-                        });
-                        _applyFilters();
-                      },
-                    ),
-                  ),
-                  // 오른쪽 공간 확보
-                  const Expanded(child: SizedBox()),
-                ],
-              ),
-            ],
-          ),
-
-          // 커스텀 날짜 선택
-          if (_dateFilter == 'custom') ...[
-            const SizedBox(height: 12),
-            _buildDateRangeSelector(),
+            ),
           ],
-
-          // 적용된 필터 표시
           if (_hasActiveFilters()) ...[
             const SizedBox(height: 12),
             _buildActiveFilters(),
@@ -630,6 +749,218 @@ class _DiaryListPageState extends State<DiaryListPage> {
         ],
       ),
     );
+  }
+
+  Widget _buildFilterTrigger() {
+    final theme = Theme.of(context);
+    final iconColor = theme.colorScheme.primary;
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        IconButton(
+          onPressed: _openFilterSheet,
+          icon: Icon(Icons.tune_rounded, color: iconColor, size: 24),
+          tooltip: '필터',
+          splashRadius: 22,
+        ),
+        if (_hasActiveFilters())
+          Positioned(
+            right: 6,
+            top: 6,
+            child: Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  double get _filterButtonWidth => 44;
+
+  Future<void> _openFilterSheet() async {
+    String tempEmotion = _selectedEmotion;
+    String tempDateFilter = _dateFilter;
+    DateTime? tempStart = _startDate;
+    DateTime? tempEnd = _endDate;
+    String tempSort = _sortOrder;
+
+    final result = await showModalBottomSheet<_FilterSheetResult>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            Future<void> selectEmotion() async {
+              final selected = await _showOptionDialog(
+                context: context,
+                title: '감정별 보기',
+                options: const [
+                  _OptionItem(value: 'all', label: '모든 감정'),
+                  _OptionItem(value: 'happy', label: '기쁨'),
+                  _OptionItem(value: 'sad', label: '슬픔'),
+                  _OptionItem(value: 'angry', label: '화남'),
+                  _OptionItem(value: 'peaceful', label: '평온'),
+                  _OptionItem(value: 'unrest', label: '불안'),
+                ],
+                selectedValue: tempEmotion,
+              );
+              if (selected != null) {
+                setSheetState(() => tempEmotion = selected);
+              }
+            }
+
+            Future<void> selectSort() async {
+              final selected = await _showOptionDialog(
+                context: context,
+                title: '정렬 기준',
+                options: const [
+                  _OptionItem(value: 'desc', label: '최신순'),
+                  _OptionItem(value: 'asc', label: '오래된순'),
+                ],
+                selectedValue: tempSort,
+              );
+              if (selected != null) {
+                setSheetState(() => tempSort = selected);
+              }
+            }
+
+            Future<void> selectDate() async {
+              final selected = await _showOptionDialog(
+                context: context,
+                title: '기간 선택',
+                options: const [
+                  _OptionItem(value: 'all', label: '전체 기간'),
+                  _OptionItem(value: 'today', label: '오늘'),
+                  _OptionItem(value: 'week', label: '일주일'),
+                  _OptionItem(value: 'month', label: '한 달'),
+                  _OptionItem(value: 'custom', label: '기간 직접 선택'),
+                ],
+                selectedValue: tempDateFilter,
+              );
+
+              if (selected == null) {
+                return;
+              }
+
+              if (selected == 'custom') {
+                final range = await _pickDateRange(
+                  start: tempStart,
+                  end: tempEnd,
+                );
+                if (range != null) {
+                  setSheetState(() {
+                    tempDateFilter = 'custom';
+                    tempStart = range.start;
+                    tempEnd = range.end;
+                  });
+                }
+              } else {
+                setSheetState(() {
+                  tempDateFilter = selected;
+                  tempStart = null;
+                  tempEnd = null;
+                });
+              }
+            }
+
+            void resetFilters() {
+              setSheetState(() {
+                tempEmotion = 'all';
+                tempDateFilter = 'all';
+                tempStart = null;
+                tempEnd = null;
+                tempSort = 'desc';
+              });
+            }
+
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+                top: 12,
+              ),
+              child: SafeArea(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '필터 설정',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                    const SizedBox(height: 16),
+                    _FilterTile(
+                      icon: Icons.mood,
+                      title: '감정별 보기',
+                      subtitle: _emotionLabel(tempEmotion),
+                      onTap: selectEmotion,
+                    ),
+                    _FilterTile(
+                      icon: Icons.calendar_today,
+                      title: '기간 선택',
+                      subtitle:
+                          _dateFilterLabel(tempDateFilter, tempStart, tempEnd),
+                      onTap: selectDate,
+                    ),
+                    _FilterTile(
+                      icon: Icons.sort,
+                      title: '정렬 기준',
+                      subtitle: _sortOrderLabel(tempSort),
+                      onTap: selectSort,
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        TextButton(
+                          onPressed: resetFilters,
+                          child: const Text('필터 초기화'),
+                        ),
+                        const Spacer(),
+                        FilledButton(
+                          onPressed: () {
+                            Navigator.of(context).pop(
+                              _FilterSheetResult(
+                                emotion: tempEmotion,
+                                dateFilter: tempDateFilter,
+                                startDate: tempStart,
+                                endDate: tempEnd,
+                                sortOrder: tempSort,
+                              ),
+                            );
+                          },
+                          child: const Text('완료'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    if (result != null && mounted) {
+      setState(() {
+        _selectedEmotion = result.emotion;
+        _dateFilter = result.dateFilter;
+        _startDate = result.startDate;
+        _endDate = result.endDate;
+        _sortOrder = result.sortOrder;
+      });
+      _applyFilters();
+    }
   }
 
   Widget _buildCategorySelector() {
@@ -676,6 +1007,402 @@ class _DiaryListPageState extends State<DiaryListPage> {
           ),
       ],
     );
+  }
+
+  Widget _buildSelectionControls() {
+    final theme = Theme.of(context);
+
+    final chipColor = theme.colorScheme.primary;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const spacing = 8.0;
+        final deleteWidth = 68.0;
+        final cancelWidth = 68.0;
+        final totalButtonWidth = deleteWidth + cancelWidth + spacing;
+        final availableForChip = constraints.maxWidth - totalButtonWidth - spacing;
+
+        final chip = Container(
+          width: availableForChip.clamp(120.0, constraints.maxWidth - totalButtonWidth),
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: chipColor.withOpacity(0.6)),
+            color: _isAllVisibleSelected
+                ? chipColor.withOpacity(0.12)
+                : theme.colorScheme.surface,
+          ),
+          child: InkWell(
+            onTap: _isBulkDeleting
+                ? null
+                : () => _toggleSelectAll(!_isAllVisibleSelected),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _isAllVisibleSelected
+                      ? Icons.check_box
+                      : Icons.check_box_outline_blank,
+                  size: 18,
+                  color: chipColor,
+                ),
+                const SizedBox(width: 3),
+                Flexible(
+                  child: Text(
+                    '전체 선택 ($_selectedCountText)',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+
+        return Row(
+          children: [
+            Expanded(child: chip),
+            const SizedBox(width: spacing),
+            SizedBox(
+              width: deleteWidth,
+              height: 32,
+              child: FilledButton.tonal(
+                style: FilledButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  textStyle: const TextStyle(fontSize: 11),
+                ),
+                onPressed:
+                    (!_hasSelection || _isBulkDeleting) ? null : _confirmBulkDelete,
+                child: _isBulkDeleting
+                    ? SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            theme.colorScheme.onPrimary,
+                          ),
+                        ),
+                      )
+                    : const Text('선택 삭제'),
+              ),
+            ),
+            const SizedBox(width: spacing),
+            SizedBox(
+              width: cancelWidth,
+              height: 32,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  textStyle: const TextStyle(fontSize: 11),
+                ),
+                onPressed: _isBulkDeleting ? null : _exitSelectionMode,
+                child: const Text('선택 취소'),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildSearchField() {
+    final theme = Theme.of(context);
+
+    return TextField(
+      controller: _searchController,
+      decoration: InputDecoration(
+        hintText: '제목이나 내용으로 검색하세요',
+        prefixIcon: Icon(
+          Icons.search,
+          color: theme.colorScheme.primary,
+        ),
+        suffixIcon: _searchController.text.isNotEmpty
+            ? IconButton(
+                icon: Icon(
+                  Icons.clear,
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                ),
+                onPressed: () {
+                  _searchController.clear();
+                  _applyFilters();
+                },
+              )
+            : null,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(
+            color: theme.colorScheme.outline.withOpacity(0.6),
+            width: 1.0,
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(
+            color: theme.colorScheme.primary,
+            width: 2.2,
+          ),
+        ),
+        filled: true,
+        fillColor: theme.cardColor,
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      ),
+      onChanged: (value) => _applyFilters(),
+    );
+  }
+
+  Widget? _buildBulkActionButton() {
+    if (_displayedDiaries.isEmpty && !_selectionMode) {
+      return null;
+    }
+
+    if (_selectionMode) {
+      return TextButton.icon(
+        onPressed: _isBulkDeleting ? null : _exitSelectionMode,
+        icon: const Icon(Icons.close, size: 18),
+        label: const Text('선택 취소'),
+      );
+    }
+
+    return OutlinedButton.icon(
+      onPressed: _enterSelectionMode,
+      icon: const Icon(Icons.check_box_outlined, size: 18),
+      label: const Text('일괄 선택'),
+    );
+  }
+
+  Widget _buildEmotionFilterButton() {
+    final items = const [
+      {'value': 'all', 'label': '모든 감정'},
+      {'value': 'happy', 'label': '기쁨'},
+      {'value': 'sad', 'label': '슬픔'},
+      {'value': 'angry', 'label': '화남'},
+      {'value': 'peaceful', 'label': '평온'},
+      {'value': 'unrest', 'label': '불안'},
+    ];
+
+    return _buildFilterIconButton(
+      icon: Icons.mood,
+      label: _emotionLabel(),
+      isActive: _selectedEmotion != 'all',
+      items: items
+          .map(
+            (item) => PopupMenuItem<String>(
+              value: item['value']!,
+              child: Text(item['label']!),
+            ),
+          )
+          .toList(),
+      onSelected: (value) {
+        setState(() {
+          _selectedEmotion = value;
+        });
+        _applyFilters();
+      },
+    );
+  }
+
+  Widget _buildDateFilterButton() {
+    final items = const [
+      {'value': 'all', 'label': '전체 기간'},
+      {'value': 'today', 'label': '오늘'},
+      {'value': 'week', 'label': '일주일'},
+      {'value': 'month', 'label': '한달'},
+      {'value': 'custom', 'label': '기간 선택'},
+    ];
+
+    return _buildFilterIconButton(
+      icon: Icons.calendar_today,
+      label: _dateFilterLabel(),
+      isActive: _dateFilter != 'all' ||
+          (_dateFilter == 'custom' && _startDate != null && _endDate != null),
+      items: items
+          .map(
+            (item) => PopupMenuItem<String>(
+              value: item['value']!,
+              child: Text(item['label']!),
+            ),
+          )
+          .toList(),
+      onSelected: (value) => _handleDateFilterSelection(value),
+    );
+  }
+
+  Widget _buildSortFilterButton() {
+    final items = const [
+      {'value': 'desc', 'label': '최신순'},
+      {'value': 'asc', 'label': '오래된순'},
+    ];
+
+    return _buildFilterIconButton(
+      icon: Icons.sort,
+      label: _sortOrderLabel(),
+      isActive: _sortOrder != 'desc',
+      items: items
+          .map(
+            (item) => PopupMenuItem<String>(
+              value: item['value']!,
+              child: Text(item['label']!),
+            ),
+          )
+          .toList(),
+      onSelected: (value) {
+        setState(() {
+          _sortOrder = value;
+        });
+        _applyFilters();
+      },
+    );
+  }
+
+  Widget _buildFilterIconButton({
+    required IconData icon,
+    required String label,
+    required List<PopupMenuEntry<String>> items,
+    required ValueChanged<String> onSelected,
+    bool isActive = false,
+  }) {
+    final theme = Theme.of(context);
+    final iconColor = isActive
+        ? theme.colorScheme.primary
+        : theme.colorScheme.onSurface.withOpacity(0.7);
+
+    return PopupMenuButton<String>(
+      onSelected: onSelected,
+      position: PopupMenuPosition.under,
+      offset: const Offset(0, 8),
+      itemBuilder: (context) => items,
+      surfaceTintColor: theme.cardColor,
+      shadowColor: Colors.transparent,
+      tooltip: label,
+      child: _FilterIconTile(
+        icon: icon,
+        label: label,
+        isActive: isActive,
+        iconColor: iconColor,
+      ),
+    );
+  }
+
+  String _emotionLabel([String? value]) {
+    final target = value ?? _selectedEmotion;
+    switch (target) {
+      case 'happy':
+        return '기쁨';
+      case 'sad':
+        return '슬픔';
+      case 'angry':
+        return '화남';
+      case 'peaceful':
+        return '평온';
+      case 'unrest':
+        return '불안';
+      default:
+        return '모든 감정';
+    }
+  }
+
+  String _dateFilterLabel([String? value, DateTime? start, DateTime? end]) {
+    final target = value ?? _dateFilter;
+    final startDate = start ?? _startDate;
+    final endDate = end ?? _endDate;
+
+    if (target == 'custom') {
+      if (startDate != null && endDate != null) {
+        return '${_formatDate(startDate)} ~ ${_formatDate(endDate)}';
+      }
+      return '기간 선택';
+    }
+
+    switch (target) {
+      case 'today':
+        return '오늘';
+      case 'week':
+        return '일주일';
+      case 'month':
+        return '한달';
+      default:
+        return '전체 기간';
+    }
+  }
+
+  String _sortOrderLabel([String? value]) {
+    final target = value ?? _sortOrder;
+    switch (target) {
+      case 'asc':
+        return '오래된순';
+      default:
+        return '최신순';
+    }
+  }
+
+  Future<DateTimeRange?> _pickDateRange({
+    DateTime? start,
+    DateTime? end,
+  }) async {
+    final now = DateTime.now();
+    final initialStart = start ?? now.subtract(const Duration(days: 6));
+    final initialEnd = end ?? now;
+
+    return showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(now.year + 1),
+      initialDateRange: DateTimeRange(start: initialStart, end: initialEnd),
+      helpText: '기간을 선택하세요',
+      saveText: '완료',
+    );
+  }
+
+  Future<void> _handleDateFilterSelection(String value) async {
+    if (value == 'custom') {
+      final now = DateTime.now();
+      final initialStart = _startDate ?? now.subtract(const Duration(days: 6));
+      final initialEnd = _endDate ?? now;
+
+      final pickedRange = await showDateRangePicker(
+        context: context,
+        firstDate: DateTime(2020),
+        lastDate: DateTime(now.year + 1),
+        initialDateRange: DateTimeRange(start: initialStart, end: initialEnd),
+        helpText: '기간을 선택하세요',
+        saveText: '완료',
+      );
+
+      if (pickedRange != null) {
+        setState(() {
+          _dateFilter = 'custom';
+          _startDate = pickedRange.start;
+          _endDate = pickedRange.end;
+        });
+        _applyFilters();
+      }
+      return;
+    }
+
+    setState(() {
+      _dateFilter = value;
+      _startDate = null;
+      _endDate = null;
+    });
+    _applyFilters();
+  }
+
+  String _formatDate(DateTime date) {
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '${date.year}.$month.$day';
+  }
+
+  String get _selectedCountText {
+    final total = _selectableDiaryCount;
+    final selectedCount = _selectedDiaryIds.length;
+    return total > 0 ? '$selectedCount/$total' : '0/0';
   }
 
   String _currentCategoryLabel() {
@@ -810,139 +1537,6 @@ class _DiaryListPageState extends State<DiaryListPage> {
     _onCategorySelected(result);
   }
 
-  Widget _buildFilterDropdown({
-    required IconData icon,
-    required String value,
-    required List<Map<String, String>> items,
-    required ValueChanged<String?> onChanged,
-  }) {
-    return DropdownButtonFormField<String>(
-      initialValue: value,
-      decoration: InputDecoration(
-        prefixIcon: Icon(
-          icon,
-          size: 18,
-          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Theme.of(context).dividerColor),
-        ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        filled: true,
-        fillColor: Theme.of(context).cardColor,
-        isDense: true,
-      ),
-      items: items.map((item) {
-        return DropdownMenuItem<String>(
-          value: item['value'],
-          child: Text(
-            item['label']!,
-            style: const TextStyle(fontSize: 13),
-            overflow: TextOverflow.ellipsis,
-          ),
-        );
-      }).toList(),
-      onChanged: onChanged,
-      style: TextStyle(
-        fontSize: 13,
-        color: Theme.of(context).colorScheme.onSurface,
-      ),
-      dropdownColor: Theme.of(context).cardColor,
-      isExpanded: true, // 중요: 드롭다운이 전체 너비를 사용하도록 설정
-    );
-  }
-
-  Widget _buildDateRangeSelector() {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Theme.of(context).dividerColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '기간 선택',
-            style: TextStyle(
-              fontWeight: FontWeight.w500,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: TextButton.icon(
-                  onPressed: () async {
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate: _startDate ?? DateTime.now(),
-                      firstDate: DateTime(2020),
-                      lastDate: DateTime.now(),
-                    );
-                    if (date != null) {
-                      setState(() {
-                        _startDate = date;
-                      });
-                      _applyFilters();
-                    }
-                  },
-                  icon: const Icon(Icons.calendar_today, size: 16),
-                  label: Text(
-                    _startDate != null
-                        ? '${_startDate!.year}-${_startDate!.month.toString().padLeft(2, '0')}-${_startDate!.day.toString().padLeft(2, '0')}'
-                        : '시작일',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                ),
-              ),
-              const Text(' ~ '),
-              Expanded(
-                child: TextButton.icon(
-                  onPressed: () async {
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate: _endDate ?? DateTime.now(),
-                      firstDate: _startDate ?? DateTime(2020),
-                      lastDate: DateTime.now(),
-                    );
-                    if (date != null) {
-                      setState(() {
-                        _endDate = date;
-                      });
-                      _applyFilters();
-                    }
-                  },
-                  icon: const Icon(Icons.calendar_today, size: 16),
-                  label: Text(
-                    _endDate != null
-                        ? '${_endDate!.year}-${_endDate!.month.toString().padLeft(2, '0')}-${_endDate!.day.toString().padLeft(2, '0')}'
-                        : '종료일',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                ),
-              ),
-              IconButton(
-                onPressed: () {
-                  setState(() {
-                    _startDate = null;
-                    _endDate = null;
-                  });
-                  _applyFilters();
-                },
-                icon: const Icon(Icons.clear, size: 18),
-                tooltip: '초기화',
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
   bool _hasActiveFilters() {
     return _searchController.text.isNotEmpty ||
         _selectedEmotion != 'all' ||
@@ -963,15 +1557,8 @@ class _DiaryListPageState extends State<DiaryListPage> {
     }
 
     if (_selectedEmotion != 'all') {
-      final emotionLabels = {
-        'happy': '😊 기쁨',
-        'sad': '😢 슬픔',
-        'angry': '😡 화남',
-        'peaceful': '😌 평온',
-        'unrest': '😨 불안',
-      };
       filterChips.add(
-        _buildFilterChip('감정: ${emotionLabels[_selectedEmotion]}', () {
+        _buildFilterChip('감정: ${_emotionLabel()}', () {
           setState(() {
             _selectedEmotion = 'all';
           });
@@ -980,15 +1567,11 @@ class _DiaryListPageState extends State<DiaryListPage> {
       );
     }
 
-    if (_dateFilter != 'all') {
-      final dateLabels = {
-        'today': '오늘',
-        'week': '일주일',
-        'month': '한달',
-        'custom': '기간 선택',
-      };
+    if (_dateFilter != 'all' ||
+        (_dateFilter == 'custom' && _startDate != null && _endDate != null)) {
+      final label = _dateFilterLabel();
       filterChips.add(
-        _buildFilterChip('기간: ${dateLabels[_dateFilter]}', () {
+        _buildFilterChip('기간: $label', () {
           setState(() {
             _dateFilter = 'all';
             _startDate = null;
@@ -1001,7 +1584,7 @@ class _DiaryListPageState extends State<DiaryListPage> {
 
     if (_sortOrder != 'desc') {
       filterChips.add(
-        _buildFilterChip('정렬: 오래된순', () {
+        _buildFilterChip('정렬: ${_sortOrderLabel()}', () {
           setState(() {
             _sortOrder = 'desc';
           });
@@ -1100,166 +1683,204 @@ class _DiaryListPageState extends State<DiaryListPage> {
   }
 
   Widget _buildDiaryCard(DiaryEntry diary) {
+    final diaryId = diary.id;
+    final isSelected =
+        diaryId != null && _selectedDiaryIds.contains(diaryId);
     final date = diary.diaryDate;
     final dateString = date != null
         ? '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}'
         : '날짜 미정';
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Theme.of(context).shadowColor.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () {
-          // 다이어리 상세 페이지로 이동
-          context.go('/diary/${diary.id}');
-        },
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 썸네일 이미지
-            Container(
-              height: 200,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(16),
-                ),
-                color: Theme.of(context).colorScheme.surface,
+    return Stack(
+      children: [
+        Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Theme.of(context).shadowColor.withOpacity(0.1),
+                spreadRadius: 1,
+                blurRadius: 10,
+                offset: const Offset(0, 2),
               ),
-              child: Stack(
-                children: [
-                  _buildDiaryImage(diary),
-                  // 감정 이모지
-                  Positioned(
-                    top: 12,
-                    left: 12,
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.surface.withOpacity(0.9),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: EmotionEmojiWidget(
-                        emotion: diary.aiEmotion ?? diary.emotion ?? 'peaceful',
-                        size: 20,
-                        imageScale: 1.3,
-                      ),
+            ],
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () {
+              if (_selectionMode) {
+                _toggleDiarySelection(diaryId);
+              } else if (diaryId != null) {
+                context.go('/diary/$diaryId');
+              }
+            },
+            onLongPress: () {
+              if (!_selectionMode && diaryId != null) {
+                _enterSelectionMode(diaryId);
+              }
+            },
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 썸네일 이미지
+                Container(
+                  height: 200,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(16),
                     ),
+                    color: Theme.of(context).colorScheme.surface,
                   ),
-                  // 날짜
-                  Positioned(
-                    bottom: 12,
-                    right: 12,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: context.primaryText.withAlpha(180),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        dateString,
-                        style: TextStyle(
-                          color: context.colorScheme.onPrimary,
-                          fontSize: 12,
+                  child: Stack(
+                    children: [
+                      _buildDiaryImage(diary),
+                      // 감정 이모지
+                      Positioned(
+                        top: 12,
+                        left: 12,
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .surface
+                                .withOpacity(0.9),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: EmotionEmojiWidget(
+                            emotion: diary.aiEmotion ??
+                                diary.emotion ??
+                                'peaceful',
+                            size: 20,
+                            imageScale: 1.3,
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // 카드 내용
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 제목
-                  Text(
-                    diary.title ?? '제목 없음',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 8),
-
-                  // 내용 또는 AI 생성 텍스트
-                  Text(
-                    diary.aiGeneratedText ?? diary.content,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.onSurface.withOpacity(0.7),
-                      height: 1.4,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 12),
-
-                  // 키워드
-                  if (diary.keywords.isNotEmpty)
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 4,
-                      children: diary.keywords.take(3).map((keyword) {
-                        return Container(
+                      // 날짜
+                      Positioned(
+                        bottom: 12,
+                        right: 12,
+                        child: Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color:
-                                Theme.of(context).chipTheme.backgroundColor ??
-                                Theme.of(
-                                  context,
-                                ).colorScheme.surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: context.colorScheme.primary,
-                              width: 1,
-                            ),
+                            color: context.primaryText.withAlpha(180),
+                            borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            '#$keyword',
+                            dateString,
                             style: TextStyle(
-                              fontSize: 11,
-                              color: Theme.of(context).colorScheme.onSurface,
-                              fontWeight: FontWeight.w500,
+                              color: context.colorScheme.onPrimary,
+                              fontSize: 12,
                             ),
                           ),
-                        );
-                      }).toList(),
-                    ),
-                ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // 카드 내용
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 제목
+                      Text(
+                        diary.title ?? '제목 없음',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 8),
+
+                      // 내용 또는 AI 생성 텍스트
+                      Text(
+                        diary.aiGeneratedText ?? diary.content,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withOpacity(0.7),
+                          height: 1.4,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 12),
+
+                      // 키워드
+                      diary.keywords.isNotEmpty
+                          ? Wrap(
+                              spacing: 6,
+                              runSpacing: 4,
+                              children:
+                                  diary.keywords.take(3).map((keyword) {
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context)
+                                            .chipTheme
+                                            .backgroundColor ??
+                                        Theme.of(context)
+                                            .colorScheme
+                                            .surfaceContainerHighest,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: context.colorScheme.primary,
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    '#$keyword',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            )
+                          : const SizedBox.shrink(),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (_selectionMode)
+          Positioned(
+            top: 12,
+            right: 12,
+            child: Material(
+              color: Colors.transparent,
+              child: Checkbox(
+                value: isSelected,
+                onChanged: _isBulkDeleting
+                    ? null
+                    : (value) => _toggleDiarySelection(diaryId),
               ),
             ),
-          ],
-        ),
-      ),
+          ),
+      ],
     );
   }
 
@@ -1363,4 +1984,165 @@ class _OverlayCategoryItem {
   final String? id;
   final String label;
   final IconData icon;
+}
+
+class _FilterIconTile extends StatelessWidget {
+  const _FilterIconTile({
+    required this.icon,
+    required this.label,
+    required this.isActive,
+    required this.iconColor,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool isActive;
+  final Color iconColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    final activeBackground = theme.colorScheme.primary.withOpacity(0.1);
+    final inactiveBackground =
+        theme.colorScheme.surfaceVariant.withOpacity(0.4);
+
+    return Container(
+      constraints: const BoxConstraints(minWidth: 88, maxWidth: 120),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: isActive ? activeBackground : inactiveBackground,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isActive
+              ? theme.colorScheme.primary
+              : theme.colorScheme.outlineVariant,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: iconColor, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: iconColor,
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          Icon(Icons.expand_more, color: iconColor, size: 18),
+        ],
+      ),
+    );
+  }
+}
+
+class _FilterTile extends StatelessWidget {
+  const _FilterTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      children: [
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(icon, color: theme.colorScheme.primary),
+          title: Text(
+            title,
+            style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          subtitle: Text(
+            subtitle,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurface.withOpacity(0.6),
+            ),
+          ),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: onTap,
+        ),
+        Divider(color: theme.colorScheme.outlineVariant, height: 1),
+      ],
+    );
+  }
+}
+
+class _OptionItem {
+  const _OptionItem({required this.value, required this.label});
+
+  final String value;
+  final String label;
+}
+
+class _FilterSheetResult {
+  const _FilterSheetResult({
+    required this.emotion,
+    required this.dateFilter,
+    required this.startDate,
+    required this.endDate,
+    required this.sortOrder,
+  });
+
+  final String emotion;
+  final String dateFilter;
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final String sortOrder;
+}
+
+Future<String?> _showOptionDialog({
+  required BuildContext context,
+  required String title,
+  required List<_OptionItem> options,
+  required String selectedValue,
+}) {
+  return showDialog<String>(
+    context: context,
+    builder: (dialogContext) {
+      return AlertDialog(
+        title: Text(title),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: options.map((option) {
+              final isSelected = option.value == selectedValue;
+              return RadioListTile<String>(
+                value: option.value,
+                groupValue: selectedValue,
+                onChanged: (value) => Navigator.of(dialogContext).pop(value),
+                title: Text(option.label),
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                selected: isSelected,
+              );
+            }).toList(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('취소'),
+          ),
+        ],
+      );
+    },
+  );
 }
