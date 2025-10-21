@@ -1,6 +1,3 @@
-import 'dart:ui';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:saegim/core/theme/theme_extensions.dart';
@@ -42,12 +39,12 @@ class _DiaryListPageState extends State<DiaryListPage> {
   final Set<String> _loadingImages = {};
 
   static const String _defaultCategoryKey = '__default__';
+  static const String _allCategoryValue = '__all__';
+  static const String _createCategoryValue = '__create__';
   List<DiaryCategory> _categories = [];
   Map<String, String> _categoryAssignments = {};
   String? _selectedCategoryId;
   bool _isLoadingCategories = false;
-  bool _isOverlayMode = false;
-  ValueListenable<RouteInformation>? _routeInformationListenable;
   // 초기 로드 완료 플래그
   bool _isInitialLoadComplete = false;
 
@@ -59,37 +56,26 @@ class _DiaryListPageState extends State<DiaryListPage> {
 
     // 쿼리 파라미터에서 새로고침 요청 확인 (안전한 방법)
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        final router = GoRouter.of(context);
-        _routeInformationListenable = router.routeInformationProvider
-          ..addListener(_handleRouteInformation);
+      if (!mounted) return;
 
-        final initialUri = _uriFromRouteInformation(
-              _routeInformationListenable?.value,
-            ) ??
-            GoRouterState.of(context).uri;
+      final uri = GoRouterState.of(context).uri;
+      final refreshParam = uri.queryParameters['refresh'];
+      AppLogger.info('Current URI: ${uri.toString()}', 'DiaryListPage');
+      AppLogger.info('Refresh parameter: $refreshParam', 'DiaryListPage');
 
-        final refreshParam = initialUri?.queryParameters['refresh'];
-        AppLogger.info('Current URI: ${initialUri?.toString()}', 'DiaryListPage');
-        AppLogger.info('Refresh parameter: $refreshParam', 'DiaryListPage');
-
-        _syncOverlayFromUri(initialUri, useSetState: true);
-
-        if (refreshParam != null) {
-          AppLogger.info(
-            'Refresh parameter detected: $refreshParam - executing refresh',
-            'DiaryListPage',
-          );
-          // 약간의 지연 후 새로고침 실행
-          Future.delayed(const Duration(milliseconds: 100), () {
-            if (mounted) {
-              AppLogger.info('Executing _refreshData() now', 'DiaryListPage');
-              _refreshData();
-            }
-          });
-        } else {
-          AppLogger.info('No refresh parameter found', 'DiaryListPage');
-        }
+      if (refreshParam != null) {
+        AppLogger.info(
+          'Refresh parameter detected: $refreshParam - executing refresh',
+          'DiaryListPage',
+        );
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted) {
+            AppLogger.info('Executing _refreshData() now', 'DiaryListPage');
+            _refreshData();
+          }
+        });
+      } else {
+        AppLogger.info('No refresh parameter found', 'DiaryListPage');
       }
     });
   }
@@ -100,14 +86,8 @@ class _DiaryListPageState extends State<DiaryListPage> {
 
     // 초기 로드 완료 후에만 새로고침 (다른 페이지에서 돌아올 때)
     if (_isInitialLoadComplete) {
-      // 쿼리 파라미터에서 새로고침 요청 확인
-        final routeInfo =
-            GoRouter.of(context).routeInformationProvider.value;
-        final uri = _uriFromRouteInformation(routeInfo) ??
-            GoRouterState.of(context).uri;
-
-        final refreshParam = uri?.queryParameters['refresh'];
-        _syncOverlayFromUri(uri);
+      final uri = GoRouterState.of(context).uri;
+      final refreshParam = uri.queryParameters['refresh'];
 
       if (refreshParam != null) {
         AppLogger.info(
@@ -132,7 +112,6 @@ class _DiaryListPageState extends State<DiaryListPage> {
   void dispose() {
     _searchController.dispose();
     _scrollController.dispose();
-    _routeInformationListenable?.removeListener(_handleRouteInformation);
     super.dispose();
   }
 
@@ -486,19 +465,14 @@ class _DiaryListPageState extends State<DiaryListPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: const CommonAppBar(),
-      body: Stack(
+      body: Column(
         children: [
-          Column(
-            children: [
-              _buildFilterSection(),
-              Expanded(
-                child: _displayedDiaries.isEmpty && !_isLoading
-                    ? _buildEmptyState()
-                    : _buildDiaryList(),
-              ),
-            ],
+          _buildFilterSection(),
+          Expanded(
+            child: _displayedDiaries.isEmpty && !_isLoading
+                ? _buildEmptyState()
+                : _buildDiaryList(),
           ),
-          if (_isOverlayMode) _buildOverlayPanel(),
         ],
       ),
     );
@@ -516,7 +490,7 @@ class _DiaryListPageState extends State<DiaryListPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildCategoryChips(),
+          _buildCategorySelector(),
           const SizedBox(height: 16),
           // 검색창
           TextField(
@@ -658,402 +632,182 @@ class _DiaryListPageState extends State<DiaryListPage> {
     );
   }
 
-  Widget _buildCategoryChips() {
+  Widget _buildCategorySelector() {
     final theme = Theme.of(context);
+    final label = _currentCategoryLabel();
 
-    if (_isLoadingCategories && _categories.isEmpty) {
-      return SizedBox(
-        height: 40,
-        child: Center(
-          child: SizedBox(
-            width: 20,
-            height: 20,
-            child: const CircularProgressIndicator(strokeWidth: 2),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        OutlinedButton.icon(
+          onPressed: _isLoadingCategories ? null : _showCategorySelectorSheet,
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            side: BorderSide(color: theme.colorScheme.primary.withOpacity(0.3)),
+          ),
+          icon: const Icon(Icons.menu_book_outlined),
+          label: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Icon(
+                Icons.arrow_drop_down,
+                color: theme.colorScheme.primary,
+              ),
+            ],
           ),
         ),
-      );
+        if (_isLoadingCategories)
+          const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: LinearProgressIndicator(minHeight: 2),
+          ),
+      ],
+    );
+  }
+
+  String _currentCategoryLabel() {
+    if (_selectedCategoryId == null) {
+      return '전체 보기';
+    }
+    if (_selectedCategoryId == _defaultCategoryKey) {
+      return '기본 다이어리';
+    }
+    final category = _categories.firstWhere(
+      (element) => element.id == _selectedCategoryId,
+      orElse: () => DiaryCategory(
+        id: _selectedCategoryId!,
+        name: '알 수 없는 카테고리',
+        createdAt: DateTime.now(),
+      ),
+    );
+    return category.name;
+  }
+
+  Future<void> _showCategorySelectorSheet() async {
+    if (_isLoadingCategories && _categories.isEmpty) {
+      return;
     }
 
-    final pills = <Widget>[
-      _buildCategoryPill(
-        label: '전체',
-        isSelected: _selectedCategoryId == null,
-        onTap: () => _onCategorySelected(null),
-      ),
-      _buildCategoryPill(
-        label: '기본 다이어리',
-        isSelected: _selectedCategoryId == _defaultCategoryKey,
-        onTap: () => _onCategorySelected(_defaultCategoryKey),
-      ),
-      ..._categories.map(
-        (category) => _buildCategoryPill(
-          label: category.name,
-          isSelected: _selectedCategoryId == category.id,
-          onTap: () => _onCategorySelected(category.id),
-        ),
-      ),
-      _buildAddCategoryPill(theme),
-      if (_isLoadingCategories)
-        Padding(
-          padding: const EdgeInsets.only(left: 4),
-          child: SizedBox(
-            width: 18,
-            height: 18,
-            child: const CircularProgressIndicator(strokeWidth: 2),
-          ),
-        ),
-    ];
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.colorScheme.outline.withOpacity(0.08)),
-      ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        child: Row(children: pills),
-      ),
-    );
-  }
-
-  Widget _buildCategoryPill({
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
     final theme = Theme.of(context);
-
-    final selectedColor = theme.colorScheme.primary;
-    final unselectedColor = theme.colorScheme.onSurface.withOpacity(0.7);
-    final background = isSelected
-        ? selectedColor.withOpacity(0.12)
-        : theme.colorScheme.surface;
-    final borderColor = isSelected
-        ? selectedColor
-        : theme.colorScheme.outlineVariant ??
-            theme.colorScheme.outline.withOpacity(0.3);
-
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: background,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: borderColor, width: isSelected ? 1.4 : 1),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: selectedColor.withOpacity(0.18),
-                      blurRadius: 12,
-                      offset: const Offset(0, 6),
-                    ),
-                  ]
-                : const [],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (isSelected) ...[
-                Icon(Icons.check_rounded, size: 16, color: selectedColor),
-                const SizedBox(width: 6),
-              ],
-              Text(
-                label,
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: isSelected ? selectedColor : unselectedColor,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAddCategoryPill(ThemeData theme) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: InkWell(
-        onTap: _isLoadingCategories ? null : _createCategory,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: theme.colorScheme.primary.withOpacity(0.5)),
-            color: theme.colorScheme.primary.withOpacity(0.08),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.add_rounded,
-                  size: 18, color: theme.colorScheme.primary),
-              const SizedBox(width: 4),
-              Text(
-                '새 다이어리',
-                style: TextStyle(
-                  color: theme.colorScheme.primary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildOverlayPanel() {
-    final theme = Theme.of(context);
-    final size = MediaQuery.of(context).size;
-    final panelHeight = size.height * 0.5;
-
-    const overlayIcon = Icons.menu_book_outlined;
-
     final overlayItems = <_OverlayCategoryItem>[
-      const _OverlayCategoryItem(id: null, label: '전체 보기', icon: overlayIcon),
+      const _OverlayCategoryItem(id: null, label: '전체 보기', icon: Icons.menu_book_outlined),
       const _OverlayCategoryItem(
         id: _defaultCategoryKey,
         label: '기본 다이어리',
-        icon: overlayIcon,
+        icon: Icons.menu_book_outlined,
       ),
-      ..._categories.map((category) => _OverlayCategoryItem(
-            id: category.id,
-            label: category.name,
-            icon: overlayIcon,
-          )),
+      ..._categories.map(
+        (category) => _OverlayCategoryItem(
+          id: category.id,
+          label: category.name,
+          icon: Icons.menu_book_outlined,
+        ),
+      ),
     ];
 
-    return Positioned(
-      left: 16,
-      right: 16,
-      bottom: kBottomNavigationBarHeight + 16,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            height: panelHeight,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface.withOpacity(0.92),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: theme.colorScheme.primary.withOpacity(0.1)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.18),
-                  blurRadius: 24,
-                  offset: const Offset(0, 12),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 12),
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primary.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  child: Row(
-                    children: [
-                      Icon(Icons.menu_book_outlined, color: theme.colorScheme.primary),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '다이어리 빠른 이동',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: theme.colorScheme.onSurface,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '하단 글목록 또는 X 버튼으로 닫을 수 있어요',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: theme.colorScheme.onSurface.withOpacity(0.6),
-                              ),
-                            ),
-                          ],
+    final result = await showModalBottomSheet<String?>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      builder: (sheetContext) {
+        return FractionallySizedBox(
+          heightFactor: 0.6,
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '카테고리 선택',
+                    style: Theme.of(sheetContext).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
                         ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        color: theme.colorScheme.onSurface.withOpacity(0.7),
-                        splashRadius: 18,
-                        onPressed: _closeOverlay,
-                      ),
-                    ],
                   ),
-                ),
-                Expanded(
-                  child: ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: overlayItems.length,
-                    separatorBuilder: (_, __) => Divider(
-                      height: 1,
-                      color: theme.dividerColor.withOpacity(0.4),
-                    ),
-                    itemBuilder: (context, index) {
-                      final item = overlayItems[index];
-                      final isSelected = _selectedCategoryId == item.id ||
-                          (_selectedCategoryId == null && item.id == null);
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: ListView.separated(
+                      itemCount: overlayItems.length,
+                      separatorBuilder: (_, __) => Divider(
+                        height: 1,
+                        color: theme.dividerColor.withOpacity(0.4),
+                      ),
+                      itemBuilder: (context, index) {
+                        final item = overlayItems[index];
+                        final isSelected = _selectedCategoryId == item.id ||
+                            (_selectedCategoryId == null && item.id == null);
 
-                      return ListTile(
-                        leading: Icon(
-                          item.icon,
-                          color: isSelected
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.onSurface.withOpacity(0.7),
-                        ),
-                        title: Row(
-                          children: [
-                            if (isSelected)
-                              Container(
-                                width: 6,
-                                height: 6,
-                                margin: const EdgeInsets.only(right: 8),
-                                decoration: BoxDecoration(
-                                  color: theme.colorScheme.primary,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            Expanded(
-                              child: Text(
-                                item.label,
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: isSelected
-                                      ? FontWeight.w700
-                                      : FontWeight.w500,
-                                  color: isSelected
-                                      ? theme.colorScheme.primary
-                                      : theme.colorScheme.onSurface,
-                                ),
-                              ),
+                        return ListTile(
+                          leading: Icon(
+                            item.icon,
+                            color: isSelected
+                                ? theme.colorScheme.primary
+                                : theme.colorScheme.onSurface.withOpacity(0.7),
+                          ),
+                          title: Text(
+                            item.label,
+                            style: TextStyle(
+                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                              color: isSelected
+                                  ? theme.colorScheme.primary
+                                  : theme.colorScheme.onSurface,
                             ),
-                          ],
-                        ),
-                        trailing: isSelected
-                            ? Icon(Icons.check_circle, color: theme.colorScheme.primary)
-                            : const Icon(Icons.keyboard_arrow_right),
-                        onTap: () => _handleOverlaySelection(item.id),
-                      );
-                    },
+                          ),
+                          trailing: isSelected
+                              ? Icon(Icons.check_circle, color: theme.colorScheme.primary)
+                              : const Icon(Icons.keyboard_arrow_right),
+                          onTap: () => Navigator.of(sheetContext).pop(item.id ?? _allCategoryValue),
+                        );
+                      },
+                    ),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                  child: SizedBox(
+                  const SizedBox(height: 16),
+                  SizedBox(
                     width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: _isLoadingCategories
-                          ? null
-                          : () => _handleCreateFromOverlay(),
+                    child: FilledButton.icon(
+                      onPressed:
+                          _isLoadingCategories ? null : () => Navigator.of(sheetContext).pop(_createCategoryValue),
                       icon: const Icon(Icons.add),
                       label: const Text('새 다이어리 만들기'),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
-  }
 
-  void _handleOverlaySelection(String? categoryId) {
-    _onCategorySelected(categoryId);
-    _closeOverlay();
-  }
-
-  Future<void> _handleCreateFromOverlay() async {
-    await _createCategory();
-    _closeOverlay();
-  }
-
-  void _closeOverlay() {
-    if (!mounted) return;
-    if (_isOverlayMode) {
-      setState(() => _isOverlayMode = false);
-    }
-    final router = GoRouter.of(context);
-    final routeInfo = router.routeInformationProvider.value;
-
-    Uri? currentUri = routeInfo.uri;
-    if (currentUri == null) {
-      final location = routeInfo.location;
-      if (location != null && location.isNotEmpty) {
-        currentUri = Uri.parse(location);
-      }
-    }
-
-    if (currentUri == null) {
+    if (!mounted || result == null) {
       return;
     }
 
-    if (currentUri.queryParameters['mode'] == 'overlay') {
-      final updatedParams = Map<String, String>.from(currentUri.queryParameters)
-        ..remove('mode');
-
-      final cleanedUri = currentUri.replace(
-        queryParameters: updatedParams.isEmpty ? null : updatedParams,
-      );
-
-      router.go(cleanedUri.toString());
-    }
-  }
-
-  void _handleRouteInformation() {
-    if (!mounted) return;
-    final uri = _uriFromRouteInformation(_routeInformationListenable?.value);
-    _syncOverlayFromUri(uri);
-  }
-
-  Uri? _uriFromRouteInformation(RouteInformation? info) {
-    final location = info?.location;
-    if (location == null || location.isEmpty) {
-      return null;
-    }
-
-    return Uri.parse(location);
-  }
-
-  void _syncOverlayFromUri(Uri? uri, {bool useSetState = true}) {
-    final shouldOverlay = uri?.queryParameters['mode'] == 'overlay';
-    if (_isOverlayMode == shouldOverlay) {
+    if (result == _createCategoryValue) {
+      await _createCategory();
       return;
     }
 
-    if (useSetState) {
-      if (!mounted) return;
-      setState(() => _isOverlayMode = shouldOverlay);
-    } else {
-      _isOverlayMode = shouldOverlay;
+    if (result == _allCategoryValue) {
+      _onCategorySelected(null);
+      return;
     }
+
+    _onCategorySelected(result);
   }
 
   Widget _buildFilterDropdown({
