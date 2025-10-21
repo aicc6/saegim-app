@@ -22,6 +22,7 @@ import 'package:saegim/features/settings/presentation/pages/app_preferences_page
 import 'package:saegim/features/settings/presentation/pages/change_password_page.dart';
 import 'package:saegim/features/settings/presentation/pages/emoji_theme_settings_page.dart';
 import 'package:saegim/features/settings/presentation/pages/notification_settings_page.dart';
+import 'package:saegim/features/settings/presentation/pages/privacy_policy_page.dart';
 import 'package:saegim/features/settings/presentation/pages/privacy_settings_page.dart';
 import 'package:saegim/shared/widgets/error_page.dart';
 import 'package:saegim/shared/widgets/main_scaffold.dart';
@@ -179,6 +180,12 @@ class AppRouter {
             GoRoute(
               path: '/privacy',
               builder: (context, state) => const PrivacySettingsPage(),
+              routes: [
+                GoRoute(
+                  path: '/policy',
+                  builder: (context, state) => const PrivacyPolicyPage(),
+                ),
+              ],
             ),
           ],
         ),

@@ -29,6 +29,7 @@ class RoutePaths {
   static const String settingsAppPreferences = '/settings/app-preferences';
   static const String settingsNotifications = '/settings/notifications';
   static const String settingsPrivacy = '/settings/privacy';
+  static const String settingsPrivacyPolicy = '/settings/privacy/policy';
 
   // 기타
   static const String notifications = '/notifications';
