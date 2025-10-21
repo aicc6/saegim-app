@@ -21,8 +21,10 @@ class _SplashPageState extends ConsumerState<SplashPage> {
   @override
   void initState() {
     super.initState();
+    AppLogger.info('=== SplashPage initState 호출됨 ===', 'SplashPage');
     // 빌드 완료 후 안전하게 초기화
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      AppLogger.info('PostFrameCallback 실행 - mounted: $mounted', 'SplashPage');
       if (mounted) {
         _initialize();
       }
@@ -78,17 +80,39 @@ class _SplashPageState extends ConsumerState<SplashPage> {
   }
 
   Future<void> _proceedToNextScreen() async {
-    await ref.read(authNotifierProvider.notifier).initialize();
+    try {
+      AppLogger.info('인증 상태 초기화 시작', 'SplashPage');
 
-    if (!mounted) return;
+      // AuthNotifier 초기화 (저장된 토큰 확인)
+      await ref.read(authNotifierProvider.notifier).initialize();
 
-    final authState = ref.read(authNotifierProvider);
+      if (!mounted) return;
 
-    // 인증 상태에 따라 적절한 페이지로 이동
-    if (authState.isAuthenticated) {
-      context.go(RoutePaths.home);
-    } else {
-      context.go(RoutePaths.authLogin);
+      final authState = ref.read(authNotifierProvider);
+      AppLogger.info(
+        '인증 상태 확인 완료 - isAuthenticated: ${authState.isAuthenticated}, userId: ${authState.userId}',
+        'SplashPage',
+      );
+
+      // 최소 1초 대기 (스플래시 화면이 너무 빨리 사라지는 것 방지)
+      await Future.delayed(const Duration(seconds: 1));
+
+      if (!mounted) return;
+
+      // 인증 상태에 따라 적절한 페이지로 이동
+      if (authState.isAuthenticated) {
+        AppLogger.info('인증된 사용자 - 홈 화면으로 이동', 'SplashPage');
+        context.go(RoutePaths.home);
+      } else {
+        AppLogger.info('미인증 사용자 - 로그인 화면으로 이동', 'SplashPage');
+        context.go(RoutePaths.authLogin);
+      }
+    } catch (e) {
+      AppLogger.error('화면 전환 중 오류 발생', tag: 'SplashPage', error: e);
+      // 오류 발생 시 로그인 화면으로 이동
+      if (mounted) {
+        context.go(RoutePaths.authLogin);
+      }
     }
   }
 
