@@ -825,6 +825,7 @@ class CreateNotifier extends StateNotifier<CreateState> {
     String? diaryDate,
     String? aiEmotion,
     String? userEmotion,
+    String? ocrText, // OCR로 추출된 원본 텍스트
   }) {
     if (state.generatedText?.isEmpty ?? true) {
       return null;
@@ -886,7 +887,7 @@ class CreateNotifier extends StateNotifier<CreateState> {
       final entry = DiaryEntry(
         id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
         title: title ?? '손글씨 다이어리',
-        content: state.generatedText!,
+        content: ocrText ?? state.generatedText!, // OCR 텍스트 우선, 없으면 AI 생성 텍스트
         aiGeneratedText: state.generatedText!,
         emotion: finalUserEmotion, // 사용자가 선택한 감정 우선
         aiEmotion: finalAiEmotion,
@@ -895,6 +896,11 @@ class CreateNotifier extends StateNotifier<CreateState> {
         diaryDate: DateTime.parse(formattedDate),
         // 손글씨 이미지 URL을 images 리스트에 추가
         images: imageUrls,
+      );
+
+      AppLogger.info(
+        'Temp diary entry created - content: "${entry.content.length} chars", aiGeneratedText: "${entry.aiGeneratedText?.length ?? 0} chars"',
+        'CreateNotifier',
       );
 
       AppLogger.info(

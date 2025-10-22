@@ -70,8 +70,6 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
 
   // AI 글 / 사용자 입력 글 토글 관련
   bool _showPromptContent = false; // false: AI 글, true: 사용자 입력 글
-  String? _cachedPromptContent; // 캐시된 사용자 입력 글
-  bool _isLoadingPromptContent = false; // 로딩 상태
 
   // 감정 옵션 (서버 호환을 위해 정확한 영어 값 사용)
   final List<Map<String, String>> _emotions = [
@@ -423,67 +421,24 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
   }
 
   /// AI 글 / 사용자 입력 글 토글
-  Future<void> _toggleContentType() async {
+  void _toggleContentType() {
     if (diary == null) return;
 
-    // 편집 모드에서는 토글 불가
-    if (isEditMode) return;
+    // 토글 상태 변경
+    setState(() {
+      _showPromptContent = !_showPromptContent;
 
-    // 현재 상태가 AI 글이고, 사용자 입력 글로 전환하려는 경우
-    if (!_showPromptContent) {
-      // 캐시된 content가 없으면 API 호출
-      if (_cachedPromptContent == null) {
-        setState(() {
-          _isLoadingPromptContent = true;
-        });
-
-        try {
-          final content = await DiaryApiService.instance.getDiaryContent(
-            diary!.id,
-          );
-
-          if (mounted) {
-            setState(() {
-              _cachedPromptContent = content ?? diary!.content;
-              _showPromptContent = true;
-              _isLoadingPromptContent = false;
-            });
-          }
-        } catch (e) {
-          AppLogger.error(
-            'Failed to load prompt content',
-            tag: 'DiaryDetailPage',
-            error: e,
-          );
-
-          if (mounted) {
-            setState(() {
-              // 실패 시 기본 content 사용
-              _cachedPromptContent = diary!.content;
-              _showPromptContent = true;
-              _isLoadingPromptContent = false;
-            });
-
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text('사용자 입력 글을 불러오는 중 오류가 발생했습니다.'),
-                backgroundColor: context.colorScheme.error,
-              ),
-            );
-          }
+      // 편집 모드인 경우 컨트롤러 내용도 업데이트
+      if (isEditMode) {
+        if (_showPromptContent) {
+          // 입력글 모드: OCR 텍스트로 설정
+          _aiGeneratedTextController.text = diary!.content;
+        } else {
+          // AI글 모드: AI 생성 텍스트로 설정
+          _aiGeneratedTextController.text = diary!.aiGeneratedText ?? '';
         }
-      } else {
-        // 이미 캐시된 content가 있으면 바로 전환
-        setState(() {
-          _showPromptContent = true;
-        });
       }
-    } else {
-      // 사용자 입력 글에서 AI 글로 전환
-      setState(() {
-        _showPromptContent = false;
-      });
-    }
+    });
   }
 
   /// 이미지 선택 기능
@@ -1016,8 +971,6 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
       }
       // 토글 상태 초기화
       _showPromptContent = false;
-      _cachedPromptContent = null;
-      _isLoadingPromptContent = false;
     });
 
     // 새 일기의 컨트롤러 초기화
@@ -1122,8 +1075,8 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
   void _startEditMode() {
     setState(() {
       isEditMode = true;
-      // 편집 모드로 전환 시 토글 상태 초기화
-      _showPromptContent = false;
+      // 편집 모드로 전환 시 토글 상태는 유지
+      // _showPromptContent는 현재 상태 유지
     });
   }
 
@@ -1180,11 +1133,46 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
       bool success = false;
 
       final trimmedAiText = _aiGeneratedTextController.text.trim();
-      final contentToSave = trimmedAiText.isNotEmpty
-          ? trimmedAiText
-          : ((diary!.aiGeneratedText?.trim().isNotEmpty ?? false)
-                ? diary!.aiGeneratedText!.trim()
-                : diary!.content);
+
+      // 손글씨 다이어리인 경우 OCR 텍스트(content)를 우선 사용
+      final isHandwritingDiary =
+          diary!.id.startsWith('temp_') && widget.tempEntry != null;
+
+      // 편집 모드에서 토글에 따라 올바른 값 저장
+      String contentToSave;
+      String aiGeneratedTextToSave;
+
+      if (isHandwritingDiary) {
+        // 손글씨 다이어리: 토글 상태에 따라 다르게 처리
+        if (_showPromptContent) {
+          // 입력글 모드: 편집된 텍스트를 OCR 텍스트로 저장
+          contentToSave = trimmedAiText.isNotEmpty
+              ? trimmedAiText
+              : diary!.content;
+          aiGeneratedTextToSave =
+              diary!.aiGeneratedText ??
+              diary!.content; // AI 텍스트가 없으면 content 사용
+        } else {
+          // AI글 모드: 편집된 텍스트를 AI 생성 텍스트로 저장
+          contentToSave = diary!.content; // OCR 텍스트는 그대로 유지
+          aiGeneratedTextToSave = trimmedAiText.isNotEmpty
+              ? trimmedAiText
+              : (diary!.aiGeneratedText ?? diary!.content);
+        }
+      } else {
+        // 일반 다이어리: 기존 로직 유지
+        contentToSave = trimmedAiText.isNotEmpty
+            ? trimmedAiText
+            : ((diary!.aiGeneratedText?.trim().isNotEmpty ?? false)
+                  ? diary!.aiGeneratedText!.trim()
+                  : diary!.content);
+        aiGeneratedTextToSave = contentToSave;
+      }
+
+      AppLogger.info(
+        'Content to save - isHandwritingDiary: $isHandwritingDiary, showPromptContent: $_showPromptContent, content: "${contentToSave.length > 50 ? contentToSave.substring(0, 50) + '...' : contentToSave}", aiGeneratedText: "${aiGeneratedTextToSave.length > 50 ? aiGeneratedTextToSave.substring(0, 50) + '...' : aiGeneratedTextToSave}"',
+        'DiaryDetailPage',
+      );
 
       // 새 다이어리인 경우 (diaryId가 "new"로 시작)
       if (widget.diaryId == 'new' || diary!.id.startsWith('temp_')) {
@@ -1244,7 +1232,9 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
         final createdDiary = await DiaryApiService.instance.createDiary(
           content: contentToSave,
           title: titleText.isNotEmpty ? titleText : null, // 편집 모드에서 입력한 제목 사용
-          aiGeneratedText: contentToSave.isNotEmpty ? contentToSave : null,
+          aiGeneratedText: aiGeneratedTextToSave.isNotEmpty
+              ? aiGeneratedTextToSave
+              : null,
           userEmotion: _selectedEmotion,
           aiEmotion: diary!.aiEmotion,
           aiEmotionConfidence: 0.8,
@@ -1259,7 +1249,7 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
           // 새 다이어리 생성 성공 - diary 객체 업데이트
           diary = createdDiary.copyWith(
             content: contentToSave,
-            aiGeneratedText: contentToSave,
+            aiGeneratedText: aiGeneratedTextToSave,
             title: titleText.isNotEmpty ? titleText : createdDiary.title,
           );
         }
@@ -1267,13 +1257,13 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
         // 기존 다이어리 업데이트
         final titleText = _titleController.text.trim();
 
-        // 제목이 비어있지 않으면 항상 전달 (빈 문자열도 포함)
+        // 제목이 비어있지 않으면 항상 전달 (빈 문자열도 허용)
         success = await DiaryApiService.instance.updateDiary(
           diaryId: diary!.id,
           title: titleText, // null 대신 빈 문자열도 허용
           emotion: _selectedEmotion,
           keywords: keywordsList,
-          aiGeneratedText: contentToSave,
+          aiGeneratedText: aiGeneratedTextToSave,
           diaryDate: _selectedDate, // 선택된 날짜 전달
         );
 
@@ -1281,7 +1271,7 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
           diary = diary!.copyWith(
             title: titleText,
             content: contentToSave,
-            aiGeneratedText: contentToSave,
+            aiGeneratedText: aiGeneratedTextToSave,
             emotion: _selectedEmotion,
             keywords: keywordsList,
           );
@@ -2526,6 +2516,12 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
     final aiContent = diary!.aiGeneratedText;
     final originalContent = diary!.content;
 
+    // 디버깅을 위한 로그 추가
+    AppLogger.info(
+      'AI Content Section - aiContent: "${aiContent?.length ?? 0} chars", originalContent: "${originalContent.length} chars", showPromptContent: $_showPromptContent',
+      'DiaryDetailPage',
+    );
+
     // 편집 모드일 때
     if (isEditMode) {
       return Container(
@@ -2542,76 +2538,15 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
             Row(
               children: [
                 Text(
-                  'AI 생성 글',
+                  _showPromptContent ? '사용자 입력 글' : 'AI 생성 글',
                   style: TextStyle(
                     fontSize: 15,
                     color: context.colorScheme.secondary,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            // 편집 모드: 텍스트 필드
-            TextField(
-              controller: _aiGeneratedTextController,
-              maxLines: 8,
-              decoration: const InputDecoration(
-                hintText: 'AI 생성 글을 수정하세요...',
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.all(16),
-              ),
-              style: TextStyle(
-                fontSize: 16,
-                height: 1.6,
-                color: context.primaryText,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // 보기 모드일 때
-    final displayContent = _showPromptContent
-        ? (_cachedPromptContent ?? originalContent)
-        : (aiContent ?? originalContent);
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: context.colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: context.borderSubtle, width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                _showPromptContent ? '사용자 입력 글' : 'AI 생성 글',
-                style: TextStyle(
-                  fontSize: 15,
-                  color: context.colorScheme.secondary,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const Spacer(),
-              // 토글 버튼
-              if (_isLoadingPromptContent)
-                SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      context.colorScheme.primary,
-                    ),
-                  ),
-                )
-              else
+                const Spacer(),
+                // 토글 버튼
                 GestureDetector(
                   onTap: _toggleContentType,
                   child: Container(
@@ -2650,6 +2585,100 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
                     ),
                   ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // 편집 모드: 텍스트 필드
+            TextField(
+              controller: _aiGeneratedTextController,
+              maxLines: 8,
+              decoration: InputDecoration(
+                hintText: _showPromptContent
+                    ? '사용자 입력 글을 수정하세요...'
+                    : 'AI 생성 글을 수정하세요...',
+                border: const OutlineInputBorder(),
+                contentPadding: const EdgeInsets.all(16),
+              ),
+              style: TextStyle(
+                fontSize: 16,
+                height: 1.6,
+                color: context.primaryText,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // 보기 모드일 때
+    final displayContent = _showPromptContent
+        ? originalContent // OCR 텍스트 (content 필드)
+        : (aiContent ?? originalContent); // AI 생성 텍스트
+
+    AppLogger.info(
+      'Display Content - showPromptContent: $_showPromptContent, displayContent: "${displayContent.length} chars", using aiContent: ${aiContent != null}',
+      'DiaryDetailPage',
+    );
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: context.colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: context.borderSubtle, width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                _showPromptContent ? '사용자 입력 글' : 'AI 생성 글',
+                style: TextStyle(
+                  fontSize: 15,
+                  color: context.colorScheme.secondary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const Spacer(),
+              // 토글 버튼
+              GestureDetector(
+                onTap: _toggleContentType,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: context.colorScheme.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: context.colorScheme.primary,
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _showPromptContent ? Icons.smart_toy : Icons.edit_note,
+                        size: 16,
+                        color: context.colorScheme.primary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _showPromptContent ? 'AI 글' : '입력 글',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: context.colorScheme.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),

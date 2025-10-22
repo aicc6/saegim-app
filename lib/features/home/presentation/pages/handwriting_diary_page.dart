@@ -1195,6 +1195,7 @@ class _HandwritingDiaryPageState extends ConsumerState<HandwritingDiaryPage> {
         diaryDate: DateTime.now().toIso8601String(),
         aiEmotion: handwritingResult?.aiEmotion, // AI 감정 전달
         userEmotion: state.emotion, // 사용자가 선택한 감정 전달
+        ocrText: handwritingResult?.extractedText, // OCR로 추출된 원본 텍스트 전달
       );
 
       AppLogger.info(
