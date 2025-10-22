@@ -57,7 +57,7 @@ const List<EmotionConfig> emotionConfigs = [
   ),
   EmotionConfig(
     value: EmotionOption.happy,
-    label: '기쁨',
+    label: '행복',
     emoji: '😄',
     styles: EmotionStyles(
       bg: 'bg-yellow-100',

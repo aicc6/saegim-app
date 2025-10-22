@@ -1032,7 +1032,8 @@ class _DiaryListPageState extends State<DiaryListPage> {
         final availableForChip = constraints.maxWidth - totalButtonWidth - spacing;
 
         final chip = Container(
-          width: availableForChip.clamp(120.0, constraints.maxWidth - totalButtonWidth),
+          width:
+              availableForChip.clamp(120.0, constraints.maxWidth - totalButtonWidth),
           padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
@@ -1145,8 +1146,8 @@ class _DiaryListPageState extends State<DiaryListPage> {
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(
-            color: theme.colorScheme.outline.withOpacity(0.6),
-            width: 1.0,
+            color: theme.colorScheme.outline,
+            width: 1.2,
           ),
         ),
         focusedBorder: OutlineInputBorder(
@@ -1178,10 +1179,47 @@ class _DiaryListPageState extends State<DiaryListPage> {
       );
     }
 
-    return OutlinedButton.icon(
-      onPressed: _enterSelectionMode,
-      icon: const Icon(Icons.check_box_outlined, size: 18),
-      label: const Text('일괄 선택'),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final theme = Theme.of(context);
+        final chipColor = theme.colorScheme.primary;
+
+        return Container(
+          constraints: const BoxConstraints(maxWidth: 160),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 7),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: chipColor.withOpacity(0.6)),
+            color: theme.colorScheme.surface,
+          ),
+          child: InkWell(
+            onTap: _enterSelectionMode,
+            borderRadius: BorderRadius.circular(12),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.check_box_outlined,
+                  size: 18,
+                  color: chipColor,
+                ),
+                const SizedBox(width: 3),
+                Flexible(
+                  child: Text(
+                    '일괄 선택',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
