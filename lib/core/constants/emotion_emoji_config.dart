@@ -61,9 +61,9 @@ class EmotionEmojiConfig {
     styleColored: {
       'happy': '💛',
       'sad': '💙',
-      'angry': '❤️',
+      'angry': '🧡',
       'peaceful': '💚',
-      'unrest': '🧡',
+      'unrest': '💜',
     },
 
     // 이미지 스타일 (PNG 경로)
