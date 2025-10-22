@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:saegim/core/models/app_version.dart';
@@ -27,6 +28,11 @@ class _AppVersionListenerState extends ConsumerState<AppVersionListener>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
+    // 릴리즈 모드에서만 버전 체크 수행
+    if (!kReleaseMode) {
+      return;
+    }
+
     _subscription = ref.listenManual<AppVersionState>(
       appVersionProvider,
       _handleStateChange,
@@ -47,6 +53,11 @@ class _AppVersionListenerState extends ConsumerState<AppVersionListener>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 릴리즈 모드에서만 버전 체크 수행
+    if (!kReleaseMode) {
+      return;
+    }
+
     if (state == AppLifecycleState.resumed) {
       unawaited(ref.read(appVersionProvider.notifier).checkVersion());
     }
