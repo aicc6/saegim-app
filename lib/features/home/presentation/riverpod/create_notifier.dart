@@ -825,6 +825,7 @@ class CreateNotifier extends StateNotifier<CreateState> {
     String? diaryDate,
     String? aiEmotion,
     String? userEmotion,
+    String? ocrText, // OCR로 추출된 원본 텍스트
   }) {
     if (state.generatedText?.isEmpty ?? true) {
       return null;
@@ -833,7 +834,7 @@ class CreateNotifier extends StateNotifier<CreateState> {
     try {
       // 디버깅을 위한 로그 추가
       AppLogger.info(
-        'Creating temp diary entry - userEmotion: $userEmotion, aiEmotion: $aiEmotion, state.emotion: ${state.emotion}',
+        'Creating temp diary entry - userEmotion: $userEmotion, aiEmotion: $aiEmotion, state.emotion: ${state.emotion}, handwritingImageUrl: ${state.handwritingImageUrl}',
         'CreateNotifier',
       );
 
@@ -866,11 +867,27 @@ class CreateNotifier extends StateNotifier<CreateState> {
         'CreateNotifier',
       );
 
+      // 이미지 URL 처리 로직 개선
+      List<String> imageUrls = [];
+      if (state.handwritingImageUrl != null &&
+          state.handwritingImageUrl!.isNotEmpty) {
+        imageUrls.add(state.handwritingImageUrl!);
+        AppLogger.info(
+          'Added handwriting image URL to temp entry: ${state.handwritingImageUrl}',
+          'CreateNotifier',
+        );
+      } else {
+        AppLogger.warning(
+          'No handwriting image URL available for temp entry',
+          'CreateNotifier',
+        );
+      }
+
       // 임시 다이어리 엔트리 생성
       final entry = DiaryEntry(
         id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
         title: title ?? '손글씨 다이어리',
-        content: state.generatedText!,
+        content: ocrText ?? state.generatedText!, // OCR 텍스트 우선, 없으면 AI 생성 텍스트
         aiGeneratedText: state.generatedText!,
         emotion: finalUserEmotion, // 사용자가 선택한 감정 우선
         aiEmotion: finalAiEmotion,
@@ -878,13 +895,16 @@ class CreateNotifier extends StateNotifier<CreateState> {
         createdAt: DateTime.now(),
         diaryDate: DateTime.parse(formattedDate),
         // 손글씨 이미지 URL을 images 리스트에 추가
-        images: state.handwritingImageUrl != null
-            ? [state.handwritingImageUrl!]
-            : [],
+        images: imageUrls,
       );
 
       AppLogger.info(
-        'Temp diary entry created - emotion: ${entry.emotion}, aiEmotion: ${entry.aiEmotion}',
+        'Temp diary entry created - content: "${entry.content.length} chars", aiGeneratedText: "${entry.aiGeneratedText?.length ?? 0} chars"',
+        'CreateNotifier',
+      );
+
+      AppLogger.info(
+        'Temp diary entry created - emotion: ${entry.emotion}, aiEmotion: ${entry.aiEmotion}, images: ${entry.images}',
         'CreateNotifier',
       );
 

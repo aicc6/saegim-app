@@ -574,6 +574,12 @@ class HandwritingDiaryNotifier extends StateNotifier<HandwritingDiaryState> {
       final createNotifier = ref.read(createProvider.notifier);
       final result = state.result!;
 
+      // 이미지 URL 로깅 추가
+      AppLogger.info(
+        'Transferring result to CreateNotifier - imageUrl: ${result.imageUrl}',
+        'HandwritingDiaryNotifier',
+      );
+
       // CreateNotifier 상태 업데이트
       createNotifier.setPrompt(result.extractedText);
       createNotifier.setStyle(state.style);
@@ -598,7 +604,7 @@ class HandwritingDiaryNotifier extends StateNotifier<HandwritingDiaryState> {
       );
 
       AppLogger.info(
-        'Successfully transferred result to CreateNotifier',
+        'Successfully transferred result to CreateNotifier - handwritingImageUrl: ${result.imageUrl}',
         'HandwritingDiaryNotifier',
       );
     } catch (e) {

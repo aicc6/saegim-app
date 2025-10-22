@@ -31,6 +31,18 @@ Future<void> bootstrap() async {
   await AppVersionService.instance.initialize();
   AppLogger.info('AppVersionService 초기화 완료', 'Bootstrap');
 
+  try {
+    await AppVersionService.instance.checkAppVersion();
+    AppLogger.info('앱 버전 정책 초기 로드 완료', 'Bootstrap');
+  } catch (error, stackTrace) {
+    AppLogger.error(
+      '앱 버전 정책 초기 로드 실패',
+      tag: 'Bootstrap',
+      error: error,
+      stackTrace: stackTrace,
+    );
+  }
+
   await _initializeFirebaseAndMessaging();
 
   AppLogger.info(

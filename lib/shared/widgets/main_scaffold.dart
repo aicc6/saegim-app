@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:saegim/app/routes/route_paths.dart';
 import 'package:saegim/core/theme/theme_extensions.dart';
+import 'package:saegim/shared/widgets/app_version_listener.dart';
 
 /// 메인 앱의 공통 Scaffold (하단 네비게이션 포함)
 class MainScaffold extends StatelessWidget {
@@ -16,9 +17,11 @@ class MainScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: child,
-      bottomNavigationBar: _buildBottomNavigationBar(context),
+    return AppVersionListener(
+      child: Scaffold(
+        body: child,
+        bottomNavigationBar: _buildBottomNavigationBar(context),
+      ),
     );
   }
 

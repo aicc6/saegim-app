@@ -25,79 +25,128 @@ class AppUpdateDialog extends StatelessWidget {
 
     return PopScope(
       canPop: !versionInfo.isMandatory,
-      child: AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.system_update, color: theme.colorScheme.primary),
-            const SizedBox(width: 12),
-            const Text('새로운 버전이 있습니다'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (latestVersion != null) ...[
+      child: Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 아이콘
+              Icon(
+                Icons.system_update_outlined,
+                color: theme.colorScheme.primary,
+                size: 56,
+              ),
+              const SizedBox(height: 20),
+
+              // 타이틀
               Text(
-                '최신 버전: ${latestVersion.versionName}',
-                style: theme.textTheme.titleMedium?.copyWith(
+                '업데이트',
+                style: theme.textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
+                textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
-              if (latestVersion.description != null)
+
+              // 버전 정보
+              if (latestVersion != null) ...[
+                Text(
+                  'v${latestVersion.versionName}',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+
+                // 설명 (있는 경우)
+                if (latestVersion.description != null)
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest
+                          .withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      latestVersion.description!,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                const SizedBox(height: 16),
+              ],
+
+              // 필수 업데이트 뱃지
+              if (versionInfo.isMandatory)
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.surface,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: theme.colorScheme.outline.withValues(alpha: 0.2),
-                    ),
+                    color: theme.colorScheme.errorContainer,
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                  child: Text(
-                    latestVersion.description!,
-                    style: theme.textTheme.bodyMedium,
-                  ),
-                ),
-            ],
-            const SizedBox(height: 16),
-            if (versionInfo.isMandatory)
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.errorContainer,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.warning,
-                      color: theme.colorScheme.error,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '필수 업데이트입니다. 업데이트 후 사용할 수 있습니다.',
-                        style: theme.textTheme.bodySmall?.copyWith(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.priority_high,
+                        color: theme.colorScheme.error,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '필수',
+                        style: theme.textTheme.labelMedium?.copyWith(
                           color: theme.colorScheme.onErrorContainer,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+
+              const SizedBox(height: 24),
+
+              // 버튼들
+              Row(
+                children: [
+                  if (!versionInfo.isMandatory)
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          onSkip();
+                        },
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: const Text('나중에'),
+                      ),
+                    ),
+                  if (!versionInfo.isMandatory) const SizedBox(width: 12),
+                  Expanded(
+                    flex: versionInfo.isMandatory ? 1 : 1,
+                    child: FilledButton(
+                      onPressed: () => _handleUpdate(context, latestVersion),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      child: const Text('업데이트'),
+                    ),
+                  ),
+                ],
               ),
-          ],
-        ),
-        actions: [
-          if (!versionInfo.isMandatory)
-            TextButton(onPressed: onSkip, child: const Text('나중에')),
-          FilledButton(
-            onPressed: () => _handleUpdate(context, latestVersion),
-            child: const Text('업데이트'),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

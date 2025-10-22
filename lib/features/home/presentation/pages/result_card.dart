@@ -461,7 +461,7 @@ class _MessageCardState extends State<MessageCard>
         const SizedBox(width: 8),
         Expanded(
           child: ActionButton(
-            text: '다이어리로 이동',
+            text: '다이어리',
             onPressed: () => widget.onMoveToDiary(
               currentVersion.text,
               currentVersion.emotion,
@@ -512,14 +512,15 @@ class ActionButton extends StatelessWidget {
     return ElevatedButton(
       onPressed: enabled ? onPressed : null,
       style: ElevatedButton.styleFrom(
-        backgroundColor: enabled ? Colors.blue[50] : Colors.grey[100],
-        foregroundColor: enabled ? Colors.blue[700] : Colors.grey[400],
+        backgroundColor: enabled ? Colors.white : Colors.grey[100],
+        foregroundColor: enabled ? const Color(0xFF3F764A) : Colors.grey[400],
         elevation: 0,
         padding: const EdgeInsets.symmetric(vertical: 12),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
           side: BorderSide(
-            color: enabled ? Colors.blue[200]! : Colors.grey[300]!,
+            color: enabled ? const Color(0xFF3F764A) : Colors.grey[300]!,
+            width: 1.5,
           ),
         ),
       ),
