@@ -2186,11 +2186,14 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
   Widget _buildEmotionAnalysisSection() {
     if (diary == null) return const SizedBox.shrink();
 
-    final String? rawUserEmotion = isEditMode ? _selectedEmotion : diary!.emotion;
+    final String? rawUserEmotion = isEditMode
+        ? _selectedEmotion
+        : diary!.emotion;
     final bool hasUserEmotion =
         rawUserEmotion != null && rawUserEmotion.trim().isNotEmpty;
-    final String normalizedUserEmotion =
-        hasUserEmotion ? _toEnglishEmotion(rawUserEmotion) : '';
+    final String normalizedUserEmotion = hasUserEmotion
+        ? _toEnglishEmotion(rawUserEmotion)
+        : '';
     final String userEmotionLabel = hasUserEmotion
         ? _getKoreanEmotion(rawUserEmotion)
         : '없음 (미선택)';
