@@ -17,6 +17,8 @@ class AppVersionService {
 
   late final Dio _dio;
   PackageInfo? _packageInfo;
+  CheckAppVersionResponse? _cachedResponse;
+  DateTime? _lastCheckedAt;
 
   /// 초기화 메서드
   Future<void> initialize() async {
@@ -70,6 +72,9 @@ class AppVersionService {
           'AppVersionService',
         );
 
+        _cachedResponse = result;
+        _lastCheckedAt = DateTime.now();
+
         return result;
       } else {
         throw Exception('앱 버전 체크 실패: ${response.statusCode}');
@@ -81,20 +86,30 @@ class AppVersionService {
         error: e,
       );
       // 네트워크 오류 시 업데이트 없음으로 처리
-      return const CheckAppVersionResponse(
+      const fallback = CheckAppVersionResponse(
         hasUpdate: false,
         isMandatory: false,
         message: '버전 확인 중 오류가 발생했습니다.',
       );
+      _cachedResponse = fallback;
+      _lastCheckedAt = DateTime.now();
+      return fallback;
     } catch (e) {
       AppLogger.error('앱 버전 체크 중 오류: $e', tag: 'AppVersionService', error: e);
-      return const CheckAppVersionResponse(
+      const fallback = CheckAppVersionResponse(
         hasUpdate: false,
         isMandatory: false,
         message: '버전 확인 중 오류가 발생했습니다.',
       );
+      _cachedResponse = fallback;
+      _lastCheckedAt = DateTime.now();
+      return fallback;
     }
   }
+
+  CheckAppVersionResponse? get cachedResponse => _cachedResponse;
+
+  DateTime? get lastCheckedAt => _lastCheckedAt;
 
   /// 최신 버전 정보 가져오기
   ///
