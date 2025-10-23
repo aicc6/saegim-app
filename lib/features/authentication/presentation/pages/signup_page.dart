@@ -151,6 +151,27 @@ class _SignupPageState extends ConsumerState<SignupPage> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
+    final isEmailErrorState =
+        _emailValidationStatus == 'unavailable' ||
+            _emailValidationStatus == 'invalid';
+    final String? emailHelperText = !isEmailErrorState &&
+            _emailValidationMessage.isNotEmpty
+        ? _emailValidationMessage
+        : null;
+    final Color emailHelperColor = _emailValidationStatus == 'available'
+        ? Colors.green
+        : context.secondaryText;
+    final isNicknameErrorState =
+        _nicknameValidationStatus == 'unavailable' ||
+            _nicknameValidationStatus == 'invalid';
+    final String? nicknameHelperText = !isNicknameErrorState &&
+            _nicknameValidationMessage.isNotEmpty
+        ? _nicknameValidationMessage
+        : null;
+    final Color nicknameHelperColor =
+        _nicknameValidationStatus == 'available'
+            ? Colors.green
+            : context.secondaryText;
 
     return Scaffold(
       appBar: const CommonAppBar(showBackButton: true, showMenuButton: false),
@@ -216,6 +237,12 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                 onChanged: _checkEmail,
                 decoration: InputDecoration(
                   hintText: '이메일을 입력하세요',
+                  helperText: emailHelperText,
+                  helperStyle: emailHelperText != null
+                      ? TextStyle(fontSize: 12, color: emailHelperColor)
+                      : null,
+                  errorText:
+                      isEmailErrorState ? _emailValidationMessage : null,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(
@@ -264,19 +291,6 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                   return null;
                 },
               ),
-              if (_emailValidationMessage.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(
-                    _emailValidationMessage,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: _emailValidationStatus == 'available'
-                          ? Colors.green
-                          : context.colorScheme.error,
-                    ),
-                  ),
-                ),
 
               // 인증 코드 발송 버튼
               if (_emailValidationStatus == 'available' && !_isEmailVerified)
@@ -428,6 +442,13 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                 onChanged: _checkNickname,
                 decoration: InputDecoration(
                   hintText: '닉네임을 입력하세요',
+                  helperText: nicknameHelperText,
+                  helperStyle: nicknameHelperText != null
+                      ? TextStyle(fontSize: 12, color: nicknameHelperColor)
+                      : null,
+                  errorText: isNicknameErrorState
+                      ? _nicknameValidationMessage
+                      : null,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(
@@ -482,19 +503,6 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                   return null;
                 },
               ),
-              if (_nicknameValidationMessage.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(
-                    _nicknameValidationMessage,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: _nicknameValidationStatus == 'available'
-                          ? Colors.green
-                          : context.colorScheme.error,
-                    ),
-                  ),
-                ),
 
               const SizedBox(height: 20),
 
