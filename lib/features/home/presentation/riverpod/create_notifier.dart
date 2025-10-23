@@ -793,10 +793,19 @@ class CreateNotifier extends StateNotifier<CreateState> {
             '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
       }
 
+      final userInputText = state.originalPrompt.isNotEmpty
+          ? state.originalPrompt
+          : state.prompt;
+
+      AppLogger.info(
+        'Saving to diary - userInput: "${userInputText.length} chars", aiGenerated: "${state.generatedText!.length} chars"',
+        'CreateNotifier',
+      );
+
       final result = await diaryApiService.createDiary(
-        content: state.generatedText!,
+        content: userInputText, // 사용자 입력 텍스트
         title: title ?? 'AI 생성 글',
-        aiGeneratedText: state.generatedText!,
+        aiGeneratedText: state.generatedText!, // AI 생성 텍스트
         userEmotion: state.emotion,
         aiEmotion: state.emotion,
         keywords: state.generatedKeywords,

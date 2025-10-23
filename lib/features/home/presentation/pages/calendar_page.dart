@@ -607,8 +607,13 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                                                     .colorScheme
                                                     .primaryContainer // 라이트모드에서 선택된 날짜
                                         : isCurrentMonth
-                                        ? context
-                                              .inputBackground // 현재 달 날짜
+                                        ? context.isDarkMode
+                                              ? const Color(
+                                                  0xFF3A4A3A,
+                                                ) // 다크모드에서 현재 달 날짜 - 채도 낮춘 세이지 색상
+                                              : const Color(
+                                                  0xFFF0F5F0,
+                                                ) // 라이트모드에서 현재 달 날짜 - 채도 낮춘 세이지 색상
                                         : Colors.transparent, // 다른 달 날짜는 투명
                                   ),
                                   child: Material(
