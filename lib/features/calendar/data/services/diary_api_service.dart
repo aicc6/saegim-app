@@ -971,12 +971,26 @@ class DiaryApiService {
       0,
       (sum, count) => sum + count,
     );
+    // 디버깅을 위한 로그 추가
+    AppLogger.info(
+      'Keyword statistics calculation - Total diaries: ${diaries.length}, Total keywords: $totalKeywords',
+      'DiaryApiService',
+    );
+    AppLogger.info('Keyword counts: $keywordCounts', 'DiaryApiService');
+
     final statistics = <KeywordStatistics>[];
 
     keywordCounts.forEach((keyword, count) {
       final percentage = totalKeywords > 0
           ? (count / totalKeywords * 100)
           : 0.0;
+
+      // 개별 키워드 계산 로그
+      AppLogger.info(
+        'Keyword "$keyword": count=$count, totalKeywords=$totalKeywords, percentage=${percentage.toStringAsFixed(1)}%',
+        'DiaryApiService',
+      );
+
       statistics.add(
         KeywordStatistics(
           keyword: keyword,

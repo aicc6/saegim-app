@@ -907,7 +907,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                               ),
                             ),
                             Text(
-                              '총 ${calendarState.keywordStatistics.fold(0, (sum, keyword) => sum + keyword.count)}개',
+                              '총 ${calendarState.monthlyDiaries.fold(0, (sum, diary) => sum + diary.keywords.length)}개',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: context.secondaryText,
