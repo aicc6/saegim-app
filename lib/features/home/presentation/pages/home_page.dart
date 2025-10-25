@@ -921,8 +921,9 @@ class _HomePageState extends ConsumerState<HomePage> {
     // 사용자가 선택한 감정 (없으면 null 유지)
     final emotionState = ref.read(emotionProvider);
     final userEmotionOption = emotionState.selectedEmotion;
-    final userEmotionValue =
-        userEmotionOption != EmotionOption.none ? userEmotionOption.value : null;
+    final userEmotionValue = userEmotionOption != EmotionOption.none
+        ? userEmotionOption.value
+        : null;
 
     String? convertedEmotion;
     if (emotion != null && emotion.isNotEmpty) {
@@ -943,15 +944,14 @@ class _HomePageState extends ConsumerState<HomePage> {
     }
 
     final originalPrompt = _promptController.text.trim();
-    final contentText = content;
 
     final imagePaths = selectedImages.map((xFile) => xFile.path).toList();
 
     final tempDiary = DiaryEntry(
       id: 'temp_${now.millisecondsSinceEpoch}',
       title: null,
-      content: contentText,
-      aiGeneratedText: content,
+      content: originalPrompt, // 사용자가 처음 입력한 값만 content로 전달
+      aiGeneratedText: content, // AI 텍스트도 처음 입력값(필요시 수정)
       emotion: userEmotionValue,
       aiEmotion: convertedEmotion,
       keywords: keywords ?? [],
