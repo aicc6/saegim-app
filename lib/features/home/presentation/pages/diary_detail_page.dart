@@ -203,20 +203,15 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
 
     try {
       final categoryService = DiaryCategoryService.instance;
-      final categories = await categoryService.getCategories();
+      final categories = await categoryService.getCategories(
+        forceRefresh: forceFetch,
+      );
       final diaryEntry = entry ?? diary;
 
       String? resolvedCategoryId = initialCategoryId;
-
-      if ((forceFetch ||
-              resolvedCategoryId == null ||
-              resolvedCategoryId.isEmpty) &&
-          diaryEntry != null &&
-          diaryEntry.id.isNotEmpty &&
-          !diaryEntry.id.startsWith('temp_')) {
-        resolvedCategoryId = await categoryService.getCategoryIdForDiary(
-          diaryEntry.id,
-        );
+      if ((resolvedCategoryId == null || resolvedCategoryId.isEmpty) &&
+          diaryEntry?.category != null) {
+        resolvedCategoryId = diaryEntry!.category?.id;
       }
 
       if (mounted) {
@@ -224,8 +219,8 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
           _categories = categories;
           _selectedCategoryId =
               (resolvedCategoryId != null && resolvedCategoryId.isEmpty)
-              ? null
-              : resolvedCategoryId;
+                  ? null
+                  : resolvedCategoryId;
           _isLoadingCategories = false;
         });
       }
@@ -259,6 +254,20 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
     }
 
     return '삭제된 다이어리';
+  }
+
+  DiaryCategory? _findCategoryById(String categoryId) {
+    for (final category in _categories) {
+      if (category.id == categoryId) {
+        return category;
+      }
+    }
+
+    if (diary?.category?.id == categoryId) {
+      return diary!.category;
+    }
+
+    return null;
   }
 
   Future<void> _showCreateCategoryDialog() async {
@@ -1229,6 +1238,11 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
         }
 
         // 새 다이어리 생성 시 편집 모드에서 입력한 데이터 사용
+        final selectedCategoryId =
+            (_selectedCategoryId != null && _selectedCategoryId!.isNotEmpty)
+                ? _selectedCategoryId
+                : null;
+
         final createdDiary = await DiaryApiService.instance.createDiary(
           content: contentToSave,
           title: titleText.isNotEmpty ? titleText : null, // 편집 모드에서 입력한 제목 사용
@@ -1241,21 +1255,30 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
           keywords: keywordsList.isNotEmpty ? keywordsList : null,
           diaryDate: dateString,
           uploadedImages: uploadedImages,
+          categoryId: selectedCategoryId,
         );
 
         success = createdDiary != null;
 
         if (success) {
+          final selectedCategory =
+              selectedCategoryId == null ? null : _findCategoryById(selectedCategoryId);
+
           // 새 다이어리 생성 성공 - diary 객체 업데이트
           diary = createdDiary.copyWith(
             content: contentToSave,
             aiGeneratedText: aiGeneratedTextToSave,
             title: titleText.isNotEmpty ? titleText : createdDiary.title,
+            category: selectedCategory ?? createdDiary.category,
           );
         }
       } else {
         // 기존 다이어리 업데이트
         final titleText = _titleController.text.trim();
+        final resolvedCategoryId =
+            (_selectedCategoryId != null && _selectedCategoryId!.isNotEmpty)
+                ? _selectedCategoryId
+                : null;
 
         // 제목이 비어있지 않으면 항상 전달 (빈 문자열도 허용)
         success = await DiaryApiService.instance.updateDiary(
@@ -1265,15 +1288,21 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
           keywords: keywordsList,
           aiGeneratedText: aiGeneratedTextToSave,
           diaryDate: _selectedDate, // 선택된 날짜 전달
+          categoryId: resolvedCategoryId,
         );
 
         if (success) {
+          final updatedCategory = resolvedCategoryId == null
+              ? null
+              : _findCategoryById(resolvedCategoryId);
+
           diary = diary!.copyWith(
             title: titleText,
             content: contentToSave,
             aiGeneratedText: aiGeneratedTextToSave,
             emotion: _selectedEmotion,
             keywords: keywordsList,
+            category: updatedCategory,
           );
         }
       }
@@ -1319,11 +1348,6 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
       }
 
       if (success) {
-        await DiaryCategoryService.instance.assignDiaryToCategory(
-          diary!.id,
-          _selectedCategoryId,
-        );
-
         if (imageUploadSuccess) {
           // 다이어리와 이미지 모두 성공
           if (mounted) {

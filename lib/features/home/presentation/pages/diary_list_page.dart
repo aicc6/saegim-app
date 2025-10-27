@@ -48,7 +48,6 @@ class _DiaryListPageState extends State<DiaryListPage> {
   static const String _allCategoryValue = '__all__';
   static const String _createCategoryValue = '__create__';
   List<DiaryCategory> _categories = [];
-  Map<String, String> _categoryAssignments = {};
   String? _selectedCategoryId;
   bool _isLoadingCategories = false;
   // 초기 로드 완료 플래그
@@ -279,18 +278,15 @@ class _DiaryListPageState extends State<DiaryListPage> {
     try {
       final categoryService = DiaryCategoryService.instance;
       final categories = await categoryService.getCategories();
-      final assignments = await categoryService.getAssignments();
 
       final filtered = _filterDiaries(
         _allDiaries,
-        assignments: assignments,
         categoryId: _selectedCategoryId,
       );
 
       if (mounted) {
         setState(() {
           _categories = categories;
-          _categoryAssignments = assignments;
           _displayedDiaries
             ..clear()
             ..addAll(filtered);
@@ -313,10 +309,8 @@ class _DiaryListPageState extends State<DiaryListPage> {
 
   List<DiaryEntry> _filterDiaries(
     List<DiaryEntry> source, {
-    Map<String, String>? assignments,
     String? categoryId,
   }) {
-    final resolvedAssignments = assignments ?? _categoryAssignments;
     final targetCategoryId = categoryId ?? _selectedCategoryId;
 
     if (targetCategoryId == null) {
@@ -324,13 +318,11 @@ class _DiaryListPageState extends State<DiaryListPage> {
     }
 
     if (targetCategoryId == _defaultCategoryKey) {
-      return source
-          .where((diary) => !resolvedAssignments.containsKey(diary.id))
-          .toList();
+      return source.where((diary) => diary.category == null).toList();
     }
 
     return source
-        .where((diary) => resolvedAssignments[diary.id] == targetCategoryId)
+        .where((diary) => diary.category?.id == targetCategoryId)
         .toList();
   }
 
@@ -615,7 +607,6 @@ class _DiaryListPageState extends State<DiaryListPage> {
         for (final diaryId in deletedIds) {
           _diaryImagesCache.remove(diaryId);
           _loadingImages.remove(diaryId);
-          _categoryAssignments.remove(diaryId);
           _selectedDiaryIds.remove(diaryId);
         }
 
@@ -1476,22 +1467,10 @@ class _DiaryListPageState extends State<DiaryListPage> {
     }
 
     if (categoryId == _defaultCategoryKey) {
-      return _allDiaries.where((diary) {
-        final diaryId = diary.id;
-        if (diaryId == null) {
-          return true;
-        }
-        return !_categoryAssignments.containsKey(diaryId);
-      }).length;
+      return _allDiaries.where((diary) => diary.category == null).length;
     }
 
-    return _allDiaries.where((diary) {
-      final diaryId = diary.id;
-      if (diaryId == null) {
-        return false;
-      }
-      return _categoryAssignments[diaryId] == categoryId;
-    }).length;
+    return _allDiaries.where((diary) => diary.category?.id == categoryId).length;
   }
 
   List<_CategorySheetItem> _buildCategorySheetItems() {

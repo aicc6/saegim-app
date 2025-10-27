@@ -570,6 +570,7 @@ class DiaryApiService {
     List<String>? keywords,
     String? diaryDate,
     List<Map<String, dynamic>>? uploadedImages,
+    String? categoryId,
   }) async {
     try {
       AppLogger.info('Creating new diary', 'DiaryApiService');
@@ -627,6 +628,10 @@ class DiaryApiService {
           'No uploaded_images provided for diary creation',
           'DiaryApiService',
         );
+      }
+
+      if (categoryId != null && categoryId.isNotEmpty) {
+        diaryData['category_id'] = categoryId;
       }
 
       AppLogger.info(
@@ -803,6 +808,7 @@ class DiaryApiService {
     List<String>? keywords,
     String? aiGeneratedText,
     DateTime? diaryDate,
+    String? categoryId,
   }) async {
     try {
       AppLogger.info('📝 Updating diary: $diaryId', 'DiaryApiService');
@@ -823,6 +829,9 @@ class DiaryApiService {
         updateData['diary_date'] =
             '${diaryDate.year}-${diaryDate.month.toString().padLeft(2, '0')}-${diaryDate.day.toString().padLeft(2, '0')}';
       }
+
+      // categoryId를 명시적으로 전달하여 기본 다이어리(null) 설정도 처리
+      updateData['category_id'] = categoryId;
 
       AppLogger.info('📊 Update request data: $updateData', 'DiaryApiService');
 

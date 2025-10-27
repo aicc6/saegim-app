@@ -1,10 +1,12 @@
 import 'package:json_annotation/json_annotation.dart';
+import 'package:saegim/features/home/data/models/diary_category_model.dart';
 
 part 'diary_model.g.dart';
 
 /// 다이어리 엔트리 모델
 @JsonSerializable()
 class DiaryEntry {
+  static const _unset = Object();
   @JsonKey(name: 'id')
   final String id;
 
@@ -40,6 +42,13 @@ class DiaryEntry {
   @JsonKey(name: 'images', fromJson: _imagesFromJson)
   final List<String> images;
 
+  @JsonKey(
+    name: 'category',
+    fromJson: _categoryFromJson,
+    toJson: _categoryToJson,
+  )
+  final DiaryCategory? category;
+
   static List<String> _imagesFromJson(dynamic json) {
     if (json == null) return [];
     if (json is! List) return [];
@@ -70,6 +79,7 @@ class DiaryEntry {
     required this.createdAt,
     this.isPublic,
     this.images = const [],
+    this.category,
   });
 
   // 감정 이모티콘 매핑 (5가지 기본 감정) - AI 분석 감정 우선
@@ -114,6 +124,7 @@ class DiaryEntry {
     DateTime? createdAt,
     bool? isPublic,
     List<String>? images,
+    Object? category = _unset,
   }) {
     return DiaryEntry(
       id: id ?? this.id,
@@ -127,7 +138,24 @@ class DiaryEntry {
       createdAt: createdAt ?? this.createdAt,
       isPublic: isPublic ?? this.isPublic,
       images: images ?? this.images,
+      category: category == _unset ? this.category : category as DiaryCategory?,
     );
+  }
+
+  static DiaryCategory? _categoryFromJson(dynamic json) {
+    if (json == null) return null;
+    if (json is Map<String, dynamic>) {
+      final id = json['id'];
+      final name = json['name'];
+      if (id is String && name is String) {
+        return DiaryCategory.fromApiJson(json);
+      }
+    }
+    return null;
+  }
+
+  static Map<String, dynamic>? _categoryToJson(DiaryCategory? category) {
+    return category?.toApiJson();
   }
 }
 
