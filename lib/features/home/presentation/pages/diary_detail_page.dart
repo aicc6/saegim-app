@@ -1195,44 +1195,18 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
 
         final titleText = _titleController.text.trim();
 
-        // 손글씨 이미지가 있다면 uploadedImages 형태로 변환
-        List<Map<String, dynamic>>? uploadedImages;
-
         // tempEntry에서 이미지 가져오기 (손글씨 다이어리인 경우)
-        List<String> imagesToUse = [];
+        List<String> imagesToUploadLater = [];
         if (widget.tempEntry != null && widget.tempEntry!.images.isNotEmpty) {
-          imagesToUse = widget.tempEntry!.images;
+          imagesToUploadLater = widget.tempEntry!.images;
           AppLogger.info(
-            'Using images from tempEntry for diary creation: ${imagesToUse.length} images',
+            'Found images from tempEntry for later upload: ${imagesToUploadLater.length} images',
             'DiaryDetailPage',
           );
         } else if (diary!.images.isNotEmpty) {
-          imagesToUse = diary!.images;
+          imagesToUploadLater = diary!.images;
           AppLogger.info(
-            'Using images from diary object for diary creation: ${imagesToUse.length} images',
-            'DiaryDetailPage',
-          );
-        }
-
-        if (imagesToUse.isNotEmpty) {
-          uploadedImages = imagesToUse
-              .map(
-                (imageUrl) => {
-                  'original_url': imageUrl,
-                  'thumbnail_url': null,
-                  'mime_type': null,
-                  'file_size': null,
-                },
-              )
-              .toList();
-
-          AppLogger.info(
-            'Converted images to uploadedImages format: ${uploadedImages.length} images',
-            'DiaryDetailPage',
-          );
-        } else {
-          AppLogger.warning(
-            'No images found for diary creation',
+            'Found images from diary object for later upload: ${imagesToUploadLater.length} images',
             'DiaryDetailPage',
           );
         }
@@ -1243,6 +1217,7 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
                 ? _selectedCategoryId
                 : null;
 
+        // 다이어리 생성 시 uploaded_images 제거 (별도로 업로드할 예정)
         final createdDiary = await DiaryApiService.instance.createDiary(
           content: contentToSave,
           title: titleText.isNotEmpty ? titleText : null, // 편집 모드에서 입력한 제목 사용
@@ -1254,7 +1229,7 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
           aiEmotionConfidence: 0.8,
           keywords: keywordsList.isNotEmpty ? keywordsList : null,
           diaryDate: dateString,
-          uploadedImages: uploadedImages,
+          uploadedImages: null, // 로컬 경로 전송 방지
           categoryId: selectedCategoryId,
         );
 
@@ -1271,6 +1246,37 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
             title: titleText.isNotEmpty ? titleText : createdDiary.title,
             category: selectedCategory ?? createdDiary.category,
           );
+
+          // 다이어리 생성 후 이미지 업로드
+          if (imagesToUploadLater.isNotEmpty) {
+            AppLogger.info(
+              'Uploading ${imagesToUploadLater.length} images after diary creation',
+              'DiaryDetailPage',
+            );
+
+            final uploadedImages = await DiaryApiService.instance.uploadDiaryImages(
+              diaryId: createdDiary.id,
+              imagePaths: imagesToUploadLater,
+            );
+
+            if (uploadedImages != null && uploadedImages.isNotEmpty) {
+              AppLogger.info(
+                'Successfully uploaded ${uploadedImages.length} images',
+                'DiaryDetailPage',
+              );
+              // 업로드된 이미지를 diaryImages 목록에 추가
+              if (mounted) {
+                setState(() {
+                  diaryImages.addAll(uploadedImages);
+                });
+              }
+            } else {
+              AppLogger.warning(
+                'Failed to upload images for diary: ${createdDiary.id}',
+                'DiaryDetailPage',
+              );
+            }
+          }
         }
       } else {
         // 기존 다이어리 업데이트
@@ -3044,12 +3050,13 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
     );
   }
 
-  // 기존 이미지 카드 (서버에서 가져온 이미지)
+  // 기존 이미지 카드 (서버에서 가져온 이미지 또는 로컬 이미지)
   Widget _buildExistingImageCard(DiaryImage image, int index) {
     final imageUrl = image.fullImageUrl;
+    final filePath = image.filePath;
 
     // 유효하지 않은 이미지 URL인 경우 에러 위젯 표시
-    if (imageUrl.isEmpty) {
+    if (imageUrl.isEmpty && (filePath == null || filePath.isEmpty)) {
       return Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
@@ -3076,6 +3083,11 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
       );
     }
 
+    // 로컬 파일 경로인지 확인
+    final isLocalFile = filePath != null &&
+                        !filePath.startsWith('http://') &&
+                        !filePath.startsWith('https://');
+
     return Stack(
       children: [
         GestureDetector(
@@ -3087,36 +3099,74 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                imageUrl,
-                fit: BoxFit.cover,
-                width: double.infinity,
-                height: double.infinity,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
+              child: isLocalFile
+                  ? Image.file(
+                      File(filePath),
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                      errorBuilder: (context, error, stackTrace) {
+                        AppLogger.error(
+                          'Failed to load local image: $filePath',
+                          tag: 'DiaryDetailPage',
+                          error: error,
+                        );
 
-                  return Container(
-                    color: context.colorScheme.surfaceContainerHighest,
-                    child: Center(
-                      child: CircularProgressIndicator(
-                        value: loadingProgress.expectedTotalBytes != null
-                            ? loadingProgress.cumulativeBytesLoaded /
-                                  loadingProgress.expectedTotalBytes!
-                            : null,
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          context.colorScheme.primary,
-                        ),
-                      ),
-                    ),
-                  );
-                },
-                errorBuilder: (context, error, stackTrace) {
-                  AppLogger.error(
-                    'Failed to load image: ${image.fullImageUrl}',
-                    tag: 'DiaryDetailPage',
-                    error: error,
-                  );
+                        return Container(
+                          color: context.colorScheme.surfaceContainerHighest,
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.broken_image_outlined,
+                                  size: 32,
+                                  color: context.placeholderText,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  '이미지 로드 실패',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: context.placeholderText,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    )
+                  : Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+
+                        return Container(
+                          color: context.colorScheme.surfaceContainerHighest,
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded /
+                                        loadingProgress.expectedTotalBytes!
+                                  : null,
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                context.colorScheme.primary,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        AppLogger.error(
+                          'Failed to load image: ${image.fullImageUrl}',
+                          tag: 'DiaryDetailPage',
+                          error: error,
+                        );
 
                   return Container(
                     color: context.colorScheme.surfaceContainerHighest,

@@ -717,12 +717,22 @@ class _SignupPageState extends ConsumerState<SignupPage> {
     if (!mounted) return;
 
     if (success) {
-      // 회원가입 후 홈페이지로 이동
-      context.go(RoutePaths.home);
-    } else {
+      // 회원가입 성공 시 로그인 페이지로 이동
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('회원가입에 실패했습니다. 다시 시도해주세요.'),
+          content: const Text('회원가입이 완료되었습니다. 로그인해주세요.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      context.go(RoutePaths.authLogin);
+    } else {
+      final authState = ref.read(authNotifierProvider);
+      final errorMessage = authState.errorMessage ??
+          '회원가입에 실패했습니다. 다시 시도해주세요.';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMessage),
           backgroundColor: context.colorScheme.error,
         ),
       );

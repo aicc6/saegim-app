@@ -486,15 +486,9 @@ class AuthNotifier extends _$AuthNotifier {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = response.data;
-        state = state.copyWith(
-          isAuthenticated: true,
-          userId: data['user_id']?.toString(),
-          userEmail: data['email']?.toString(),
-          isLoading: false,
-        );
-
         AppLogger.info('Signup successful for user: $email');
+
+        state = state.copyWith(isLoading: false);
         return true;
       } else {
         throw Exception('회원가입에 실패했습니다.');
