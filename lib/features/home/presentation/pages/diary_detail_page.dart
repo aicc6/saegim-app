@@ -219,8 +219,8 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
           _categories = categories;
           _selectedCategoryId =
               (resolvedCategoryId != null && resolvedCategoryId.isEmpty)
-                  ? null
-                  : resolvedCategoryId;
+              ? null
+              : resolvedCategoryId;
           _isLoadingCategories = false;
         });
       }
@@ -1195,29 +1195,45 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
 
         final titleText = _titleController.text.trim();
 
-        // tempEntry에서 이미지 가져오기 (손글씨 다이어리인 경우)
-        List<String> imagesToUploadLater = [];
+        // tempEntry/diary에 포함된 이미지 수집
+        // - URL(이미 서버에 업로드된 이미지)은 생성 시 uploaded_images로 전달
+        // - 로컬 파일 경로는 생성 후 업로드
+        final List<String> collectedImages = [];
         if (widget.tempEntry != null && widget.tempEntry!.images.isNotEmpty) {
-          imagesToUploadLater = widget.tempEntry!.images;
+          collectedImages.addAll(widget.tempEntry!.images);
           AppLogger.info(
-            'Found images from tempEntry for later upload: ${imagesToUploadLater.length} images',
+            'Collected ${widget.tempEntry!.images.length} images from tempEntry',
             'DiaryDetailPage',
           );
         } else if (diary!.images.isNotEmpty) {
-          imagesToUploadLater = diary!.images;
+          collectedImages.addAll(diary!.images);
           AppLogger.info(
-            'Found images from diary object for later upload: ${imagesToUploadLater.length} images',
+            'Collected ${diary!.images.length} images from diary object',
             'DiaryDetailPage',
           );
         }
 
+        // URL과 로컬 파일로 분리
+        final urlImages = collectedImages
+            .where((p) => p.startsWith('http://') || p.startsWith('https://'))
+            .toList();
+        final localImages = collectedImages
+            .where(
+              (p) => !(p.startsWith('http://') || p.startsWith('https://')),
+            )
+            .toList();
+
         // 새 다이어리 생성 시 편집 모드에서 입력한 데이터 사용
         final selectedCategoryId =
             (_selectedCategoryId != null && _selectedCategoryId!.isNotEmpty)
-                ? _selectedCategoryId
-                : null;
+            ? _selectedCategoryId
+            : null;
 
-        // 다이어리 생성 시 uploaded_images 제거 (별도로 업로드할 예정)
+        // 다이어리 생성 시 URL 이미지는 uploaded_images로 바로 연결
+        final uploadedImagesForCreate = urlImages
+            .map((url) => {'original_url': url})
+            .toList();
+
         final createdDiary = await DiaryApiService.instance.createDiary(
           content: contentToSave,
           title: titleText.isNotEmpty ? titleText : null, // 편집 모드에서 입력한 제목 사용
@@ -1229,15 +1245,18 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
           aiEmotionConfidence: 0.8,
           keywords: keywordsList.isNotEmpty ? keywordsList : null,
           diaryDate: dateString,
-          uploadedImages: null, // 로컬 경로 전송 방지
+          uploadedImages: uploadedImagesForCreate.isNotEmpty
+              ? uploadedImagesForCreate
+              : null,
           categoryId: selectedCategoryId,
         );
 
         success = createdDiary != null;
 
         if (success) {
-          final selectedCategory =
-              selectedCategoryId == null ? null : _findCategoryById(selectedCategoryId);
+          final selectedCategory = selectedCategoryId == null
+              ? null
+              : _findCategoryById(selectedCategoryId);
 
           // 새 다이어리 생성 성공 - diary 객체 업데이트
           diary = createdDiary.copyWith(
@@ -1247,34 +1266,29 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
             category: selectedCategory ?? createdDiary.category,
           );
 
-          // 다이어리 생성 후 이미지 업로드
-          if (imagesToUploadLater.isNotEmpty) {
+          // 생성 후 남아있는 로컬 이미지가 있으면 업로드
+          if (localImages.isNotEmpty) {
             AppLogger.info(
-              'Uploading ${imagesToUploadLater.length} images after diary creation',
+              'Uploading ${localImages.length} local images after creation',
               'DiaryDetailPage',
             );
 
-            final uploadedImages = await DiaryApiService.instance.uploadDiaryImages(
-              diaryId: createdDiary.id,
-              imagePaths: imagesToUploadLater,
-            );
+            final uploadedImages = await DiaryApiService.instance
+                .uploadDiaryImages(
+                  diaryId: createdDiary.id,
+                  imagePaths: localImages,
+                );
 
             if (uploadedImages != null && uploadedImages.isNotEmpty) {
               AppLogger.info(
-                'Successfully uploaded ${uploadedImages.length} images',
+                'Successfully uploaded ${uploadedImages.length} local images',
                 'DiaryDetailPage',
               );
-              // 업로드된 이미지를 diaryImages 목록에 추가
               if (mounted) {
                 setState(() {
                   diaryImages.addAll(uploadedImages);
                 });
               }
-            } else {
-              AppLogger.warning(
-                'Failed to upload images for diary: ${createdDiary.id}',
-                'DiaryDetailPage',
-              );
             }
           }
         }
@@ -1283,8 +1297,8 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
         final titleText = _titleController.text.trim();
         final resolvedCategoryId =
             (_selectedCategoryId != null && _selectedCategoryId!.isNotEmpty)
-                ? _selectedCategoryId
-                : null;
+            ? _selectedCategoryId
+            : null;
 
         // 제목이 비어있지 않으면 항상 전달 (빈 문자열도 허용)
         success = await DiaryApiService.instance.updateDiary(
@@ -3084,9 +3098,10 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
     }
 
     // 로컬 파일 경로인지 확인
-    final isLocalFile = filePath != null &&
-                        !filePath.startsWith('http://') &&
-                        !filePath.startsWith('https://');
+    final isLocalFile =
+        filePath != null &&
+        !filePath.startsWith('http://') &&
+        !filePath.startsWith('https://');
 
     return Stack(
       children: [
@@ -3168,31 +3183,31 @@ class _DiaryDetailPageState extends ConsumerState<DiaryDetailPage> {
                           error: error,
                         );
 
-                  return Container(
-                    color: context.colorScheme.surfaceContainerHighest,
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.broken_image_outlined,
-                            size: 32,
-                            color: context.placeholderText,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            '이미지 로드 실패',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: context.placeholderText,
+                        return Container(
+                          color: context.colorScheme.surfaceContainerHighest,
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.broken_image_outlined,
+                                  size: 32,
+                                  color: context.placeholderText,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  '이미지 로드 실패',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: context.placeholderText,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
             ),
           ),
         ),
